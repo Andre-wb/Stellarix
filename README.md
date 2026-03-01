@@ -3,9 +3,9 @@
 
 [![Rust](https://img.shields.io/badge/Rust-core-orange?logo=rust&style=flat-square)](https://www.rust-lang.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-backend-009688?logo=fastapi&style=flat-square)](https://fastapi.tiangolo.com/)
-[![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python&style=flat-square)](https://python.org)
-[![SQLite](https://img.shields.io/badge/SQLite-database-003B57?logo=sqlite&style=flat-square)](https://sqlite.org)
-[![WebRTC](https://img.shields.io/badge/WebRTC-333333?logo=webrtc&style=flat-square)](https://webrtc.org)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&style=flat-square)](https://www.python.org/)
+[![SQLite](https://img.shields.io/badge/SQLite-database-003B57?logo=sqlite&style=flat-square)](https://www.sqlite.org/)
+[![WebRTC](https://img.shields.io/badge/WebRTC-333333?logo=webrtc&style=flat-square)](https://webrtc.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-red?style=flat-square)](LICENSE)
 
 **VORTEX** — это полностью децентрализованный чат для локальных сетей (Wi-Fi, Ethernet).  
