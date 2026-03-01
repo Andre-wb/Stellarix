@@ -560,3 +560,293 @@ video {
     #sidebar.open { transform: translateX(0); }
     .auth-card { width: calc(100vw - 32px); padding: 24px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Добавить в конец main.css (заменить старые блоки #file-preview-overlay)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Chat image bubbles ── */
+.msg-bubble-img {
+    cursor: pointer;
+    padding: 4px !important;
+    overflow: hidden;
+    max-width: min(320px, 68%);
+    transition: opacity 0.15s;
+}
+.msg-bubble-img:hover { opacity: 0.85; }
+
+.chat-image {
+    width: 100%;
+    max-width: 100%;
+    max-height: 300px;
+    height: auto;
+    object-fit: contain;
+    border-radius: 6px;
+    display: block;
+}
+.chat-image-meta {
+    font-size: 11px; color: var(--text3);
+    font-family: var(--mono);
+    padding: 4px 6px 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ── File preview overlay ── */
+#file-preview-overlay {
+    position: fixed; inset: 0; z-index: 300;
+    background: var(--bg);
+    display: none;
+    flex-direction: column;
+    animation: fadeIn 0.18s ease;
+}
+#file-preview-overlay.show { display: flex; }
+
+/* Topbar */
+.fpo-topbar {
+    height: 56px;
+    padding: 0 16px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+    flex-shrink: 0;
+    position: relative;
+}
+.fpo-close-btn {
+    width: 34px; height: 34px; border-radius: var(--radius);
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text2); cursor: pointer; font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.12s; flex-shrink: 0;
+}
+.fpo-close-btn:hover { color: var(--text); border-color: var(--accent); }
+
+.fpo-title {
+    flex: 1; font-weight: 700; font-size: 14px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Three dots */
+.fpo-dots-wrap { position: relative; flex-shrink: 0; }
+.fpo-dots-btn {
+    width: 34px; height: 34px; border-radius: var(--radius);
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text2); cursor: pointer; font-size: 20px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.12s;
+    /* убираем стандартный outline — у нас своя система фокуса */
+    outline: none;
+}
+.fpo-dots-btn:hover { color: var(--text); border-color: var(--accent); }
+
+.fpo-dot-menu {
+    display: none;
+    position: absolute; right: 0; top: calc(100% + 6px);
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    min-width: 220px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    z-index: 10;
+    overflow: hidden;
+    animation: fadeUp 0.15s ease;
+}
+.fpo-dot-menu.show { display: block; }
+
+.fpo-dot-item {
+    padding: 12px 16px;
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    color: var(--text);
+    transition: background 0.1s;
+}
+.fpo-dot-item:hover { background: var(--bg3); }
+.fpo-dot-item span { font-size: 16px; color: var(--text2); }
+
+/* Preview area */
+.fpo-preview {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+    min-height: 0;
+    background: var(--bg);
+}
+
+.fpo-preview img {
+    max-width: 100%; max-height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+    /* Переопределяем глобальный video {} который мог бы мешать */
+    position: static !important;
+    border: none !important;
+}
+
+.fpo-file-card {
+    display: flex; align-items: center; gap: 20px;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 14px; padding: 28px 36px;
+}
+.fpo-file-icon { font-size: 48px; }
+.fpo-file-name-card {
+    font-size: 16px; font-weight: 700; color: var(--text);
+    max-width: 320px; word-break: break-all;
+}
+.fpo-file-size-card {
+    font-size: 13px; color: var(--text2);
+    font-family: var(--mono); margin-top: 4px;
+}
+
+/* Compression section */
+#compress-section {
+    padding: 0 24px 16px;
+    flex-shrink: 0;
+    background: var(--bg);
+}
+
+.compress-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px;
+}
+.compress-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 1px;
+    color: var(--text3); text-transform: uppercase;
+}
+.compress-meta {
+    font-size: 12px; font-family: var(--mono);
+    color: var(--text2);
+    display: flex; align-items: center; gap: 8px;
+}
+.compress-sep { color: var(--border); }
+
+/* Slider */
+.compress-track { width: 100%; }
+
+#compress-slider {
+    width: 100%;
+    -webkit-appearance: none; appearance: none;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none; cursor: pointer;
+    position: relative;
+}
+/* Заполненная часть (через JS мы этого не делаем — используем gradient) */
+#compress-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--accent2);
+    border: 3px solid var(--bg);
+    box-shadow: 0 0 0 2px var(--accent), 0 2px 8px rgba(124,58,237,0.4);
+    cursor: pointer;
+    transition: box-shadow 0.15s, transform 0.15s;
+}
+#compress-slider::-webkit-slider-thumb:hover {
+    box-shadow: 0 0 0 3px var(--accent2), 0 2px 12px rgba(168,85,247,0.5);
+    transform: scale(1.1);
+}
+#compress-slider::-moz-range-thumb {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--accent2); border: 3px solid var(--bg);
+    box-shadow: 0 0 0 2px var(--accent);
+    cursor: pointer;
+}
+#compress-slider:disabled { opacity: 0.3; }
+
+.compress-hints {
+    display: flex; justify-content: space-between;
+    font-size: 10px; color: var(--text3); font-family: var(--mono);
+    margin-top: 6px;
+}
+
+/* Bottom bar */
+.fpo-bottom-bar {
+    padding: 14px 20px;
+    background: var(--bg2); border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; flex-shrink: 0;
+}
+.fpo-meta { display: flex; align-items: center; gap: 8px; }
+.fpo-meta-size {
+    font-size: 13px; color: var(--text2); font-family: var(--mono);
+}
+
+.fpo-actions { display: flex; gap: 8px; }
+
+.fpo-cancel-btn {
+    padding: 10px 20px; border-radius: var(--radius);
+    background: var(--bg3); border: 1px solid var(--border);
+    color: var(--text2); font-family: var(--sans); font-weight: 700;
+    font-size: 13px; cursor: pointer; transition: all 0.12s;
+}
+.fpo-cancel-btn:hover { color: var(--text); border-color: var(--accent); }
+.fpo-cancel-btn:disabled { opacity: 0.4; pointer-events: none; }
+
+.fpo-send-btn {
+    padding: 10px 24px; border-radius: var(--radius);
+    background: var(--accent); border: 1px solid var(--accent);
+    color: white; font-family: var(--sans); font-weight: 700;
+    font-size: 13px; cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    display: flex; align-items: center; gap: 8px;
+}
+.fpo-send-btn:hover { background: var(--accent2); transform: translateY(-1px); }
+.fpo-send-btn:active { transform: translateY(0); }
+.fpo-send-btn:disabled { opacity: 0.5; pointer-events: none; }
+
+/* Upload spinner */
+.upload-spinner {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white; border-radius: 50%;
+    animation: spin 0.8s linear infinite; flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Image viewer ── */
+#image-viewer-overlay {
+    position: fixed; inset: 0; z-index: 400;
+    background: rgba(0,0,0,0.96);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    cursor: zoom-out;
+}
+#image-viewer-overlay.show { display: flex; }
+
+.iv-close {
+    position: absolute; top: 20px; right: 20px;
+    width: 40px; height: 40px; border-radius: 50%;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);
+    color: #fff; font-size: 20px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s; z-index: 1;
+}
+.iv-close:hover { background: rgba(255,255,255,0.18); }
+
+.iv-name {
+    position: absolute; top: 22px; left: 50%; transform: translateX(-50%);
+    color: rgba(255,255,255,0.6); font-size: 13px; font-family: var(--mono);
+    white-space: nowrap; max-width: 60%; overflow: hidden; text-overflow: ellipsis;
+}
+
+.iv-content {
+    max-width: 94vw; max-height: 88vh;
+    cursor: default;
+}
+
+#image-viewer-img {
+    max-width: 100%; max-height: 88vh;
+    object-fit: contain; border-radius: 6px;
+    display: block;
+    /* Не дать глобальному video{position:absolute} сломать позицию */
+    position: static !important;
+    border: none !important; background: transparent !important;
+    width: auto !important; height: auto !important;
+    box-shadow: 0 8px 60px rgba(0,0,0,0.7);
+}
+
+.iv-download {
+    position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+    color: rgba(255,255,255,0.4); font-size: 12px; font-family: var(--mono);
+    text-decoration: none; transition: color 0.15s;
+}
+.iv-download:hover { color: var(--accent2); }

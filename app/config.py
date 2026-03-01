@@ -28,26 +28,26 @@ def _auto_secret(key: str) -> str:
 
 
 class Config:
-    JWT_SECRET          = _auto_secret("JWT_SECRET")
-    CSRF_SECRET         = _auto_secret("CSRF_SECRET")
-    ACCESS_TOKEN_EXPIRE_MIN   = int(os.getenv("ACCESS_TOKEN_EXPIRE_MIN", "1440"))
+    JWT_SECRET = _auto_secret("JWT_SECRET")
+    CSRF_SECRET = _auto_secret("CSRF_SECRET")
+    ACCESS_TOKEN_EXPIRE_MIN = int(os.getenv("ACCESS_TOKEN_EXPIRE_MIN", "60"))
     REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "30"))
-    HOST                = os.getenv("HOST", "0.0.0.0")
-    PORT                = int(os.getenv("PORT", "9000"))
-    DEVICE_NAME         = os.getenv("DEVICE_NAME", "")
-    DB_PATH             = os.getenv("DB_PATH", "vortex.db")
-    UPLOAD_DIR          = Path(os.getenv("UPLOAD_DIR", "uploads"))
-    KEYS_DIR            = Path(os.getenv("KEYS_DIR", "keys"))
-    ENVIRONMENT         = os.getenv("ENVIRONMENT", "development")
-    IS_PRODUCTION       = ENVIRONMENT == "production"
-    UDP_PORT            = int(os.getenv("UDP_PORT", "4200"))
-    UDP_INTERVAL_SEC    = int(os.getenv("UDP_INTERVAL_SEC", "2"))
-    PEER_TIMEOUT_SEC    = int(os.getenv("PEER_TIMEOUT_SEC", "15"))
-    MAX_FILE_MB         = int(os.getenv("MAX_FILE_MB", "100"))
-    MAX_FILE_BYTES      = MAX_FILE_MB * 1024 * 1024
+    HOST = os.getenv("HOST", "0.0.0.0")
+    PORT = int(os.getenv("PORT", "9000"))
+    DEVICE_NAME = os.getenv("DEVICE_NAME", "")
+    DB_PATH = os.getenv("DB_PATH", "vortex.db")
+    UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "uploads"))
+    KEYS_DIR = Path(os.getenv("KEYS_DIR", "keys"))
+    ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+    IS_PRODUCTION = ENVIRONMENT == "production"
+    UDP_PORT = int(os.getenv("UDP_PORT", "4200"))
+    UDP_INTERVAL_SEC = int(os.getenv("UDP_INTERVAL_SEC", "2"))
+    PEER_TIMEOUT_SEC = int(os.getenv("PEER_TIMEOUT_SEC", "15"))
+    MAX_FILE_MB = int(os.getenv("MAX_FILE_MB", "100"))
+    MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024
     WAF_RATE_LIMIT_REQUESTS = int(os.getenv("WAF_RATE_LIMIT_REQUESTS", "120"))
-    WAF_RATE_LIMIT_WINDOW   = int(os.getenv("WAF_RATE_LIMIT_WINDOW", "60"))
-    WAF_BLOCK_DURATION      = int(os.getenv("WAF_BLOCK_DURATION", "3600"))
+    WAF_RATE_LIMIT_WINDOW = int(os.getenv("WAF_RATE_LIMIT_WINDOW", "60"))
+    WAF_BLOCK_DURATION = int(os.getenv("WAF_BLOCK_DURATION", "3600"))
 
     @classmethod
     def ensure_dirs(cls) -> None:

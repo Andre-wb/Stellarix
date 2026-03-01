@@ -1,10 +1,7 @@
 import { $ } from './utils.js';
 import { renderRoomsList } from './rooms.js';
 import { connectWS } from './chat.js';
-
-// ============================================================================
-// UI Helpers
-// ============================================================================
+import { connectSignal } from './webrtc.js';
 
 export function showWelcome() {
     $('welcome-screen').classList.add('active');
@@ -29,16 +26,14 @@ export function openRoom(id) {
     const room = S.rooms.find(r => r.id === id);
     if (!room) return;
     S.currentRoom = room;
-
     if (S.ws) { S.ws.close(); S.ws = null; }
-
     showChatScreen();
     $('messages-container').innerHTML = '';
     $('chat-room-name').textContent = room.name;
     $('chat-room-meta').textContent = `${room.member_count} участников · ${room.online_count} онлайн`;
-
     renderRoomsList();
     connectWS(id);
+    connectSignal(id);
 }
 
 export function showProfileModal() {

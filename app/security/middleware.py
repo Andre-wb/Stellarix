@@ -1,5 +1,5 @@
 """
-Middleware стек — перенесён из старого проекта и улучшен.
+Middleware стек.
 
 Порядок подключения (в main.py):
   1. SecurityHeadersMiddleware  — безопасные заголовки
@@ -25,19 +25,11 @@ from app.database import SessionLocal
 from app.security.auth_jwt import verify_refresh_token, create_access_token
 
 logger = logging.getLogger(__name__)
-
 _IS_PROD = os.getenv("ENVIRONMENT", "development") == "production"
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# Security Headers
-# ══════════════════════════════════════════════════════════════════════════════
-
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    """
-    Устанавливает заголовки безопасности.
-    CSP настроен для работы с WebRTC и WebSocket.
-    """
+    """Устанавливает заголовки безопасности. CSP настроен для WebRTC и WebSocket."""
 
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
@@ -52,7 +44,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Cross-Origin-Opener-Policy"]   = "same-origin"
         response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
 
-        # Для локальной сети: HSTS только в продакшн
         if _IS_PROD:
             response.headers["Strict-Transport-Security"] = (
                 "max-age=31536000; includeSubDomains; preload"
@@ -60,15 +51,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         else:
             response.headers["Strict-Transport-Security"] = "max-age=86400"
 
-        # CSP — разрешаем WebSocket и WebRTC для всех источников (локальная сеть)
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             "script-src 'self' 'unsafe-inline'; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: blob:; "
-            "connect-src 'self' ws: wss: http: https:; "   # WebSocket + P2P
-            "media-src 'self' blob:; "                     # WebRTC media
+            "connect-src 'self' ws: wss: http: https:; "
+            "media-src 'self' blob:; "
             "frame-src 'none'; "
             "frame-ancestors 'none'; "
             "object-src 'none'; "
@@ -77,19 +67,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         )
 
         response.headers["Permissions-Policy"] = (
-            "geolocation=(), "
-            "payment=(), "
-            "usb=(), "
-            "microphone=(self), "    # нужно для звонков
-            "camera=(self)"          # нужно для видео
+            "geolocation=(), payment=(), usb=(), "
+            "microphone=(self), camera=(self)"
         )
 
         return response
 
-
-# ══════════════════════════════════════════════════════════════════════════════
-# Logging
-# ══════════════════════════════════════════════════════════════════════════════
 
 class LoggingMiddleware(BaseHTTPMiddleware):
     """Логирует все HTTP запросы с временем обработки."""
@@ -116,77 +99,82 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         return response
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# CSRF Protection
-# ══════════════════════════════════════════════════════════════════════════════
-
 class CSRFMiddleware(BaseHTTPMiddleware):
     """
     Double-submit cookie CSRF защита.
-    REST API (application/json) проверяет X-CSRF-Token заголовок.
-    Form-encoded — скрытое поле csrf_token.
-    WebSocket и статика — пропускаются.
+
+    BUG-001 FIX: оригинал вызывал `await request.form()` для multipart запросов
+    чтобы найти поле csrf_token в теле. Это дренировало ASGI receive()-стрим:
+    upload_file handler получал пустое тело → зависал бесконечно → браузер
+    таймаутил через 5–10 с → Chrome: "Failed to fetch", Safari: молчит.
+
+    Решение: для multipart/form-data тело НЕ читаем вообще.
+    Клиент (sendPendingFile в chat.js) передаёт X-CSRF-Token в заголовке —
+    читаем только его. Тело остаётся нетронутым для upload handler.
     """
 
     _SAFE_METHODS  = frozenset({"GET", "HEAD", "OPTIONS", "TRACE"})
     _SKIP_PATHS    = frozenset({
         "/health", "/favicon.ico", "/robots.txt",
-        "/api/authentication/login", "/api/authentication/register", "/api/authentication/refresh",
-        "/api/peers/receive",   # P2P endpoint — аутентифицируется иначе
+        "/api/authentication/login", "/api/authentication/register",
+        "/api/authentication/refresh",
+        "/api/peers/receive",
         "/api/docs",
     })
     _SKIP_PREFIXES = ("/static/", "/waf/")
 
     async def dispatch(self, request: Request, call_next):
-        # Пропускаем WebSocket upgrade
         if request.headers.get("upgrade", "").lower() == "websocket":
             return await call_next(request)
 
-        # Пропускаем безопасные пути
         path = request.url.path
         if path in self._SKIP_PATHS or any(path.startswith(p) for p in self._SKIP_PREFIXES):
             response = await call_next(request)
             self._set_csrf_cookie(response, request)
             return response
 
-        # Генерируем/читаем CSRF token из cookie
         csrf_cookie = request.cookies.get("csrf_token")
         if not csrf_cookie:
             csrf_cookie = secrets.token_urlsafe(32)
 
         request.state.csrf_token = csrf_cookie
 
-        # Безопасные методы — только устанавливаем cookie
         if request.method in self._SAFE_METHODS:
             response = await call_next(request)
             self._set_csrf_cookie(response, request, csrf_cookie)
             return response
 
-        # Для POST/PUT/PATCH/DELETE — проверяем токен
         content_type = request.headers.get("content-type", "")
         submitted    = None
 
         try:
             if "application/json" in content_type:
-                # Для JSON — проверяем заголовок X-CSRF-Token
                 submitted = request.headers.get("x-csrf-token")
                 if not submitted:
                     body_bytes = await request.body()
                     if body_bytes:
-                        body = json.loads(body_bytes.decode("utf-8", errors="ignore"))
-                        submitted = body.get("csrf_token")
-                    request._body = body_bytes
+                        try:
+                            body = json.loads(body_bytes.decode("utf-8", errors="ignore"))
+                            submitted = body.get("csrf_token")
+                        except (json.JSONDecodeError, AttributeError):
+                            pass
+                    if not hasattr(request, "_body"):
+                        request._body = body_bytes if body_bytes else b""
 
-            elif "application/x-www-form-urlencoded" in content_type or "multipart" in content_type:
+            elif "multipart/form-data" in content_type:
+                submitted = request.headers.get("x-csrf-token")
+
+            elif "application/x-www-form-urlencoded" in content_type:
                 form = await request.form()
-                for field in ("csrf_token", "_csrf", "csrf-token"):
-                    if field in form:
-                        submitted = form[field]
+                for field_name in ("csrf_token", "_csrf", "csrf-token"):
+                    if field_name in form:
+                        submitted = form[field_name]
                         break
+                if not submitted:
+                    submitted = request.headers.get("x-csrf-token")
                 request.state.form = form
 
             else:
-                # Другие content-type (бинарные файлы) — проверяем заголовок
                 submitted = request.headers.get("x-csrf-token")
 
         except Exception as e:
@@ -220,24 +208,19 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             token = token or secrets.token_urlsafe(32)
             response.set_cookie(
                 "csrf_token", token,
-                httponly=False,          # JS должен читать для отправки в заголовке
+                httponly=False,
                 secure=_IS_PROD,
                 samesite="Lax",
                 max_age=86400, path="/",
             )
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# Token Auto-Refresh
-# ══════════════════════════════════════════════════════════════════════════════
-
 class TokenRefreshMiddleware(BaseHTTPMiddleware):
-    """
-    Автоматически обновляет access_token если он отсутствует, но есть refresh_token.
-    """
+    """Автоматически обновляет access_token если он отсутствует, но есть refresh_token."""
 
     _SKIP = frozenset({
-        "/api/authentication/login", "/api/authentication/register", "/api/authentication/refresh",
+        "/api/authentication/login", "/api/authentication/register",
+        "/api/authentication/refresh",
         "/api/authentication/logout", "/health", "/favicon.ico",
     })
 
@@ -258,7 +241,7 @@ class TokenRefreshMiddleware(BaseHTTPMiddleware):
                     response.set_cookie(
                         "access_token", new_token,
                         httponly=True, secure=_IS_PROD,
-                        samesite="Lax", max_age=86400, path="/",
+                        samesite="Lax", max_age=3600, path="/",
                     )
                     return response
                 finally:

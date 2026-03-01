@@ -1,450 +1,449 @@
 """
-WebSocket чат, история, файлы, WebRTC сигнализация (X25519 handshake).
+app/chats/chat.py — WebSocket чат, история сообщений, загрузка файлов.
+
+Используется secure_upload.py с исправленной логикой двойных расширений.
 """
 from __future__ import annotations
 
-import hashlib, json, logging, uuid
-from datetime import datetime
+import logging
 from pathlib import Path
 from typing import Optional
 
-from fastapi import (
-    APIRouter, Depends, File, HTTPException, Query,
-    Request, UploadFile, WebSocket, WebSocketDisconnect
-)
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 
-from app.security.auth_jwt import get_current_user, get_user_ws
 from app.config import Config
-from app.peer.connection_manager import manager
-from app.security.crypto import (
-    decrypt_message, encrypt_message, generate_key, hash_message,
-    generate_x25519_keypair, derive_x25519_session_key,
-    load_or_create_node_keypair,
-)
 from app.database import get_db
 from app.models import User
 from app.models_rooms import FileTransfer, Message, MessageType, Room, RoomMember
+from app.peer.connection_manager import manager
+from app.security.auth_jwt import get_current_user, get_user_ws
+from app.security.secure_upload import (
+    FileAnomalyDetector,
+    FileUploadConfig,
+    calculate_file_hash,
+    generate_secure_filename,
+    read_file_chunked,
+    validate_file_mime_type,
+)
 
 logger = logging.getLogger(__name__)
-router = APIRouter(tags=["chats"])
+router = APIRouter(tags=["chat"])
 
-UPLOAD_DIR = Config.UPLOAD_DIR
-MAX_BYTES  = Config.MAX_FILE_BYTES
-
-ALLOWED_MIME = {
-    "image/jpeg", "image/png", "image/gif", "image/webp",
-    "video/mp4", "video/webm",
-    "audio/mpeg", "audio/ogg", "audio/wav", "audio/webm",
-    "application/pdf", "text/plain",
-    "application/zip", "application/octet-stream",
-}
-
-# WebRTC signal rooms: room_id → {user_id → WebSocket}
-_signal_rooms: dict[int, dict[int, WebSocket]] = {}
-
-# X25519 handshake sessions: ws_id → session data
-_e2e_sessions: dict[str, dict] = {}
+# Опасные серверные расширения (для проверки двойных расширений)
+_DANGEROUS_EXTS = frozenset({
+    '.php', '.php3', '.php4', '.php5', '.phtml',
+    '.asp', '.aspx', '.ascx', '.ashx',
+    '.jsp', '.jspx', '.jws', '.do',
+    '.cgi', '.pl', '.py', '.rb', '.sh', '.bash',
+    '.exe', '.dll', '.bat', '.cmd', '.ps1', '.vbs',
+})
 
 
-# ── helpers ──────────────────────────────────────────────────────────────────
+def _check_double_extension(filename: str) -> bool:
+    """
+    Правильная проверка двойных расширений.
 
-def _require_member(room_id: int, user_id: int, db: Session) -> RoomMember:
-    m = db.query(RoomMember).filter(
-        RoomMember.room_id == room_id,
-        RoomMember.user_id == user_id,
-        RoomMember.is_banned == False,
-        ).first()
-    if not m:
-        raise HTTPException(403, "Нет доступа к комнате")
-    return m
+    Флагирует: shell.php.jpg, virus.exe.png
+    НЕ флагирует: фото 2024-01-01 12.34.56.jpg, my.photo.png
 
-
-def _get_room_key(room: Room, db: Session) -> bytes:
-    if room.room_key and len(room.room_key) == 32:
-        return bytes(room.room_key)
-    k = generate_key()
-    room.room_key = k
-    db.commit()
-    return k
-
-
-def _msg_to_dict(msg: Message, text: Optional[str]) -> dict:
-    return {
-        "type": "message", "id": msg.id, "room_id": msg.room_id,
-        "sender_id": msg.sender_id,
-        "sender":       msg.sender.username    if msg.sender else "удалён",
-        "display_name": msg.sender.display_name if msg.sender else "удалён",
-        "avatar_emoji": msg.sender.avatar_emoji if msg.sender else "👤",
-        "msg_type":     msg.msg_type.value,
-        "text":         text,
-        "file_name":    msg.file_name,
-        "file_size":    msg.file_size,
-        "reply_to_id":  msg.reply_to_id,
-        "is_edited":    msg.is_edited,
-        "created_at":   msg.created_at.isoformat(),
-    }
-
-
-def _decrypt_msg(msg: Message, room_key: bytes) -> Optional[str]:
-    try:
-        return decrypt_message(bytes(msg.content_encrypted), room_key).decode("utf-8", errors="replace")
-    except Exception:
-        return "[ошибка расшифровки]"
+    Старый баг: проверял все части включая ПОСЛЕДНЕЕ расширение,
+    что флагировало любой файл с точками в имени (скриншоты macOS).
+    Исправление: проверяем только ПРОМЕЖУТОЧНЫЕ части на опасные расширения.
+    """
+    name  = Path(filename).name
+    parts = name.split('.')
+    if len(parts) <= 2:
+        return False
+    # Проверяем только промежуточные части (не первую и не последнюю)
+    intermediate = {'.' + p.lower() for p in parts[1:-1]}
+    return bool(intermediate & _DANGEROUS_EXTS)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# WebSocket Chat — /ws/{room_id}
+# WebSocket чат
 # ══════════════════════════════════════════════════════════════════════════════
 
 @router.websocket("/ws/{room_id}")
 async def ws_chat(
-        websocket: WebSocket, room_id: int,
-        db: Session = Depends(get_db),
+    websocket: WebSocket,
+    room_id: int,
+    token: Optional[str] = None,
+    db: Session = Depends(get_db),
 ):
-    # Аутентификация
-    # БЫЛО: token читался из query-параметра ?token=...
-    #       В JS: getCookie('access_token') возвращал null, потому что
-    #       кука установлена с httponly=True — JavaScript её не видит.
-    #       WebSocket-соединение САМО отправляет все куки в заголовке,
-    #       поэтому токен надо читать из куки на стороне сервера.
-    # СТАЛО: читаем access_token из httponly-куки websocket.cookies
-    token = websocket.cookies.get("access_token")
-    if not token:
-        # Кука отсутствует — закрываем с кодом 4401 (не авторизован)
+    try:
+        raw_token = websocket.cookies.get("access_token") or token
+        if not raw_token:
+            await websocket.close(code=4401)
+            return
+        user = await get_user_ws(raw_token, db)
+    except HTTPException:
         await websocket.close(code=4401)
         return
-    try:
-        user = await get_user_ws(token, db)
-    except Exception:
-        await websocket.close(code=4401); return
 
-    # Членство
     member = db.query(RoomMember).filter(
         RoomMember.room_id == room_id,
         RoomMember.user_id == user.id,
         RoomMember.is_banned == False,
-        ).first()
+    ).first()
     if not member:
-        await websocket.close(code=4403); return
+        await websocket.close(code=4403)
+        return
 
     await manager.connect(
         room_id, user.id, user.username,
         user.display_name or user.username,
-        user.avatar_emoji or "👤", websocket,
-        )
-
-    # Online список
-    await websocket.send_json({"type": "online", "users": manager.get_online_users(room_id)})
-
-    # История (последние 60 сообщений)
-    room = db.query(Room).filter(Room.id == room_id).first()
-    rk   = _get_room_key(room, db)
-    recent = (
-        db.query(Message).filter(Message.room_id == room_id)
-        .order_by(Message.created_at.desc()).limit(60).all()
+        user.avatar_emoji, websocket,
     )
-    recent.reverse()
-    await websocket.send_json({
-        "type": "history",
-        "messages": [_msg_to_dict(m, _decrypt_msg(m, rk)) for m in recent],
-    })
 
-    # Публичный ключ этого узла (для E2E)
-    _, node_pub = load_or_create_node_keypair(Config.KEYS_DIR)
-    await websocket.send_json({
-        "type": "node_pubkey",
-        "pubkey_hex": node_pub.hex(),
-    })
-
-    # Основной цикл
     try:
-        while True:
-            raw  = await websocket.receive_text()
-            try:
-                data = json.loads(raw)
-            except Exception:
-                continue
+        room = db.query(Room).filter(Room.id == room_id).first()
+        if room:
+            await manager.send_to_user(room_id, user.id, {
+                "type":       "node_pubkey",
+                "pubkey_hex": user.x25519_public_key,
+            })
+            await _send_history(room_id, user.id, db)
 
+        await manager.send_to_user(room_id, user.id, {
+            "type":  "online",
+            "users": manager.get_online_users(room_id),
+        })
+
+        while True:
+            data   = await websocket.receive_json()
             action = data.get("action", "")
 
-            if action == "ping":
-                await websocket.send_json({"type": "pong"})
-
+            if action == "message":
+                await _handle_text_message(room_id, user, data, db)
             elif action == "typing":
                 await manager.set_typing(room_id, user.id, bool(data.get("is_typing")))
-
-            elif action == "message":
-                text = str(data.get("text", "")).strip()
-                if not text or len(text) > 4000:
-                    continue
-                rk  = _get_room_key(room, db)
-                enc = encrypt_message(text.encode(), rk)
-                h   = hash_message(text.encode())
-                msg = Message(
-                    room_id=room_id, sender_id=user.id,
-                    msg_type=MessageType.TEXT,
-                    content_encrypted=enc, content_hash=h,
-                    reply_to_id=data.get("reply_to_id"),
-                )
-                db.add(msg); db.commit(); db.refresh(msg)
-                await manager.set_typing(room_id, user.id, False)
-                await manager.broadcast_to_room(room_id, _msg_to_dict(msg, text))
+            elif action == "ping":
+                await manager.send_to_user(room_id, user.id, {"type": "pong"})
 
     except WebSocketDisconnect:
-        await manager.disconnect(room_id, user.id)
+        pass
     except Exception as e:
-        logger.error(f"WS error: {e}", exc_info=True)
+        logger.warning(f"WS error user={user.username}: {e}")
+    finally:
         await manager.disconnect(room_id, user.id)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# X25519 Key Exchange Endpoint
-# ══════════════════════════════════════════════════════════════════════════════
+async def _handle_text_message(room_id: int, user: User, data: dict, db: Session):
+    text = (data.get("text") or "").strip()
+    if not text or len(text) > 4096:
+        return
 
-@router.get("/api/keys/pubkey")
-async def get_pubkey(u: User = Depends(get_current_user)):
-    """Возвращает X25519 публичный ключ этого узла."""
-    _, pub = load_or_create_node_keypair(Config.KEYS_DIR)
-    return {"pubkey_hex": pub.hex(), "algorithm": "X25519"}
-
-
-@router.post("/api/keys/derive")
-async def derive_key(peer_pubkey_hex: str, u: User = Depends(get_current_user)):
-    """
-    Деривация сессионного ключа: X25519(our_priv, peer_pub) → HKDF → AES key.
-    Возвращает SHA-256 fingerprint ключа (не сам ключ!) для верификации.
-    """
-    try:
-        peer_pub = bytes.fromhex(peer_pubkey_hex)
-        if len(peer_pub) != 32:
-            raise ValueError("Неверная длина ключа")
-    except Exception:
-        raise HTTPException(422, "Неверный формат публичного ключа (hex, 32 байта)")
-
-    priv, _ = load_or_create_node_keypair(Config.KEYS_DIR)
-    session_key = derive_x25519_session_key(priv, peer_pub)
-
-    import hashlib
-    fingerprint = hashlib.sha256(session_key).hexdigest()[:16]
-    return {
-        "fingerprint": fingerprint,
-        "algorithm":   "X25519+HKDF-SHA256+AES-256-GCM",
-        "key_bits":    256,
-    }
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# История и онлайн
-# ══════════════════════════════════════════════════════════════════════════════
-
-@router.get("/api/chats/{room_id}/history")
-async def history(
-        room_id: int,
-        before_id: Optional[int] = Query(None),
-        limit:     int           = Query(50, ge=1, le=200),
-        u:    User    = Depends(get_current_user),
-        db:   Session = Depends(get_db),
-):
-    _require_member(room_id, u.id, db)
+    from app.security.crypto import encrypt_message, hash_message
     room = db.query(Room).filter(Room.id == room_id).first()
-    rk   = _get_room_key(room, db)
-    q    = db.query(Message).filter(Message.room_id == room_id)
-    if before_id:
-        q = q.filter(Message.id < before_id)
-    msgs = q.order_by(Message.created_at.desc()).limit(limit).all()
-    msgs.reverse()
-    return {
-        "messages": [_msg_to_dict(m, _decrypt_msg(m, rk)) for m in msgs],
-        "has_more": len(msgs) == limit,
-    }
+    if not room or not room.room_key:
+        return
 
-
-@router.get("/api/chats/{room_id}/online")
-async def online(room_id: int, u: User = Depends(get_current_user),
-                 db: Session = Depends(get_db)):
-    _require_member(room_id, u.id, db)
-    return {"users": manager.get_online_users(room_id)}
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# Файлы
-# ══════════════════════════════════════════════════════════════════════════════
-
-@router.post("/api/files/upload/{room_id}", status_code=201)
-async def upload_file(
-        room_id: int, file: UploadFile = File(...),
-        u: User = Depends(get_current_user), db: Session = Depends(get_db),
-):
-    _require_member(room_id, u.id, db)
-    if file.content_type and file.content_type not in ALLOWED_MIME:
-        raise HTTPException(415, f"Тип файла не поддерживается: {file.content_type}")
-
-    contents = await file.read()
-    if len(contents) > MAX_BYTES:
-        raise HTTPException(413, f"Файл > {Config.MAX_FILE_MB} МБ")
-
-    room = db.query(Room).filter(Room.id == room_id).first()
-    rk   = _get_room_key(room, db)
-
-    encrypted  = encrypt_message(contents, rk)
-    fhash      = hashlib.sha256(encrypted).hexdigest()
-    stored_name = f"{uuid.uuid4().hex}_{room_id}"
-    (UPLOAD_DIR / stored_name).write_bytes(encrypted)
-
-    ft = FileTransfer(
-        room_id=room_id, uploader_id=u.id,
-        original_name=file.filename or "file",
-        stored_name=stored_name, mime_type=file.content_type,
-        size_bytes=len(contents), file_hash=fhash,
-    )
-    db.add(ft); db.flush()
-
-    text_bytes = f"[file:{ft.id}:{file.filename}]".encode()
+    encrypted = encrypt_message(text.encode(), room.room_key)
     msg = Message(
-        room_id=room_id, sender_id=u.id,
-        msg_type=MessageType.FILE,
-        content_encrypted=encrypt_message(text_bytes, rk),
-        content_hash=hash_message(text_bytes),
-        file_name=file.filename, file_size=len(contents),
+        room_id=room_id, sender_id=user.id,
+        msg_type=MessageType.TEXT,
+        content_encrypted=encrypted,
+        content_hash=hash_message(text.encode()),
     )
-    db.add(msg); db.commit()
-    db.refresh(ft); db.refresh(msg)
+    db.add(msg); db.commit(); db.refresh(msg)
 
     await manager.broadcast_to_room(room_id, {
-        "type":         "file",
-        "msg_id":       msg.id,    "file_id":    ft.id,
-        "file_name":    ft.original_name,  "file_size": ft.size_bytes,
-        "mime_type":    ft.mime_type,
-        "sender":       u.username,
-        "display_name": u.display_name or u.username,
-        "avatar_emoji": u.avatar_emoji or "👤",
-        "download_url": f"/api/files/download/{ft.id}",
+        "type":         "message",
+        "msg_id":       msg.id,
+        "sender_id":    user.id,
+        "sender":       user.username,
+        "display_name": user.display_name or user.username,
+        "avatar_emoji": user.avatar_emoji,
+        "text":         text,
+        "msg_type":     "text",
         "created_at":   msg.created_at.isoformat(),
     })
-    return {"file_id": ft.id, "download_url": f"/api/files/download/{ft.id}"}
+
+
+async def _send_history(room_id: int, user_id: int, db: Session):
+    from app.security.crypto import decrypt_message
+
+    room = db.query(Room).filter(Room.id == room_id).first()
+    if not room:
+        return
+
+    messages = (
+        db.query(Message)
+        .filter(Message.room_id == room_id)
+        .order_by(Message.created_at.desc())
+        .limit(50).all()
+    )[::-1]
+
+    history = []
+    for m in messages:
+        entry = {
+            "type":         "history_msg",
+            "msg_id":       m.id,
+            "sender_id":    m.sender_id,
+            "sender":       m.sender.username if m.sender else "—",
+            "display_name": (m.sender.display_name or m.sender.username) if m.sender else "—",
+            "avatar_emoji": m.sender.avatar_emoji if m.sender else "👤",
+            "msg_type":     m.msg_type.value,
+            "created_at":   m.created_at.isoformat(),
+            "file_name":    m.file_name,
+            "file_size":    m.file_size,
+        }
+
+        if m.msg_type == MessageType.TEXT and room.room_key:
+            try:
+                entry["text"] = decrypt_message(m.content_encrypted, room.room_key).decode()
+            except Exception:
+                entry["text"] = "[ошибка расшифровки]"
+        elif m.msg_type in (MessageType.IMAGE, MessageType.FILE):
+            ft = db.query(FileTransfer).filter(
+                FileTransfer.room_id == room_id,
+                FileTransfer.original_name == m.file_name,
+                FileTransfer.uploader_id == m.sender_id,
+            ).order_by(FileTransfer.created_at.desc()).first()
+
+            if ft:
+                entry["download_url"] = f"/api/files/download/{ft.id}"
+                entry["mime_type"]    = ft.mime_type
+                entry["text"]         = f"[file:{ft.id}:{m.file_name}]"
+            else:
+                entry["text"] = f"[file:?:{m.file_name}]"
+        else:
+            entry["text"] = m.file_name or ""
+
+        history.append(entry)
+
+    await manager.send_to_user(room_id, user_id, {
+        "type":     "history",
+        "messages": history,
+    })
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Загрузка файлов
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.post("/api/files/upload/{room_id}")
+async def upload_file(
+    room_id: int,
+    request: Request,
+    file: UploadFile = File(...),
+    u: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    member = db.query(RoomMember).filter(
+        RoomMember.room_id == room_id, RoomMember.user_id == u.id,
+        RoomMember.is_banned == False,
+    ).first()
+    if not member:
+        raise HTTPException(403, "Нет доступа к комнате")
+
+    filename  = file.filename or "file"
+    client_ip = request.client.host if request.client else "unknown"
+
+    # ── 1. Читаем файл ───────────────────────────────────────────────────
+    try:
+        content, size = await read_file_chunked(file, FileUploadConfig.MAX_FILE_SIZE)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(400, f"Ошибка чтения файла: {e}")
+
+    # ── 2. Проверяем имя файла ───────────────────────────────────────────
+    if FileAnomalyDetector.detect_null_bytes(filename):
+        raise HTTPException(400, "Недопустимые символы в имени файла")
+    if FileAnomalyDetector.detect_path_traversal(filename):
+        raise HTTPException(400, "Недопустимое имя файла")
+    # Используем исправленную функцию (не из secure_upload.py — там баг)
+    if _check_double_extension(filename):
+        raise HTTPException(400, "Недопустимое расширение файла")
+    if FileAnomalyDetector.detect_zip_bomb_indicators(content):
+        raise HTTPException(400, "Файл имеет признаки архивной бомбы")
+
+    # ── 3. Валидация MIME (magic bytes) ──────────────────────────────────
+    mime_ok, mime_result = validate_file_mime_type(content, filename)
+    if not mime_ok:
+        raise HTTPException(415, mime_result or "Неподдерживаемый тип файла")
+    mime_type = mime_result
+
+    # ── 4. Валидация изображения ──────────────────────────────────────────
+    is_image = mime_type and mime_type.startswith("image/")
+    if is_image:
+        img_ok, img_err = await FileAnomalyDetector.validate_image_content(content)
+        if not img_ok:
+            raise HTTPException(400, img_err or "Неверное содержимое изображения")
+
+    # ── 5. Сохраняем ─────────────────────────────────────────────────────
+    ext       = Path(filename).suffix.lower()
+    file_hash = calculate_file_hash(content)
+
+    Config.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    safe_name   = generate_secure_filename(ext)
+    stored_path = Config.UPLOAD_DIR / safe_name
+    stored_path.write_bytes(content)
+
+    # ── 6. БД ─────────────────────────────────────────────────────────────
+    ft = FileTransfer(
+        room_id=room_id, uploader_id=u.id,
+        original_name=filename, stored_name=safe_name,
+        mime_type=mime_type, size_bytes=size, file_hash=file_hash,
+    )
+    db.add(ft)
+
+    msg_type = MessageType.IMAGE if is_image else MessageType.FILE
+    room     = db.query(Room).filter(Room.id == room_id).first()
+
+    if room and room.room_key:
+        from app.security.crypto import encrypt_message, hash_message
+        placeholder = f"[file:0:{filename}]".encode()
+        encrypted   = encrypt_message(placeholder, room.room_key)
+        msg = Message(
+            room_id=room_id, sender_id=u.id,
+            msg_type=msg_type,
+            content_encrypted=encrypted,
+            content_hash=hash_message(placeholder),
+            file_name=filename, file_size=size,
+        )
+        db.add(msg)
+
+    db.commit()
+    db.refresh(ft)
+
+    download_url = f"/api/files/download/{ft.id}"
+
+    # ── 7. Бродкаст ───────────────────────────────────────────────────────
+    await manager.broadcast_to_room(room_id, {
+        "type":         "file",
+        "sender_id":    u.id,
+        "sender":       u.username,
+        "display_name": u.display_name or u.username,
+        "avatar_emoji": u.avatar_emoji,
+        "file_name":    filename,
+        "file_size":    size,
+        "mime_type":    mime_type,
+        "download_url": download_url,
+        "msg_type":     msg_type.value,
+        "created_at":   ft.created_at.isoformat(),
+    })
+
+    return {"ok": True, "file_id": ft.id, "download_url": download_url}
 
 
 @router.get("/api/files/download/{file_id}")
 async def download_file(
-        file_id: int, u: User = Depends(get_current_user), db: Session = Depends(get_db)
+    file_id: int,
+    u: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     ft = db.query(FileTransfer).filter(
-        FileTransfer.id == file_id, FileTransfer.is_available == True).first()
+        FileTransfer.id == file_id, FileTransfer.is_available == True,
+    ).first()
     if not ft:
-        raise HTTPException(404)
-    _require_member(ft.room_id, u.id, db)
+        raise HTTPException(404, "Файл не найден")
 
-    path = UPLOAD_DIR / ft.stored_name
+    member = db.query(RoomMember).filter(
+        RoomMember.room_id == ft.room_id, RoomMember.user_id == u.id,
+        RoomMember.is_banned == False,
+    ).first()
+    if not member:
+        raise HTTPException(403, "Нет доступа")
+
+    path = Config.UPLOAD_DIR / ft.stored_name
     if not path.exists():
         raise HTTPException(404, "Файл не найден на диске")
 
-    enc = path.read_bytes()
+    ft.download_count += 1
+    db.commit()
 
-    # Целостность (SHA-256)
-    if hashlib.sha256(enc).hexdigest() != ft.file_hash:
-        logger.error(f"File integrity check FAILED: {ft.id}")
-        raise HTTPException(500, "Нарушена целостность файла")
-
-    room  = db.query(Room).filter(Room.id == ft.room_id).first()
-    plain = decrypt_message(enc, bytes(room.room_key[:32]))
-    ft.download_count += 1; db.commit()
-
-    return StreamingResponse(
-        iter([plain]),
+    return FileResponse(
+        path=str(path),
+        filename=ft.original_name,
         media_type=ft.mime_type or "application/octet-stream",
-        headers={
-            "Content-Disposition": f'attachment; filename="{ft.original_name}"',
-            "Content-Length": str(len(plain)),
-        },
     )
 
 
 @router.get("/api/files/room/{room_id}")
-async def room_files(
-        room_id: int, u: User = Depends(get_current_user), db: Session = Depends(get_db)
+async def list_room_files(
+    room_id: int,
+    u: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    _require_member(room_id, u.id, db)
-    files = (db.query(FileTransfer)
-             .filter(FileTransfer.room_id == room_id, FileTransfer.is_available == True)
-             .order_by(FileTransfer.created_at.desc()).limit(100).all())
-    return {"files": [{
-        "id": f.id, "file_name": f.original_name, "mime_type": f.mime_type,
-        "size_bytes": f.size_bytes,
-        "uploader": f.uploader.username if f.uploader else "—",
-        "download_url": f"/api/files/download/{f.id}",
-        "created_at": f.created_at.isoformat(),
-    } for f in files]}
+    member = db.query(RoomMember).filter(
+        RoomMember.room_id == room_id, RoomMember.user_id == u.id,
+        RoomMember.is_banned == False,
+    ).first()
+    if not member:
+        raise HTTPException(403, "Нет доступа")
+
+    files = db.query(FileTransfer).filter(
+        FileTransfer.room_id == room_id,
+        FileTransfer.is_available == True,
+    ).order_by(FileTransfer.created_at.desc()).limit(100).all()
+
+    return {
+        "files": [{
+            "id":           f.id,
+            "file_name":    f.original_name,
+            "mime_type":    f.mime_type,
+            "size_bytes":   f.size_bytes,
+            "uploader":     f.uploader.username if f.uploader else "—",
+            "download_url": f"/api/files/download/{f.id}",
+            "created_at":   f.created_at.isoformat(),
+        } for f in files]
+    }
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# WebRTC Сигнализация — X25519 ключи + SDP exchange
+# WebRTC сигнализация
 # ══════════════════════════════════════════════════════════════════════════════
+
+_signal_rooms: dict[int, dict[int, WebSocket]] = {}
+
 
 @router.websocket("/ws/signal/{room_id}")
-async def signal_ws(
-        websocket: WebSocket, room_id: int,
-        db: Session = Depends(get_db),
+async def ws_signal(
+    websocket: WebSocket,
+    room_id: int,
+    db: Session = Depends(get_db),
 ):
-    # Токен из httponly-куки (JS не может передать его через URL)
-    token = websocket.cookies.get("access_token")
-    if not token:
+    import json as _json
+
+    raw_token = websocket.cookies.get("access_token")
+    if not raw_token:
         await websocket.close(code=4401)
         return
-    try:
-        user = await get_user_ws(token, db)
-    except Exception:
-        await websocket.close(code=4401); return
 
-    if not db.query(RoomMember).filter(
-            RoomMember.room_id == room_id, RoomMember.user_id == user.id
-    ).first():
-        await websocket.close(code=4403); return
+    try:
+        user = await get_user_ws(raw_token, db)
+    except HTTPException:
+        await websocket.close(code=4401)
+        return
 
     await websocket.accept()
-
-    if room_id not in _signal_rooms:
-        _signal_rooms[room_id] = {}
-    _signal_rooms[room_id][user.id] = websocket
-
-    # Уведомляем остальных
-    for uid, ws in list(_signal_rooms.get(room_id, {}).items()):
-        if uid != user.id:
-            try:
-                await ws.send_json({
-                    "type": "peer_joined", "from": user.id,
-                    "username": user.username,
-                    # Передаём X25519 pubkey для E2E ключа звонка
-                    "x25519_pubkey": user.x25519_public_key,
-                })
-            except Exception:
-                pass
+    _signal_rooms.setdefault(room_id, {})[user.id] = websocket
+    logger.info(f"Signal WS: {user.username} → room {room_id}")
 
     try:
         while True:
-            data = await websocket.receive_json()
-            msg_type = data.get("type", "")
-            if msg_type not in ("offer", "answer", "ice", "invite", "bye", "x25519_pubkey"):
-                continue
-            data["from"]     = user.id
-            data["username"] = user.username
-            to = data.get("to")
-            if to:
-                ws = _signal_rooms.get(room_id, {}).get(int(to))
-                if ws:
-                    try: await ws.send_json(data)
-                    except Exception: pass
-            else:
-                for uid, ws in list(_signal_rooms.get(room_id, {}).items()):
-                    if uid != user.id:
-                        try: await ws.send_json(data)
-                        except Exception: pass
-    except WebSocketDisconnect:
-        _signal_rooms.get(room_id, {}).pop(user.id, None)
-        for uid, ws in list(_signal_rooms.get(room_id, {}).items()):
+            raw = await websocket.receive_text()
             try:
-                await ws.send_json({"type": "peer_left", "from": user.id,
-                                    "username": user.username})
+                msg = _json.loads(raw)
             except Exception:
-                pass
+                continue
+
+            msg["from"]     = user.id
+            msg["username"] = user.username
+
+            for uid, ws in list(_signal_rooms.get(room_id, {}).items()):
+                if uid != user.id:
+                    try:
+                        await ws.send_text(_json.dumps(msg))
+                    except Exception:
+                        _signal_rooms[room_id].pop(uid, None)
+
+    except WebSocketDisconnect:
+        pass
+    finally:
+        _signal_rooms.get(room_id, {}).pop(user.id, None)
+        logger.info(f"Signal WS closed: {user.username}")

@@ -2,12 +2,12 @@ from fastapi import WebSocket
 import json
 import vortex_chat
 
+
 class ChatService:
     def __init__(self):
-        self.active_connections = {}
+        self.active_connections: dict[str, WebSocket] = {}
         self.chat_stats = vortex_chat.ChatStats()
         self.encryption_key = vortex_chat.generate_key()
-        print(f"🔑 Generated encryption key: {self.encryption_key.hex()[:16]}...")
 
     async def handle_connection(self, websocket: WebSocket, client_id: str):
         await websocket.accept()
@@ -21,9 +21,8 @@ class ChatService:
             while True:
                 data = await websocket.receive_text()
                 await self.process_message(client_id, websocket, data)
-
         except Exception as e:
-            print(f"❌ {client_id} leaved: {e}")
+            print(f"❌ {client_id} disconnected: {e}")
         finally:
             await self.disconnect_client(client_id)
 
@@ -33,17 +32,11 @@ class ChatService:
         if message_data["type"] == "message":
             text = message_data["text"]
 
-            # Crypt
             encrypted = vortex_chat.encrypt_message(text.encode(), self.encryption_key)
             msg_hash = vortex_chat.hash_message(encrypted)
             msg_hash_hex = msg_hash.hex()
             self.chat_stats.add_message(len(text))
-
-            print(f"💬 {client_id}: {text}")
-            print(f"🔒 Encrypted: {len(encrypted)} bytes")
-            print(f"🔑 Hash: {msg_hash_hex[:16]}...")
-
-            await self.broadcast_message(client_id, encrypted, msg_hash_hex)
+            await self.broadcast_encrypted(client_id, encrypted, msg_hash_hex)
 
             await websocket.send_json({
                 "type": "delivery",
@@ -51,20 +44,19 @@ class ChatService:
                 "hash": msg_hash_hex[:8]
             })
 
-    async def broadcast_message(self, sender_id: str, encrypted: bytes, msg_hash: str):
+    async def broadcast_encrypted(self, sender_id: str, encrypted: bytes, msg_hash: str):
         for conn_id, conn in self.active_connections.items():
             if conn_id != sender_id:
                 try:
-                    decrypted = vortex_chat.decrypt_message(encrypted, self.encryption_key)
                     await conn.send_json({
                         "type": "message",
                         "from": sender_id,
-                        "text": decrypted.decode(),
+                        "encrypted": encrypted.hex(),
                         "hash": msg_hash[:8],
                         "encrypted_size": len(encrypted)
                     })
                 except Exception as e:
-                    print(f"❌ Failed to decrypt for {conn_id}: {e}")
+                    print(f"❌ Failed to relay to {conn_id}: {e}")
 
     async def broadcast_system(self, message: str, exclude: str = None):
         for conn_id, conn in self.active_connections.items():
@@ -80,7 +72,7 @@ class ChatService:
     async def disconnect_client(self, client_id: str):
         if client_id in self.active_connections:
             del self.active_connections[client_id]
-            await self.broadcast_system(f"👋 {client_id} leaved")
+            await self.broadcast_system(f"👋 {client_id} left")
 
-# Create a global instance for other modules
+
 chat_service = ChatService()

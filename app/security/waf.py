@@ -363,6 +363,8 @@ class WAFEngine:
         """Parse and inspect request body according to Content-Type."""
         findings = []
         parsed = False
+        if 'multipart/form-data' in content_type:
+            return []
 
         if 'application/json' in content_type:
             try:

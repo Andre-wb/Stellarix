@@ -4,6 +4,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from app.config import Config
+from app import models, models_rooms
 
 DATABASE_URL = f"sqlite:///{Config.DB_PATH}"
 
@@ -21,7 +22,7 @@ def _set_pragmas(conn, _):
     cur.execute("PRAGMA foreign_keys=ON")
     cur.execute("PRAGMA synchronous=NORMAL")
     cur.execute("PRAGMA temp_store=MEMORY")
-    cur.execute("PRAGMA mmap_size=268435456")   # 256 MB
+    cur.execute("PRAGMA mmap_size=268435456")
     cur.close()
 
 
@@ -38,5 +39,4 @@ def get_db():
 
 
 def init_db() -> None:
-    from app import models, models_rooms  # noqa: F401
     Base.metadata.create_all(bind=engine)

@@ -8,7 +8,6 @@
 </head>
 <body>
 
-<!-- ── AUTH SCREEN ───────────────────────────────────────────────────────── -->
 <div id="auth-screen" class="screen active" style="display:flex;">
     <div class="auth-card">
         <div class="auth-logo">
@@ -23,7 +22,6 @@
 
         <div id="auth-alert" class="alert"></div>
 
-        <!-- LOGIN -->
         <div id="login-form">
             <div class="form-group">
                 <label class="form-label">Телефон или имя</label>
@@ -36,7 +34,6 @@
             <button class="btn btn-primary" onclick="doLogin()">⚡ Войти</button>
         </div>
 
-        <!-- REGISTER -->
         <div id="register-form" style="display:none;">
             <div class="form-row">
                 <div class="form-group">
@@ -82,9 +79,7 @@
     </div>
 </div>
 
-<!-- ── MAIN APP ──────────────────────────────────────────────────────────── -->
 <div id="app" style="display:none;">
-    <!-- Sidebar -->
     <div id="sidebar">
         <div class="sidebar-header">
             <div class="logo"><div class="logo-icon">⚡</div>VORTEX</div>
@@ -131,9 +126,7 @@
         </div>
     </div>
 
-    <!-- Main content -->
     <div id="main">
-        <!-- Welcome -->
         <div id="welcome-screen" class="screen active">
             <div class="welcome-icon">⚡</div>
             <div class="welcome-title">Добро пожаловать</div>
@@ -144,7 +137,6 @@
             </div>
         </div>
 
-        <!-- Chat -->
         <div id="chat-screen" class="screen">
             <div id="chat-header">
                 <div style="flex:1;min-width:0;">
@@ -152,7 +144,7 @@
                     <div class="chat-meta" id="chat-room-meta">—</div>
                 </div>
                 <button class="header-btn" onclick="showMembersModal()" title="Участники">👥</button>
-                <button class="header-btn" onclick="startVoiceCall()" title="Голосовой звонок" id="call-btn">📞</button>
+                <button class="header-btn" onclick="startVoiceCall()" title="Звонок" id="call-btn">📞</button>
                 <button class="header-btn" onclick="showRoomFilesModal()" title="Файлы">📁</button>
                 <button class="header-btn" onclick="togglePeersPanel()" title="Устройства">📡</button>
                 <button class="header-btn" onclick="copyInviteCode()" title="Скопировать код">🔗</button>
@@ -161,9 +153,7 @@
             <div id="messages-container"></div>
 
             <div class="typing-indicator" id="typing-indicator">
-                <div class="typing-dots">
-                    <span></span><span></span><span></span>
-                </div>
+                <div class="typing-dots"><span></span><span></span><span></span></div>
                 <span id="typing-text">кто-то печатает</span>
             </div>
 
@@ -174,12 +164,12 @@
                               onkeydown="handleKey(event)" oninput="handleTyping()"></textarea>
                     <button class="input-btn send" onclick="sendMessage()" title="Отправить">↑</button>
                 </div>
-                <input type="file" id="file-input" style="display:none" onchange="uploadFile(event)">
+                <input type="file" id="file-input" style="display:none" onchange="uploadFile(event)"
+                       accept="image/*,video/*,audio/*,application/pdf,text/plain,application/zip">
             </div>
         </div>
     </div>
 
-    <!-- Peers panel -->
     <div id="peers-panel">
         <div class="panel-header">
             📡 Устройства в сети
@@ -189,9 +179,6 @@
     </div>
 </div>
 
-<!-- ── MODALS ────────────────────────────────────────────────────────────── -->
-
-<!-- Create Room -->
 <div class="modal-overlay" id="create-room-modal">
     <div class="modal">
         <div class="modal-title">🏠 Новая комната</div>
@@ -215,7 +202,6 @@
     </div>
 </div>
 
-<!-- Join Room -->
 <div class="modal-overlay" id="join-modal">
     <div class="modal">
         <div class="modal-title">🔗 Вступить по коду</div>
@@ -233,7 +219,6 @@
     </div>
 </div>
 
-<!-- Members -->
 <div class="modal-overlay" id="members-modal">
     <div class="modal">
         <div class="modal-title">👥 Участники</div>
@@ -252,7 +237,6 @@
     </div>
 </div>
 
-<!-- Public Rooms -->
 <div class="modal-overlay" id="public-modal">
     <div class="modal" style="width:480px;">
         <div class="modal-title">🌐 Публичные комнаты</div>
@@ -263,7 +247,6 @@
     </div>
 </div>
 
-<!-- Files -->
 <div class="modal-overlay" id="files-modal">
     <div class="modal" style="width:460px;">
         <div class="modal-title">📁 Файлы комнаты</div>
@@ -274,7 +257,6 @@
     </div>
 </div>
 
-<!-- Profile -->
 <div class="modal-overlay" id="profile-modal">
     <div class="modal">
         <div class="modal-title">⚙ Профиль</div>
@@ -296,11 +278,9 @@
 <div id="call-overlay">
     <video id="remote-video" autoplay playsinline></video>
     <video id="local-video"  autoplay playsinline muted></video>
-
     <div class="call-avatar" id="call-peer-avatar">👤</div>
     <div class="call-name"   id="call-peer-name">—</div>
     <div class="call-status" id="call-status">Вызов...</div>
-
     <div class="call-controls">
         <button class="call-btn mute" id="mute-btn" onclick="toggleMute()">🎤</button>
         <button class="call-btn mute" id="cam-btn"  onclick="toggleCam()">📷</button>
@@ -308,14 +288,78 @@
     </div>
 </div>
 
-<!-- Подключение JavaScript модулей (ES модули) -->
-<script type="module" src="/static/js/utils.js"></script>
-<script type="module" src="/static/js/auth.js"></script>
-<script type="module" src="/static/js/rooms.js"></script>
-<script type="module" src="/static/js/chat.js"></script>
-<script type="module" src="/static/js/peers.js"></script>
-<script type="module" src="/static/js/webrtc.js"></script>
-<script type="module" src="/static/js/ui.js"></script>
+<div id="file-preview-overlay" onclick="closeDotMenu()">
+
+    <div class="fpo-topbar">
+        <button class="fpo-close-btn" onclick="cancelFilePreview(); event.stopPropagation()">←</button>
+        <span class="fpo-title" id="fpo-filename">—</span>
+        <div class="fpo-dots-wrap">
+            <button class="fpo-dots-btn" id="fpo-dots-btn"
+                    onclick="toggleDotMenu(); event.stopPropagation()"
+                    title="Ещё">⋮</button>
+            <div class="fpo-dot-menu" id="fpo-dot-menu" onclick="event.stopPropagation()">
+                <div class="fpo-dot-item" onclick="sendWithoutCompression()">
+                    <span>↑</span> Отправить без сжатия
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="fpo-preview">
+        <img id="preview-img" src="" alt="" style="display:none;">
+        <div id="preview-file-card" class="fpo-file-card" style="display:none;">
+            <span id="fpo-file-icon" class="fpo-file-icon">📄</span>
+            <div>
+                <div id="fpo-file-name" class="fpo-file-name-card">—</div>
+                <div id="fpo-file-size" class="fpo-file-size-card">—</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="compress-section" style="display:none;">
+        <div class="compress-header">
+            <span class="compress-label">Размер</span>
+            <span class="compress-meta">
+                <span id="compress-dims">— × —</span>
+                <span class="compress-sep">·</span>
+                <span id="compress-pct">100%</span>
+            </span>
+        </div>
+        <div class="compress-track">
+            <input type="range" id="compress-slider"
+                   min="10" max="100" value="100" step="5"
+                   oninput="onCompressSlider(this.value)">
+        </div>
+        <div class="compress-hints">
+            <span>10% — меньше</span>
+            <span>100% — оригинал</span>
+        </div>
+    </div>
+
+    <div id="fpo-error" style="display:none;font-size:12px;color:var(--red);font-family:var(--mono);padding:6px 24px;text-align:center;"></div>
+
+    <div class="fpo-bottom-bar" id="fpo-bottom-bar">
+        <div class="fpo-meta">
+            <span class="fpo-meta-size" id="fpo-filesize">—</span>
+        </div>
+        <div class="fpo-actions">
+            <button class="fpo-cancel-btn" id="fpo-cancel-btn"
+                    onclick="cancelFilePreview()">Отмена</button>
+            <button class="fpo-send-btn" id="fpo-send-btn"
+                    onclick="sendPendingFile()">↑ Отправить</button>
+        </div>
+    </div>
+</div>
+
+<div id="image-viewer-overlay" onclick="closeImageViewer()">
+    <button class="iv-close" onclick="closeImageViewer()">×</button>
+    <div class="iv-name" id="image-viewer-name"></div>
+    <div class="iv-content" onclick="event.stopPropagation()">
+        <img id="image-viewer-img" src="" alt="">
+    </div>
+    <a id="image-viewer-download" class="iv-download" onclick="event.stopPropagation()">↓ Скачать</a>
+</div>
+
 <script type="module" src="/static/js/main.js"></script>
 </body>
 </html>

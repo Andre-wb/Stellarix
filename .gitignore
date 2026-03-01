@@ -23,3 +23,6 @@ target
 __pycache__/
 *.pyc
 .env
+.vortex.db
+.vortex.db-shm
+.vortex.db-wal

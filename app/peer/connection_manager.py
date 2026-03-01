@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio, logging
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 from fastapi import WebSocket
 
@@ -12,14 +12,14 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ConnectedUser:
-    user_id:      int
-    username:     str
+    user_id: int
+    username: str
     display_name: str
     avatar_emoji: str
-    websocket:    WebSocket
-    room_id:      int
-    connected_at: datetime = field(default_factory=datetime.utcnow)
-    is_typing:    bool = False
+    websocket: WebSocket
+    room_id: int
+    connected_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    is_typing: bool = False
 
 
 class ConnectionManager:
@@ -55,7 +55,7 @@ class ConnectionManager:
             })
 
     async def broadcast_to_room(self, room_id: int, payload: dict[str, Any],
-                                 exclude: int | None = None):
+                                exclude: int | None = None):
         dead = []
         for uid, conn in dict(self._rooms.get(room_id, {})).items():
             if uid == exclude:
