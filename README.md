@@ -1,185 +1,269 @@
-# ⚡ VORTEX — децентрализованный мессенджер
+<div align="center">
 
-[![Rust](https://img.shields.io/badge/Rust-core-orange?logo=rust&style=flat-square)](https://www.rust-lang.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-backend-009688?logo=fastapi&style=flat-square)](https://fastapi.tiangolo.com/)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-blue?logo=python&style=flat-square)](https://www.python.org/)
-[![SQLite](https://img.shields.io/badge/SQLite-database-003B57?logo=sqlite&style=flat-square)](https://www.sqlite.org/)
-[![WebRTC](https://img.shields.io/badge/WebRTC-333333?logo=webrtc&style=flat-square)](https://webrtc.org/)
-[![License](https://img.shields.io/badge/License-Apache%202.0-red?style=flat-square)](LICENSE)
+```
+██╗   ██╗ ██████╗ ██████╗ ████████╗███████╗██╗  ██╗
+██║   ██║██╔═══██╗██╔══██╗╚══██╔══╝██╔════╝╚██╗██╔╝
+██║   ██║██║   ██║██████╔╝   ██║   █████╗   ╚███╔╝ 
+╚██╗ ██╔╝██║   ██║██╔══██╗   ██║   ██╔══╝   ██╔██╗ 
+ ╚████╔╝ ╚██████╔╝██║  ██║   ██║   ███████╗██╔╝ ██╗
+  ╚═══╝   ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝╚═╝  ╚═╝
+```
 
-**VORTEX** — это полностью децентрализованный чат для локальных сетей (Wi-Fi, Ethernet).  
-Работает без интернета, без единого сервера в облаке. Все данные остаются внутри вашей сети и защищены сквозным шифрованием.
+**Децентрализованный мессенджер для локальных сетей**
 
-> 🚀 Никаких облаков, никаких посредников — только прямое P2P-соединение между устройствами.
-
----
-
-## ✨ Возможности
-
-- 🔥 **Полная децентрализация** – обмен сообщениями напрямую между устройствами в одной локальной сети.
-- 🔐 **Сквозное шифрование (E2E)** – X25519 + AES-256-GCM для всех сообщений и файлов.
-- 📱 **Регистрация по номеру телефона** – удобно и анонимно (телефон используется только как идентификатор).
-- 🏠 **Комнаты (чаты)** – создавайте публичные или приватные комнаты с уникальным кодом приглашения.
-- 📁 **Обмен файлами** – до 100 МБ, все файлы шифруются.
-- 🎙️ **Голосовые и видеозвонки** – WebRTC с STUN-серверами, возможны прямые P2P-звонки.
-- 📡 **Автоматическое обнаружение устройств** – UDP broadcast в локальной сети (Rust + Python fallback).
-- 🛡️ **Встроенный WAF** – защита от SQL-инъекций, XSS, path traversal и других атак.
-- 🧩 **Криптоядро на Rust** – Argon2, BLAKE3, AES-GCM, X25519 – максимальная производительность и безопасность.
+*Без облаков. Без посредников. Только ты и твоя сеть.*
 
 ---
 
-## 🧠 Архитектура
+[![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![Rust](https://img.shields.io/badge/Rust-Cryptocore-CE4A00?style=for-the-badge&logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![WebRTC](https://img.shields.io/badge/WebRTC-P2P_Calls-333333?style=for-the-badge&logo=webrtc&logoColor=white)](https://webrtc.org/)
+[![SQLite](https://img.shields.io/badge/SQLite-WAL_Mode-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
+[![License](https://img.shields.io/badge/License-Apache_2.0-D22128?style=for-the-badge)](LICENSE)
 
-Vortex состоит из трёх основных частей:
-
-- **Клиент** – одностраничное приложение на чистом JavaScript (ES-модули) с современным UI.
-- **Сервер** – FastAPI, который управляет аутентификацией, комнатами, WebSocket-соединениями и раздаёт статику.
-- **Криптоядро** – библиотека на Rust (`vortex_chat`), которая обеспечивает всю криптографию (хеширование, шифрование, ключи).
-
-Связь между устройствами в одной комнате идёт через WebSocket (сервер выступает как сигнальный сервер), но сами сообщения и файлы шифруются так, что сервер не может их прочитать. Для звонков используется WebRTC с прямыми P2P-каналами.
-
-**P2P-обнаружение:** сервер каждого узла рассылает UDP-броадкасты, уведомляя о своём присутствии. Пиры обмениваются HTTP-запросами для отправки сообщений напрямую, минуя центральный сервер.
+</div>
 
 ---
 
-## 🛠️ Технологический стек
+## Что это?
 
-| Компонент       | Технологии                                                                 |
-|-----------------|----------------------------------------------------------------------------|
-| Клиент          | HTML5, CSS3, JavaScript (ES-модули), WebSocket, WebRTC                     |
-| Сервер          | Python 3.10+, FastAPI, SQLite (с WAL), Uvicorn, Jinja2                     |
-| Криптография    | Rust (PyO3), X25519, AES-256-GCM, Argon2id, BLAKE3, SHA-256, HKDF         |
-| Безопасность    | JWT (HS256), CSRF Double Submit, WAF (собственный), Argon2                |
-| Сеть            | UDP broadcast (discovery), HTTP (P2P), WebSocket (сигнализация)           |
+VORTEX — мессенджер, который живёт целиком внутри твоей локальной сети (Wi-Fi или Ethernet). Никаких облачных серверов, никаких внешних зависимостей — только твои устройства и сквозное шифрование на уровне военного стандарта.
+
+Запускаешь на двух ноутбуках в одной сети — они находят друг друга автоматически, через секунды. Все сообщения, звонки и файлы остаются внутри периметра сети и защищены так, что даже сам сервер не может их прочитать.
 
 ---
 
-## 🚀 Установка и запуск
+## Возможности
+
+```
+📡  Авто-обнаружение   UDP-broadcast — узлы находят друг друга сами
+🔐  E2E шифрование     X25519 + AES-256-GCM для каждого сообщения и файла  
+🏠  Комнаты            Публичные и приватные, до 200 участников
+📁  Файлы              До 100 МБ, сжатие на клиенте, прогресс-бар
+🎙️  Звонки             WebRTC голосовые и видео, прямые P2P каналы
+🛡️  Встроенный WAF     SQLi, XSS, path traversal, rate limiting из коробки
+🦀  Rust крипто        Argon2id, BLAKE3, AES-GCM — быстро и безопасно
+🔄  Без интернета      Работает полностью в изолированной сети
+```
+
+---
+
+## Архитектура
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                       VORTEX NODE                        │
+│                                                          │
+│  ┌─────────────┐     ┌──────────────┐     ┌──────────┐  │
+│  │  JS Client  │────▶│  FastAPI     │────▶│  SQLite  │  │
+│  │  (ES модули)│◀────│  + WebSocket │     │  (WAL)   │  │
+│  └─────────────┘     └──────┬───────┘     └──────────┘  │
+│         │                   │                            │
+│    WebRTC P2P          ┌────▼─────┐                      │
+│    (звонки)            │  Rust    │                      │
+│                        │  Crypto  │                      │
+│                        │  Core    │                      │
+│                        └──────────┘                      │
+└───────────────────────────┬─────────────────────────────┘
+                            │ UDP broadcast
+                  ┌─────────▼──────────┐
+                  │   Другие узлы      │
+                  │   в локальной сети │
+                  └────────────────────┘
+```
+
+### Как работает шифрование
+
+Сервер выступает **только** как сигнальный ретранслятор — он физически не может прочитать сообщения:
+
+1. При подключении каждый клиент генерирует X25519 ключевую пару
+2. Публичные ключи обмениваются через сервер
+3. Каждая пара участников самостоятельно вычисляет `session_key = DH(priv_self, pub_peer)`
+4. Все сообщения шифруются AES-256-GCM перед отправкой
+5. Сервер видит только зашифрованный ciphertext — ключи у него никогда не было
+
+---
+
+## Стек технологий
+
+| Слой | Технологии |
+|------|-----------|
+| **Клиент** | HTML5, CSS3, JavaScript ES-модули, WebSocket, WebRTC |
+| **Сервер** | Python 3.10+, FastAPI, Uvicorn, SQLite WAL |
+| **Криптография** | Rust / PyO3 — X25519, AES-256-GCM, Argon2id, BLAKE3, HKDF-SHA256 |
+| **Безопасность** | JWT HS256, CSRF Double Submit Cookie, собственный WAF |
+| **P2P сеть** | UDP broadcast discovery, HTTP P2P messaging, WebRTC STUN |
+
+---
+
+## Быстрый старт
 
 ### Требования
 
-- Python 3.10 или выше
-- Rust и Cargo (для компиляции криптоядра)
-- [maturin](https://github.com/PyO3/maturin) (устанавливается через pip)
+- Python **3.10+**
+- Rust + Cargo (`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`)
+- [maturin](https://github.com/PyO3/maturin) для сборки Rust-модуля
 
-### Быстрый старт
+### Установка
 
-1. **Клонируйте репозиторий:**
-   ```bash
-   git clone https://github.com/yourname/vortex.git
-   cd vortex
+```bash
+# 1. Клонируй репозиторий
+git clone https://github.com/yourname/vortex.git
+cd vortex
+
+# 2. Создай виртуальное окружение
+python -m venv .venv
+source .venv/bin/activate          # Linux / macOS
+# .venv\Scripts\activate           # Windows
+
+# 3. Установи Python-зависимости
+pip install -r requirements.txt
+
+# 4. Собери Rust криптоядро
+maturin develop --release
+
+# 5. Запусти
+python run.py
 ```
 
-1. Создайте и активируйте виртуальное окружение:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # для Linux/macOS
-   # или .venv\Scripts\activate для Windows
-   ```
-2. Установите зависимости Python:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Скомпилируйте Rust-модуль:
-   ```bash
-   maturin develop --release
-   ```
-4. Настройте переменные окружения:
-      Скопируйте .env.example в .env и отредактируйте при необходимости (см. раздел Конфигурация).
-5. Запустите сервер:
-   ```bash
-   python run.py
-   ```
-   По умолчанию сервер будет доступен по адресу http://localhost:8000.
-6. Откройте браузер и наслаждайтесь общением!
+Открой браузер: **http://localhost:8000**
 
-💡 Если вы хотите протестировать децентрализацию, запустите второй экземпляр на другом устройстве в той же сети или на другом порту (например, python run.py --port 8001).
+### Тест децентрализации
+
+Запусти второй узел на другом устройстве в той же сети (или на другом порту):
+
+```bash
+# Второй узел
+PORT=8001 python run.py
+```
+
+Оба узла обнаружат друг друга автоматически через UDP-broadcast в течение ~2 секунд.
 
 ---
 
-⚙️ Конфигурация
+## Конфигурация
 
-Основные параметры задаются через файл .env или переменные окружения:
+Создай `.env` в корне проекта (или переменные среды). При первом запуске секреты сгенерируются автоматически.
 
-| Переменная | Описание | Значение по умолчанию |
-|---|---|---|
-| `JWT_SECRET` | Секрет для подписи JWT (сгенерируется автом.) | `secret` (не для продакшна) |
-| `CSRF_SECRET` | Секрет для CSRF-токенов | `secret` |
-| `ACCESS_TOKEN_EXPIRE_MIN` | Время жизни access-токена (минуты) | `1440` |
-| `REFRESH_TOKEN_EXPIRE_DAYS` | Время жизни refresh-токена (дни) | `30` |
-| `HOST` / `PORT` | Адрес и порт сервера | `0.0.0.0` / `8000` |
-| `DEVICE_NAME` | Имя устройства для P2P-обнаружения | (имя хоста) |
-| `DB_PATH` | Путь к файлу SQLite | `vortex.db` |
-| `UPLOAD_DIR` | Директория для загруженных файлов | `uploads` |
-| `UDP_PORT` | Порт для UDP-броадкастов | `4200` |
-| `MAX_FILE_MB` | Максимальный размер файла (МБ) | `100` |
-| `WAF_RATE_LIMIT_REQUESTS` | Лимит запросов для rate limiting | `120` |
-| `WAF_BLOCK_DURATION` | Время блокировки IP при превышении лимита (сек) | `3600` |
+```env
+# Безопасность — СМЕНИТЬ В ПРОДАКШНЕ
+JWT_SECRET=<auto-generated>
+CSRF_SECRET=<auto-generated>
 
-⚠️ Важно: В продакшене обязательно смените JWT_SECRET и CSRF_SECRET на сгенерированные случайные строки (они создадутся автоматически, если в .env их нет).
+# Токены
+ACCESS_TOKEN_EXPIRE_MIN=1440
+REFRESH_TOKEN_EXPIRE_DAYS=30
+
+# Сервер
+HOST=0.0.0.0
+PORT=8000
+DEVICE_NAME=           # имя узла для P2P (по умолчанию — hostname)
+
+# Хранилище
+DB_PATH=vortex.db
+UPLOAD_DIR=uploads
+MAX_FILE_MB=100
+
+# P2P discovery
+UDP_PORT=4200
+UDP_INTERVAL_SEC=2
+PEER_TIMEOUT_SEC=15
+
+# WAF
+WAF_RATE_LIMIT_REQUESTS=120
+WAF_RATE_LIMIT_WINDOW=60
+WAF_BLOCK_DURATION=3600
+```
+
+> ⚠️ В продакшне установи `ENVIRONMENT=production` — это включит HSTS, Secure cookies и строгий CSP.
 
 ---
 
-📱 Использование
+## API
 
-1. Регистрация / Вход – укажите номер телефона (или username) и пароль. Номер телефона используется как уникальный идентификатор.
-2. Создание комнаты – нажмите «+ Новая комната», укажите название и описание. Приватная комната будет доступна только по 8-символьному коду.
-3. Вступление по коду – введите код комнаты, чтобы присоединиться.
-4. Общение – отправляйте текстовые сообщения, файлы (до 100 МБ). Все данные шифруются на клиенте.
-5. Звонки – нажмите кнопку 📞 в комнате, чтобы начать голосовой/видеозвонок с участниками (требуется доступ к микрофону/камере).
-
----
-
-📡 API (кратко)
+Интерактивная документация доступна по адресу **http://localhost:8000/api/docs**
 
 | Метод | Endpoint | Описание |
-|---|---|---|
+|-------|----------|----------|
 | `POST` | `/api/authentication/register` | Регистрация |
 | `POST` | `/api/authentication/login` | Вход |
 | `GET` | `/api/authentication/me` | Текущий пользователь |
+| `GET` | `/api/authentication/csrf-token` | CSRF токен |
 | `POST` | `/api/rooms` | Создать комнату |
-| `GET` | `/api/rooms/my` | Список моих комнат |
-| `POST` | `/api/rooms/join/{code}` | Вступить в комнату по коду |
-| `WebSocket` | `/ws/{room_id}` | Чат WebSocket (с токеном) |
+| `GET` | `/api/rooms/my` | Мои комнаты |
+| `GET` | `/api/rooms/public` | Публичные комнаты |
+| `POST` | `/api/rooms/join/{code}` | Вступить по коду |
+| `GET` | `/api/rooms/{id}/members` | Участники комнаты |
 | `POST` | `/api/files/upload/{room_id}` | Загрузить файл |
 | `GET` | `/api/files/download/{file_id}` | Скачать файл |
-| `WebSocket` | `/ws/signal/{room_id}` | Сигнализация для WebRTC |
-
-Подробная документация API доступна в интерактивном режиме после запуска сервера по адресу:
-➡️ http://localhost:8000/api/docs (автоматически генерируется FastAPI).
-
----
-
-🛡️ Безопасность
-
-· Аутентификация – JWT (HS256) + refresh-токены с SHA-256 хешем в БД.
-· CSRF-защита – двойная отправка токена (cookie + заголовок).
-· WAF – собственный middleware, анализирующий запросы и блокирующий подозрительные (SQLi, XSS, path traversal и др.).
-· Хеширование паролей – Argon2id (Rust), стойкий к брутфорсу.
-· Сквозное шифрование – X25519 для обмена ключами, AES-256-GCM для сообщений и файлов.
-· Целостность файлов – SHA-256 проверка при скачивании.
+| `GET` | `/api/peers` | Список узлов в сети |
+| `WS` | `/ws/{room_id}` | Чат WebSocket |
+| `WS` | `/ws/signal/{room_id}` | WebRTC сигнализация |
 
 ---
 
-🤝 Вклад в разработку
+## Безопасность
 
-Будем рады любой помощи! Если вы нашли баг или хотите добавить новую фичу:
-
-1. Форкните репозиторий.
-2. Создайте ветку для ваших изменений (git checkout -b feature/amazing).
-3. Зафиксируйте изменения (git commit -m 'Add some amazing').
-4. Запушьте ветку (git push origin feature/amazing).
-5. Откройте Pull Request.
-
-Пожалуйста, убедитесь, что код проходит линтеры и тесты (если они есть).
-
----
-
-📄 Лицензия
-
-Этот проект распространяется под лицензией Apache 2.0.
-Подробнее см. в файле LICENSE.
+| Слой | Реализация |
+|------|-----------|
+| **Аутентификация** | JWT HS256 + opaque refresh-токены (SHA-256 hash в БД) |
+| **CSRF** | Double Submit Cookie — токен в cookie + заголовок `X-CSRF-Token` |
+| **Пароли** | Argon2id (Rust) — стойкий к GPU/ASIC брутфорсу |
+| **Шифрование** | X25519 DH + HKDF → AES-256-GCM для каждой сессии |
+| **WAF** | SQLi, XSS, path traversal, null bytes, zip-bomb detection |
+| **Заголовки** | CSP, HSTS, X-Frame-Options, Referrer-Policy и др. |
+| **Rate limiting** | 120 запросов / 60 сек на IP, бан на 1 час при превышении |
 
 ---
 
-VORTEX — сделано с ❤️ для свободного общения без границ.
+## Структура проекта
+
+```
+vortex/
+├── app/
+│   ├── authentication/     # Регистрация, вход, JWT
+│   ├── chats/              # WebSocket чат, комнаты, файлы
+│   ├── peer/               # P2P discovery, connection manager
+│   ├── security/           # WAF, middleware, крипто, валидация
+│   └── utilites/           # Вспомогательные утилиты
+├── rust_src/               # Rust криптоядро (vortex_chat)
+├── static/
+│   ├── css/                # Стили
+│   └── js/                 # ES-модули клиента
+│       └── chat/           # Модули чата (messages, file-upload, image-viewer)
+├── templates/              # HTML шаблоны
+├── keys/                   # X25519 ключи узла (auto-generated)
+├── uploads/                # Загруженные файлы
+├── run.py                  # Точка входа
+└── requirements.txt
+```
+
+---
+
+## Вклад в разработку
+
+Pull Request'ы приветствуются. Для крупных изменений — сначала открой Issue для обсуждения.
+
+```bash
+git checkout -b feature/my-feature
+git commit -m 'feat: add my feature'
+git push origin feature/my-feature
+# → открой Pull Request
+```
+
+---
+
+## Лицензия
+
+Распространяется под лицензией **Apache 2.0** — см. файл [LICENSE](LICENSE).
+
+---
+
+<div align="center">
+
+**VORTEX** — сделан для свободного общения без границ и слежки.
+
+*Твои данные принадлежат тебе.*
+
+</div>
