@@ -311,13 +311,17 @@ function startRedirectCountdown() {
     const text   = document.getElementById('redirect-text');
     const tick   = setInterval(() => {
         secs--;
-        bar.style.width     = ((5 - secs) / 5 * 100) + '%';
-        text.textContent    = `Переход через ${secs} секунд...`;
-        if (secs <= 0) { clearInterval(tick); openNodeUrl(); }
+        bar.style.width  = ((5 - secs) / 5 * 100) + '%';
+        text.textContent = `Переход через ${secs} секунд...`;
+        if (secs <= 0) {
+            clearInterval(tick);
+            if (state.nodeUrl) window.location.href = state.nodeUrl;
+        }
     }, 1000);
 }
 
 function openNodeUrl() {
+    // Кнопка — прямой клик пользователя, window.open здесь допустим
     if (state.nodeUrl) window.open(state.nodeUrl, '_blank');
 }
 
