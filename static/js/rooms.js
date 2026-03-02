@@ -74,7 +74,7 @@ export async function leaveRoom() {
     if (!S.currentRoom) return;
     try {
         await api('DELETE', `/api/rooms/${S.currentRoom.id}/leave`);
-        S.ws?.close(); S.ws = null;
+        if (S.ws) { S.ws.onclose = null; if (S.ws._ping) clearInterval(S.ws._ping); S.ws.close(); S.ws = null; }
         S.rooms = S.rooms.filter(r => r.id !== S.currentRoom.id);
         S.currentRoom = null;
         renderRoomsList();

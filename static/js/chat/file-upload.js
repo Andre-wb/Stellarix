@@ -265,19 +265,9 @@ function _insertPendingBubble(fileName, fileSize, mimeType, localSrc) {
     wrap.appendChild(header);
 
     if (isImage && localSrc) {
-        // ─────────────────────────────────────────────────────────────────────
-        // РЕШЕНИЕ ЧЁРНОЙ ДЫРЫ: не используем <img> тег совсем.
-        // <img width:100%> внутри width:fit-content — это CSS-циклическая
-        // зависимость, браузер схлопывает контейнер в 0×0 → чёрный квадрат.
-        //
-        // Вместо этого: задаём конкретный размер на div и выводим картинку
-        // через background-image — никакого <img>, никакой цикличности.
-        // ─────────────────────────────────────────────────────────────────────
         const bubble = document.createElement('div');
         bubble.className = 'pending-img-bubble';
         bubble.style.backgroundImage = `url(${localSrc})`;
-
-        // Угловой бейдж с кольцом прогресса
         const badge = document.createElement('div');
         badge.className = 'upload-corner-badge';
         badge.innerHTML = `
@@ -287,8 +277,6 @@ function _insertPendingBubble(fileName, fileSize, mimeType, localSrc) {
             </svg>
             <span class="ucb-pct">0%</span>`;
         bubble.appendChild(badge);
-
-        // Подпись снизу
         const meta = document.createElement('div');
         meta.className   = 'pending-img-meta';
         meta.textContent = `${fileName} · ${fmtSize(fileSize)}`;
@@ -308,7 +296,13 @@ function _insertPendingBubble(fileName, fileSize, mimeType, localSrc) {
                 <div class="file-name">${_esc(fileName)}</div>
                 <div class="file-size">${fmtSize(fileSize)}</div>
                 <div class="upload-bar-wrap"><div class="upload-bar-fill"></div></div>
-                <div class="upload-bar-pct">0%</div>
+            </div>
+            <div class="upload-corner-badge" style="position:relative;bottom:auto;right:auto;flex-shrink:0;">
+                <svg class="ucb-ring" viewBox="0 0 20 20">
+                    <circle class="ucb-track" cx="10" cy="10" r="7"/>
+                    <circle class="ucb-fill"  cx="10" cy="10" r="7"/>
+                </svg>
+                <span class="ucb-pct">0%</span>
             </div>`;
         wrap.appendChild(bubble);
     }
@@ -337,8 +331,6 @@ function _updatePendingProgress(el, pct) {
 
 function _finishPendingBubble(el) {
     if (!el) return;
-    // МГНОВЕННОЕ удаление — не ждём ничего.
-    // WebSocket уже несёт реальный пузырь с сервера, любая задержка = дубликат.
     el.remove();
 }
 

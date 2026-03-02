@@ -26,7 +26,12 @@ export function openRoom(id) {
     const room = S.rooms.find(r => r.id === id);
     if (!room) return;
     S.currentRoom = room;
-    if (S.ws) { S.ws.close(); S.ws = null; }
+    if (S.ws) {
+        S.ws.onclose = null;                        // не триггерим авто-реконнект
+        if (S.ws._ping) clearInterval(S.ws._ping);  // убиваем утёкший интервал
+        S.ws.close();
+        S.ws = null;
+    }
     showChatScreen();
     $('messages-container').innerHTML = '';
     $('chat-room-name').textContent = room.name;

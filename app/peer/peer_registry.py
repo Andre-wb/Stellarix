@@ -7,7 +7,6 @@ from __future__ import annotations
 import asyncio, json, logging, socket, threading, time
 from dataclasses import dataclass, field
 from typing import Optional
-
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -21,12 +20,11 @@ from app.models import User
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/peers", tags=["peers"])
 
-
 @dataclass
 class PeerInfo:
-    name:      str
-    ip:        str
-    port:      int
+    name: str
+    ip: str
+    port: int
     last_seen: float = field(default_factory=time.monotonic)
 
     def alive(self) -> bool:
@@ -84,14 +82,38 @@ registry = PeerRegistry()
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _local_ip() -> str:
+    """Определяет локальный IP без необходимости в интернете."""
+    # Пробуем несколько LAN-адресов — UDP connect не шлёт пакетов, просто выбирает маршрут
+    for target in ("192.168.1.1", "10.0.0.1", "172.16.0.1", "8.8.8.8"):
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.settimeout(0.05)
+            s.connect((target, 80))
+            ip = s.getsockname()[0]
+            s.close()
+            if not ip.startswith("127."):
+                return ip
+        except Exception:
+            pass
+    # Fallback через hostname
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
+        ip = socket.gethostbyname(socket.gethostname())
+        if not ip.startswith("127."):
+            return ip
     except Exception:
-        return "127.0.0.1"
+        pass
+    return "127.0.0.1"
+
+
+def _subnet_broadcast(ip: str) -> str:
+    """Вычисляет broadcast-адрес подсети /24 из локального IP."""
+    try:
+        parts = ip.split(".")
+        if len(parts) == 4:
+            return f"{parts[0]}.{parts[1]}.{parts[2]}.255"
+    except Exception:
+        pass
+    return "255.255.255.255"
 
 
 def start_discovery(device_name: str = "") -> None:
@@ -128,7 +150,6 @@ def start_discovery(device_name: str = "") -> None:
 
 
 def _py_listener():
-    own_ip = registry.own_ip
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -143,7 +164,8 @@ def _py_listener():
         try:
             data, addr = sock.recvfrom(1024)
             src = addr[0]
-            if src == own_ip:
+            # Читаем own_ip динамически — при старте он мог быть 127.0.0.1
+            if src == registry.own_ip or src.startswith("127."):
                 continue
             info = json.loads(data.decode())
             registry.update(src, str(info.get("name", src))[:64], int(info.get("port", Config.PORT)))
@@ -154,14 +176,24 @@ def _py_listener():
 
 
 def _py_sender(name: str):
-    payload = json.dumps({"name": name, "port": Config.PORT}).encode()
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     while True:
         try:
-            sock.sendto(payload, ("255.255.255.255", Config.UDP_PORT))
-        except Exception:
-            pass
+            # Пересчитываем IP и broadcast каждую итерацию — IP может измениться
+            own_ip   = _local_ip()
+            if own_ip != registry.own_ip and not own_ip.startswith("127."):
+                registry.own_ip = own_ip
+            payload  = json.dumps({"name": name, "port": Config.PORT}).encode()
+            bcast    = _subnet_broadcast(own_ip)
+            sock.sendto(payload, (bcast, Config.UDP_PORT))
+            # Также шлём на 255.255.255.255 для максимальной совместимости
+            try:
+                sock.sendto(payload, ("255.255.255.255", Config.UDP_PORT))
+            except Exception:
+                pass
+        except Exception as e:
+            logger.debug(f"UDP send: {e}")
         time.sleep(Config.UDP_INTERVAL_SEC)
 
 
@@ -199,8 +231,8 @@ async def peer_status():
 
 class MsgIn(BaseModel):
     room_id: int
-    sender:  str
-    text:    str
+    sender: str
+    text: str
 
 
 @router.post("/receive")
@@ -213,19 +245,19 @@ async def receive_from_peer(msg: MsgIn, request: Request):
         logger.warning(f"P2P msg from unregistered peer {src_ip}")
 
     await ws_manager.broadcast_to_room(msg.room_id, {
-        "type":      "peer_message",
-        "sender":    msg.sender,
+        "type": "peer_message",
+        "sender": msg.sender,
         "sender_ip": src_ip,
-        "text":      msg.text,
+        "text": msg.text,
         "from_peer": True,
     })
     return {"ok": True}
 
 
 class SendReq(BaseModel):
-    room_id:  int
-    text:     str
-    peer_ip:  Optional[str] = None
+    room_id: int
+    text: str
+    peer_ip: Optional[str] = None
 
 
 @router.post("/send")

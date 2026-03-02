@@ -12,6 +12,7 @@ from app.database import get_db
 from app.models import User
 from app.models_rooms import Room, RoomMember, RoomRole
 from app.utilites.utils import generative_invite_code
+from app.security.crypto import generate_key
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/rooms", tags=["rooms"])
@@ -51,6 +52,7 @@ async def create_room(body: RoomCreate, u: User = Depends(get_current_user),
         name=body.name, description=body.description,
         creator_id=u.id, is_private=body.is_private,
         invite_code=generative_invite_code(8), max_members=200,
+        room_key=generate_key(),
     )
     db.add(r); db.flush()
     db.add(RoomMember(room_id=r.id, user_id=u.id, role=RoomRole.OWNER))

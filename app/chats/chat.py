@@ -67,10 +67,10 @@ def _check_double_extension(filename: str) -> bool:
 
 @router.websocket("/ws/{room_id}")
 async def ws_chat(
-    websocket: WebSocket,
-    room_id: int,
-    token: Optional[str] = None,
-    db: Session = Depends(get_db),
+        websocket: WebSocket,
+        room_id: int,
+        token: Optional[str] = None,
+        db: Session = Depends(get_db),
 ):
     try:
         raw_token = websocket.cookies.get("access_token") or token
@@ -86,7 +86,7 @@ async def ws_chat(
         RoomMember.room_id == room_id,
         RoomMember.user_id == user.id,
         RoomMember.is_banned == False,
-    ).first()
+        ).first()
     if not member:
         await websocket.close(code=4403)
         return
@@ -95,7 +95,7 @@ async def ws_chat(
         room_id, user.id, user.username,
         user.display_name or user.username,
         user.avatar_emoji, websocket,
-    )
+        )
 
     try:
         room = db.query(Room).filter(Room.id == room_id).first()
@@ -135,10 +135,15 @@ async def _handle_text_message(room_id: int, user: User, data: dict, db: Session
     if not text or len(text) > 4096:
         return
 
-    from app.security.crypto import encrypt_message, hash_message
+    from app.security.crypto import encrypt_message, hash_message, generate_key
     room = db.query(Room).filter(Room.id == room_id).first()
-    if not room or not room.room_key:
+    if not room:
         return
+
+    # Авто-генерация ключа для старых комнат, созданных без него
+    if not room.room_key:
+        room.room_key = generate_key()
+        db.commit()
 
     encrypted = encrypt_message(text.encode(), room.room_key)
     msg = Message(
@@ -201,7 +206,7 @@ async def _send_history(room_id: int, user_id: int, db: Session):
                 FileTransfer.room_id == room_id,
                 FileTransfer.original_name == m.file_name,
                 FileTransfer.uploader_id == m.sender_id,
-            ).order_by(FileTransfer.created_at.desc()).first()
+                ).order_by(FileTransfer.created_at.desc()).first()
 
             if ft:
                 entry["download_url"] = f"/api/files/download/{ft.id}"
@@ -226,16 +231,16 @@ async def _send_history(room_id: int, user_id: int, db: Session):
 
 @router.post("/api/files/upload/{room_id}")
 async def upload_file(
-    room_id: int,
-    request: Request,
-    file: UploadFile = File(...),
-    u: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+        room_id: int,
+        request: Request,
+        file: UploadFile = File(...),
+        u: User = Depends(get_current_user),
+        db: Session = Depends(get_db),
 ):
     member = db.query(RoomMember).filter(
         RoomMember.room_id == room_id, RoomMember.user_id == u.id,
         RoomMember.is_banned == False,
-    ).first()
+        ).first()
     if not member:
         raise HTTPException(403, "Нет доступа к комнате")
 
@@ -332,20 +337,20 @@ async def upload_file(
 
 @router.get("/api/files/download/{file_id}")
 async def download_file(
-    file_id: int,
-    u: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+        file_id: int,
+        u: User = Depends(get_current_user),
+        db: Session = Depends(get_db),
 ):
     ft = db.query(FileTransfer).filter(
         FileTransfer.id == file_id, FileTransfer.is_available == True,
-    ).first()
+        ).first()
     if not ft:
         raise HTTPException(404, "Файл не найден")
 
     member = db.query(RoomMember).filter(
         RoomMember.room_id == ft.room_id, RoomMember.user_id == u.id,
         RoomMember.is_banned == False,
-    ).first()
+        ).first()
     if not member:
         raise HTTPException(403, "Нет доступа")
 
@@ -365,21 +370,21 @@ async def download_file(
 
 @router.get("/api/files/room/{room_id}")
 async def list_room_files(
-    room_id: int,
-    u: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+        room_id: int,
+        u: User = Depends(get_current_user),
+        db: Session = Depends(get_db),
 ):
     member = db.query(RoomMember).filter(
         RoomMember.room_id == room_id, RoomMember.user_id == u.id,
         RoomMember.is_banned == False,
-    ).first()
+        ).first()
     if not member:
         raise HTTPException(403, "Нет доступа")
 
     files = db.query(FileTransfer).filter(
         FileTransfer.room_id == room_id,
         FileTransfer.is_available == True,
-    ).order_by(FileTransfer.created_at.desc()).limit(100).all()
+        ).order_by(FileTransfer.created_at.desc()).limit(100).all()
 
     return {
         "files": [{
@@ -403,9 +408,9 @@ _signal_rooms: dict[int, dict[int, WebSocket]] = {}
 
 @router.websocket("/ws/signal/{room_id}")
 async def ws_signal(
-    websocket: WebSocket,
-    room_id: int,
-    db: Session = Depends(get_db),
+        websocket: WebSocket,
+        room_id: int,
+        db: Session = Depends(get_db),
 ):
     import json as _json
 
