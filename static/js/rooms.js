@@ -1,10 +1,6 @@
 import { $, api, esc, fmtSize, openModal, closeModal, showAlert } from './utils.js';
 import { showWelcome, showChatScreen } from './ui.js';
-import { connectWS } from './chat.js';
-
-// ============================================================================
-// ROOMS
-// ============================================================================
+import { connectWS } from './chat/chat.js';      // ← ИСПРАВЛЕНО: было './chat.js'
 
 export async function loadMyRooms() {
     try {
@@ -121,6 +117,7 @@ export function showCreateRoomModal() {
     openModal('create-room-modal');
     setTimeout(() => $('cr-name').focus(), 50);
 }
+
 export function showJoinModal() {
     openModal('join-modal');
     setTimeout(() => $('join-code').focus(), 50);

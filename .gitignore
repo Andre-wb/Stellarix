@@ -26,3 +26,4 @@ __pycache__/
 .vortex.db
 .vortex.db-shm
 .vortex.db-wal
+.uploads

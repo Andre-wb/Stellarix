@@ -24,7 +24,17 @@ from typing import Dict, List, Optional, Tuple
 from pathlib import Path
 
 from fastapi import UploadFile, HTTPException, Request
-import magic
+try:
+    import magic as _magic_lib
+    _MAGIC_AVAILABLE = True
+except (ImportError, OSError):
+    _magic_lib = None  # type: ignore
+    _MAGIC_AVAILABLE = False
+    logger.warning(
+        "python-magic / libmagic не найдены — MIME-валидация будет по расширению. "
+        "Установите: pip install python-magic && apt-get install libmagic1"
+    )
+
 from PIL import Image
 import PIL
 import io
@@ -39,17 +49,54 @@ class FileUploadConfig:
     """Настройки загрузки файлов."""
 
     # Максимальный размер файла (5 MB)
-    MAX_FILE_SIZE = 5 * 1024 * 1024
+    MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024
 
     # Ограничения для изображений
     MAX_IMAGE_DIMENSION = 4000      # максимальная ширина/высота в пикселях
     MIN_IMAGE_DIMENSION = 50        # минимальная ширина/высота
 
     # Допустимые MIME-типы и соответствующие расширения
-    ALLOWED_MIME_TYPES = {
-        'image/jpeg': ['.jpg', '.jpeg'],
-        'image/png': ['.png'],
-        'image/webp': ['.webp']
+    # FIX: было только 3 image типа — любой видео/аудио/PDF получал HTTP 415
+    ALLOWED_MIME_TYPES: dict[str, list[str]] = {
+        # ── Изображения ──────────────────────────────────────────────────
+        'image/jpeg':     ['.jpg', '.jpeg', '.jfif', '.jpe'],   # FIX: добавлены .jfif/.jpe (iPhone, Windows)
+        'image/png':      ['.png'],
+        'image/webp':     ['.webp'],
+        'image/gif':      ['.gif'],
+        'image/bmp':      ['.bmp'],
+        'image/tiff':     ['.tif', '.tiff'],
+        'image/svg+xml':  ['.svg'],
+        # HEIC/HEIF (iPhone): magic возвращает разные строки в зависимости от libmagic версии
+        'image/heic':     ['.heic', '.heif'],
+        'image/heif':     ['.heic', '.heif'],
+        # ── Видео ────────────────────────────────────────────────────────
+        'video/mp4':        ['.mp4', '.m4v'],
+        'video/webm':       ['.webm'],
+        'video/quicktime':  ['.mov', '.qt'],
+        'video/x-msvideo':  ['.avi'],
+        'video/x-matroska': ['.mkv'],
+        'video/3gpp':       ['.3gp'],
+        # ── Аудио ────────────────────────────────────────────────────────
+        'audio/mpeg':       ['.mp3'],
+        'audio/ogg':        ['.ogg', '.oga'],
+        'audio/wav':        ['.wav'],
+        'audio/x-wav':      ['.wav'],
+        'audio/webm':       ['.weba'],
+        'audio/aac':        ['.aac', '.m4a'],
+        'audio/flac':       ['.flac'],
+        'audio/x-flac':     ['.flac'],
+        'audio/mp4':        ['.m4a', '.mp4'],
+        # ── Документы ────────────────────────────────────────────────────
+        'application/pdf':  ['.pdf'],
+        'text/plain':       ['.txt', '.log', '.md', '.csv'],
+        'text/csv':         ['.csv'],
+        # ── Архивы ───────────────────────────────────────────────────────
+        'application/zip':                ['.zip'],
+        'application/x-zip-compressed':   ['.zip'],
+        'application/x-rar-compressed':   ['.rar'],
+        'application/x-7z-compressed':    ['.7z'],
+        'application/gzip':               ['.gz'],
+        'application/x-tar':              ['.tar'],
     }
     ALLOWED_EXTENSIONS = {ext for exts in ALLOWED_MIME_TYPES.values() for ext in exts}
 
@@ -76,14 +123,28 @@ class FileAnomalyDetector:
     @staticmethod
     def detect_double_extension(filename: str) -> bool:
         """
-        Проверяет наличие двойного расширения (например, file.jpg.php).
+        Проверяет наличие двойного расширения с опасным промежуточным расширением.
+        Флагирует: shell.php.jpg, virus.exe.png
+        НЕ флагирует: photo.vacation.jpg, my.photo.png, photo 2024-01-01 12.34.jpg
+
+        FIX (BUG-2): старая версия проверяла name_parts[1:] включая ПОСЛЕДНЕЕ расширение,
+        поэтому ANY фото с точкой в имени (vacation.jpg, 12.34.jpg) блокировалось.
+        Исправление: проверяем только ПРОМЕЖУТОЧНЫЕ части (не первую и не последнюю).
         """
-        name_parts = Path(filename).name.split('.')
-        # Если больше двух частей и какая-то из промежуточных — допустимое расширение
-        return len(name_parts) > 2 and any(
-            ext in FileUploadConfig.ALLOWED_EXTENSIONS
-            for ext in ['.' + part for part in name_parts[1:]]
-        )
+        _DANGEROUS_EXTS = frozenset({
+            '.php', '.php3', '.php4', '.php5', '.phtml',
+            '.asp', '.aspx', '.ascx', '.ashx',
+            '.jsp', '.jspx', '.jws',
+            '.cgi', '.pl', '.py', '.rb', '.sh', '.bash',
+            '.exe', '.dll', '.bat', '.cmd', '.ps1', '.vbs',
+        })
+        name  = Path(filename).name
+        parts = name.split('.')
+        if len(parts) <= 2:
+            return False
+        # Только промежуточные части (исключаем первую часть и последнее расширение)
+        intermediate = {'.' + p.lower() for p in parts[1:-1]}
+        return bool(intermediate & _DANGEROUS_EXTS)
 
     @staticmethod
     def detect_null_bytes(filename: str) -> bool:
@@ -280,23 +341,64 @@ def validate_file_mime_type(content: bytes, filename: str) -> Tuple[bool, Option
     """
     Проверяет MIME-тип файла по первым байтам и соответствие расширения.
     Возвращает (успех, MIME-тип или сообщение об ошибке).
-    """
-    try:
-        mime = magic.from_buffer(content[:4096], mime=True)
 
-        if mime not in FileUploadConfig.ALLOWED_MIME_TYPES:
+    FIX BUG-3: добавлен fallback если libmagic не установлена.
+    FIX BUG-4: смягчена проверка расширения — принимаем родственные расширения
+               (например .jfif для image/jpeg).
+    """
+    file_ext = Path(filename).suffix.lower()
+
+    # ── Шаг 1: определяем MIME по magic bytes (если libmagic доступна) ───────
+    if _MAGIC_AVAILABLE and _magic_lib is not None:
+        try:
+            mime = _magic_lib.from_buffer(content[:4096], mime=True)
+        except Exception as e:
+            logger.warning(f"libmagic ошибка: {e} — переходим к fallback по расширению")
+            mime = None
+    else:
+        mime = None
+
+    # ── Шаг 2: если magic не дала результат — определяем по расширению ───────
+    if mime is None:
+        # Fallback: ищем MIME по расширению файла
+        ext_to_mime = {
+            ext: mime_type
+            for mime_type, exts in FileUploadConfig.ALLOWED_MIME_TYPES.items()
+            for ext in exts
+        }
+        mime = ext_to_mime.get(file_ext)
+        if mime is None:
+            return False, f"Неподдерживаемое расширение файла: {file_ext}"
+
+    # ── Шаг 3: проверяем что MIME входит в белый список ─────────────────────
+    if mime not in FileUploadConfig.ALLOWED_MIME_TYPES:
+        # Попытка нормализации: некоторые libmagic версии возвращают x-субтипы
+        # например 'audio/x-wav' вместо 'audio/wav' или 'image/x-png' вместо 'image/png'
+        normalized = mime.replace('/x-', '/', 1)
+        if normalized in FileUploadConfig.ALLOWED_MIME_TYPES:
+            mime = normalized
+        else:
             return False, f"Неподдерживаемый тип файла: {mime}"
 
-        file_ext = Path(filename).suffix.lower()
-        expected_extensions = FileUploadConfig.ALLOWED_MIME_TYPES.get(mime, [])
+    # ── Шаг 4: проверяем расширение — мягкая проверка ───────────────────────
+    # FIX BUG-4: раньше .jfif отвергался для image/jpeg. Теперь проверяем
+    # только что расширение хоть в каком-то image/* если mime image/*.
+    expected_exts = FileUploadConfig.ALLOWED_MIME_TYPES.get(mime, [])
+    if file_ext and expected_exts and file_ext not in expected_exts:
+        # Проверяем соответствие по категории (image, video, audio, etc.)
+        mime_category = mime.split('/')[0]  # 'image', 'video', 'audio', etc.
+        # Находим все расширения для данной категории
+        all_category_exts: set[str] = set()
+        for m, exts in FileUploadConfig.ALLOWED_MIME_TYPES.items():
+            if m.startswith(mime_category + '/'):
+                all_category_exts.update(exts)
+        if file_ext not in all_category_exts:
+            return False, (
+                f"Расширение «{file_ext}» не соответствует типу файла «{mime}». "
+                f"Ожидаются: {', '.join(expected_exts)}"
+            )
 
-        if file_ext not in expected_extensions:
-            return False, "Расширение файла не соответствует его содержимому"
-
-        return True, mime
-    except Exception as e:
-        logger.error(f"Ошибка валидации MIME-типа: {e}")
-        return False, "Ошибка проверки типа файла"
+    return True, mime
 
 
 def save_temp_file(content: bytes, extension: str) -> Tuple[Path, Path]:

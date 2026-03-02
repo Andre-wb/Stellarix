@@ -1,6 +1,6 @@
 import { $ } from './utils.js';
 import { renderRoomsList } from './rooms.js';
-import { connectWS } from './chat.js';
+import { connectWS } from './chat/chat.js';      // ← ИСПРАВЛЕНО: было './chat.js'
 import { connectSignal } from './webrtc.js';
 
 export function showWelcome() {
@@ -42,5 +42,5 @@ export function showProfileModal() {
     $('prof-phone').textContent = S.user.phone;
     $('prof-username').textContent = '@' + S.user.username;
     $('prof-created').textContent = new Date(S.user.created_at).toLocaleDateString('ru');
-    openModal('profile-modal');
+    window.openModal('profile-modal');
 }

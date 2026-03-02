@@ -274,7 +274,6 @@
     </div>
 </div>
 
-<!-- ── CALL OVERLAY ──────────────────────────────────────────────────────── -->
 <div id="call-overlay">
     <video id="remote-video" autoplay playsinline></video>
     <video id="local-video"  autoplay playsinline muted></video>
@@ -290,8 +289,8 @@
 
 <div id="file-preview-overlay" onclick="closeDotMenu()">
 
-    <div class="fpo-topbar">
-        <button class="fpo-close-btn" onclick="cancelFilePreview(); event.stopPropagation()">←</button>
+    <div class="fpo-topbar" onclick="event.stopPropagation()">
+        <button class="fpo-close-btn" onclick="cancelFilePreview()">←</button>
         <span class="fpo-title" id="fpo-filename">—</span>
         <div class="fpo-dots-wrap">
             <button class="fpo-dots-btn" id="fpo-dots-btn"
@@ -304,8 +303,7 @@
             </div>
         </div>
     </div>
-
-    <div class="fpo-preview">
+    <div class="fpo-preview" onclick="event.stopPropagation()">
         <img id="preview-img" src="" alt="" style="display:none;">
         <div id="preview-file-card" class="fpo-file-card" style="display:none;">
             <span id="fpo-file-icon" class="fpo-file-icon">📄</span>
@@ -316,7 +314,7 @@
         </div>
     </div>
 
-    <div id="compress-section" style="display:none;">
+    <div id="compress-section" style="display:none;" onclick="event.stopPropagation()">
         <div class="compress-header">
             <span class="compress-label">Размер</span>
             <span class="compress-meta">
@@ -338,7 +336,7 @@
 
     <div id="fpo-error" style="display:none;font-size:12px;color:var(--red);font-family:var(--mono);padding:6px 24px;text-align:center;"></div>
 
-    <div class="fpo-bottom-bar" id="fpo-bottom-bar">
+    <div class="fpo-bottom-bar" id="fpo-bottom-bar" onclick="event.stopPropagation()">
         <div class="fpo-meta">
             <span class="fpo-meta-size" id="fpo-filesize">—</span>
         </div>
@@ -359,7 +357,6 @@
     </div>
     <a id="image-viewer-download" class="iv-download" onclick="event.stopPropagation()">↓ Скачать</a>
 </div>
-
 <script type="module" src="/static/js/main.js"></script>
 </body>
 </html>

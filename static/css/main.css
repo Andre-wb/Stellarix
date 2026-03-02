@@ -237,19 +237,12 @@ html, body {
     cursor: pointer; transition: all 0.15s;
     display: flex; align-items: center; justify-content: center; gap: 8px;
 }
-.btn-primary {
-    background: var(--accent); color: white;
-}
+.btn-primary { background: var(--accent); color: white; }
 .btn-primary:hover { background: var(--accent2); transform: translateY(-1px); }
 .btn-primary:active { transform: translateY(0); }
-.btn-secondary {
-    background: var(--bg3); color: var(--text);
-    border: 1px solid var(--border);
-}
+.btn-secondary { background: var(--bg3); color: var(--text); border: 1px solid var(--border); }
 .btn-secondary:hover { border-color: var(--accent); color: var(--accent2); }
-.btn-danger {
-    background: var(--bg3); color: var(--red); border: 1px solid var(--border);
-}
+.btn-danger { background: var(--bg3); color: var(--red); border: 1px solid var(--border); }
 .btn-danger:hover { background: rgba(239,68,68,0.1); border-color: var(--red); }
 .btn-sm { padding: 6px 12px; font-size: 12px; width: auto; }
 
@@ -332,9 +325,7 @@ html, body {
     color: var(--text3); font-size: 12px; font-family: var(--mono);
     max-width: 100%;
 }
-.msg-bubble.file-msg {
-    display: flex; align-items: center; gap: 10px;
-}
+.msg-bubble.file-msg { display: flex; align-items: center; gap: 10px; }
 .file-icon { font-size: 24px; }
 .file-info { flex: 1; }
 .file-name { font-weight: 700; font-size: 13px; }
@@ -345,7 +336,7 @@ html, body {
 }
 .file-download:hover { color: var(--text); }
 
-/* Typing indicator */
+/* TYPING INDICATOR */
 .typing-indicator {
     display: none; align-items: center; gap: 8px;
     padding: 6px 16px; color: var(--text2); font-size: 12px;
@@ -372,9 +363,7 @@ html, body {
     flex-shrink: 0;
 }
 
-.input-row {
-    display: flex; gap: 8px; align-items: flex-end;
-}
+.input-row { display: flex; gap: 8px; align-items: flex-end; }
 
 #msg-input {
     flex: 1; padding: 10px 14px;
@@ -397,12 +386,10 @@ html, body {
     transition: all 0.12s; flex-shrink: 0;
 }
 .input-btn:hover { border-color: var(--accent); color: var(--accent2); }
-.input-btn.send {
-    background: var(--accent); border-color: var(--accent); color: white;
-}
+.input-btn.send { background: var(--accent); border-color: var(--accent); color: white; }
 .input-btn.send:hover { background: var(--accent2); }
 
-/* EMPTY / WELCOME */
+/* WELCOME SCREEN */
 #welcome-screen {
     align-items: center; justify-content: center;
     flex-direction: column; gap: 16px; text-align: center;
@@ -443,16 +430,14 @@ html, body {
 /* PEERS PANEL */
 #peers-panel {
     width: 220px; border-left: 1px solid var(--border);
-    background: var(--bg2); display: none;
-    flex-direction: column;
+    background: var(--bg2); display: none; flex-direction: column;
 }
 #peers-panel.show { display: flex; }
 
 .panel-header {
     padding: 14px 16px; border-bottom: 1px solid var(--border);
     font-weight: 800; font-size: 13px;
-    display: flex; align-items: center; justify-content: between;
-    gap: 8px;
+    display: flex; align-items: center; gap: 8px;
 }
 .panel-close {
     margin-left: auto; cursor: pointer; color: var(--text2);
@@ -516,7 +501,7 @@ video {
 #remote-video { width: 100%; max-height: 60vh; object-fit: contain; position: relative; }
 #local-video  { width: 160px; bottom: 100px; right: 20px; }
 
-/* SCROLLBAR CHAT */
+/* DATE DIVIDER */
 .date-divider {
     text-align: center; color: var(--text3);
     font-size: 11px; font-family: var(--mono);
@@ -550,7 +535,7 @@ video {
 .net-dot.online  { background: var(--green); box-shadow: 0 0 5px var(--green); }
 .net-dot.offline { background: var(--red);   box-shadow: 0 0 5px var(--red); }
 
-/* Animations */
+/* ANIMATIONS */
 .fade-in { animation: fadeIn 0.2s ease; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
@@ -561,11 +546,10 @@ video {
     .auth-card { width: calc(100vw - 32px); padding: 24px; }
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   Добавить в конец main.css (заменить старые блоки #file-preview-overlay)
-   ═══════════════════════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════
+   CHAT IMAGE BUBBLES
+   ══════════════════════════════════════════════════════════ */
 
-/* ── Chat image bubbles ── */
 .msg-bubble-img {
     cursor: pointer;
     padding: 4px !important;
@@ -591,7 +575,10 @@ video {
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-/* ── File preview overlay ── */
+/* ══════════════════════════════════════════════════════════
+   FILE PREVIEW OVERLAY
+   ══════════════════════════════════════════════════════════ */
+
 #file-preview-overlay {
     position: fixed; inset: 0; z-index: 300;
     background: var(--bg);
@@ -601,7 +588,6 @@ video {
 }
 #file-preview-overlay.show { display: flex; }
 
-/* Topbar */
 .fpo-topbar {
     height: 56px;
     padding: 0 16px;
@@ -625,7 +611,6 @@ video {
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-/* Three dots */
 .fpo-dots-wrap { position: relative; flex-shrink: 0; }
 .fpo-dots-btn {
     width: 34px; height: 34px; border-radius: var(--radius);
@@ -633,7 +618,6 @@ video {
     color: var(--text2); cursor: pointer; font-size: 20px; font-weight: 700;
     display: flex; align-items: center; justify-content: center;
     transition: all 0.12s;
-    /* убираем стандартный outline — у нас своя система фокуса */
     outline: none;
 }
 .fpo-dots-btn:hover { color: var(--text); border-color: var(--accent); }
@@ -662,7 +646,6 @@ video {
 .fpo-dot-item:hover { background: var(--bg3); }
 .fpo-dot-item span { font-size: 16px; color: var(--text2); }
 
-/* Preview area */
 .fpo-preview {
     flex: 1;
     display: flex; align-items: center; justify-content: center;
@@ -675,7 +658,6 @@ video {
     max-width: 100%; max-height: 100%;
     object-fit: contain;
     border-radius: 8px;
-    /* Переопределяем глобальный video {} который мог бы мешать */
     position: static !important;
     border: none !important;
 }
@@ -695,7 +677,7 @@ video {
     font-family: var(--mono); margin-top: 4px;
 }
 
-/* Compression section */
+/* COMPRESSION SECTION */
 #compress-section {
     padding: 0 24px 16px;
     flex-shrink: 0;
@@ -717,7 +699,6 @@ video {
 }
 .compress-sep { color: var(--border); }
 
-/* Slider */
 .compress-track { width: 100%; }
 
 #compress-slider {
@@ -727,9 +708,7 @@ video {
     background: var(--border);
     border-radius: 2px;
     outline: none; cursor: pointer;
-    position: relative;
 }
-/* Заполненная часть (через JS мы этого не делаем — используем gradient) */
 #compress-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     width: 20px; height: 20px;
@@ -758,7 +737,6 @@ video {
     margin-top: 6px;
 }
 
-/* Bottom bar */
 .fpo-bottom-bar {
     padding: 14px 20px;
     background: var(--bg2); border-top: 1px solid var(--border);
@@ -766,10 +744,7 @@ video {
     gap: 12px; flex-shrink: 0;
 }
 .fpo-meta { display: flex; align-items: center; gap: 8px; }
-.fpo-meta-size {
-    font-size: 13px; color: var(--text2); font-family: var(--mono);
-}
-
+.fpo-meta-size { font-size: 13px; color: var(--text2); font-family: var(--mono); }
 .fpo-actions { display: flex; gap: 8px; }
 
 .fpo-cancel-btn {
@@ -793,7 +768,6 @@ video {
 .fpo-send-btn:active { transform: translateY(0); }
 .fpo-send-btn:disabled { opacity: 0.5; pointer-events: none; }
 
-/* Upload spinner */
 .upload-spinner {
     display: inline-block; width: 14px; height: 14px;
     border: 2px solid rgba(255,255,255,0.3);
@@ -802,7 +776,10 @@ video {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ── Image viewer ── */
+/* ══════════════════════════════════════════════════════════
+   IMAGE VIEWER
+   ══════════════════════════════════════════════════════════ */
+
 #image-viewer-overlay {
     position: fixed; inset: 0; z-index: 400;
     background: rgba(0,0,0,0.96);
@@ -828,16 +805,12 @@ video {
     white-space: nowrap; max-width: 60%; overflow: hidden; text-overflow: ellipsis;
 }
 
-.iv-content {
-    max-width: 94vw; max-height: 88vh;
-    cursor: default;
-}
+.iv-content { max-width: 94vw; max-height: 88vh; cursor: default; }
 
 #image-viewer-img {
     max-width: 100%; max-height: 88vh;
     object-fit: contain; border-radius: 6px;
     display: block;
-    /* Не дать глобальному video{position:absolute} сломать позицию */
     position: static !important;
     border: none !important; background: transparent !important;
     width: auto !important; height: auto !important;
@@ -850,3 +823,207 @@ video {
     text-decoration: none; transition: color 0.15s;
 }
 .iv-download:hover { color: var(--accent2); }
+/* ══════════════════════════════════════════════════════════
+   PENDING UPLOAD — пузырь во время загрузки
+   ══════════════════════════════════════════════════════════
+
+   АРХИТЕКТУРА:
+   Для изображений НЕ используем <img> тег — это вызывает "чёрную дыру"
+   из-за CSS-циклической зависимости (width:fit-content + width:100%).
+   Вместо этого: фиксированный div с background-image.
+   ══════════════════════════════════════════════════════════ */
+
+.pending-upload-wrap {
+    margin-bottom: 4px;
+    animation: fadeIn 0.18s ease;
+}
+
+/* ─── Пузырь-превью для изображений ────────────────────────────────────────
+   Конкретные размеры (не fit-content!) — вот почему картинка видна.
+   background-image + cover = изображение показывается сразу, без <img>.      */
+.pending-img-bubble {
+    position: relative;
+    margin-left: auto;
+    width: min(280px, 65vw);
+    height: 200px;
+    border-radius: 10px;
+    background-color: var(--bg3);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    overflow: hidden;
+    cursor: default;
+    animation: pending-glow 2.6s ease-in-out infinite;
+    box-shadow:
+            0 0  0 2px var(--green),
+            0 0 10px 2px rgba(34,197,94,0.30);
+}
+
+@keyframes pending-glow {
+    0%, 100% {
+        box-shadow:
+                0 0  0 2px var(--green),
+                0 0  8px 2px rgba(34,197,94,0.25),
+                0 0 20px 4px rgba(34,197,94,0.10);
+    }
+    50% {
+        box-shadow:
+                0 0  0 2px var(--green),
+                0 0 16px 5px rgba(34,197,94,0.65),
+                0 0 36px 10px rgba(34,197,94,0.25);
+    }
+}
+
+/* Тёмный градиент снизу для читаемости подписи */
+.pending-img-bubble::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+            to bottom,
+            transparent 55%,
+            rgba(0,0,0,0.55) 100%
+    );
+    pointer-events: none;
+}
+
+/* Подпись (имя + размер) */
+.pending-img-meta {
+    position: absolute;
+    bottom: 36px;
+    left: 0; right: 0;
+    padding: 0 10px;
+    font-size: 11px;
+    font-family: var(--mono);
+    color: rgba(255,255,255,0.75);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    z-index: 3;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+}
+
+/* ─── Угловой бейдж с кольцом прогресса ────────────────────────────────── */
+.upload-corner-badge {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(9,9,11,0.82);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 20px;
+    padding: 4px 9px 4px 5px;
+    pointer-events: none;
+}
+
+.ucb-ring {
+    width: 20px;
+    height: 20px;
+    transform: rotate(-90deg);
+    flex-shrink: 0;
+}
+.ucb-track {
+    fill: none;
+    stroke: rgba(255,255,255,0.10);
+    stroke-width: 2.5;
+}
+
+.ucb-fill {
+    fill: none;
+    stroke: var(--green);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-dasharray: 43.98;
+    stroke-dashoffset: 43.98;
+    transition: stroke-dashoffset 0.25s ease;
+    filter: drop-shadow(0 0 3px rgba(34,197,94,0.80));
+}
+
+.ucb-pct {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: #ffffff;
+    min-width: 28px;
+    text-align: right;
+    line-height: 1;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+}
+
+/* ─── Pending-пузырь для файлов ──────────────────────────────────────────── */
+.pending-file-bubble {
+    position: relative;
+    border: 1px solid var(--green) !important;
+    animation: pending-file-glow 2.6s ease-in-out infinite;
+}
+
+@keyframes pending-file-glow {
+    0%, 100% {
+        box-shadow:
+                0 0  6px 1px rgba(34,197,94,0.20),
+                inset 0 0 10px rgba(34,197,94,0.03);
+    }
+    50% {
+        box-shadow:
+                0 0 14px 4px rgba(34,197,94,0.55),
+                inset 0 0 18px rgba(34,197,94,0.07);
+    }
+}
+
+.pending-file-bubble.upload-fail {
+    border-color: var(--red) !important;
+    animation: none;
+}
+
+.upload-bar-wrap {
+    width: 100%;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-top: 8px;
+    overflow: hidden;
+}
+.upload-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #16a34a, var(--green));
+    border-radius: 2px;
+    transition: width 0.25s ease;
+    box-shadow: 0 0 6px rgba(34,197,94,0.6);
+}
+.upload-bar-pct {
+    font-size: 10px;
+    font-family: var(--mono);
+    color: rgba(255,255,255,0.70);
+    margin-top: 3px;
+    transition: color 0.3s;
+}
+
+.upload-error-label {
+    margin-left: 36px;
+    margin-top: 4px;
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--red);
+}
+.upload-retry-btn {
+    display: inline-block;
+    margin-left: 36px;
+    margin-top: 4px;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-family: var(--mono);
+    font-weight: 700;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--accent2);
+    cursor: pointer;
+    transition: border-color 0.12s;
+}
+.upload-retry-btn:hover { border-color: var(--accent2); }

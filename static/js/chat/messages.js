@@ -17,8 +17,12 @@ export function appendMessage(msg) {
             avatar_emoji: msg.avatar_emoji,
             file_name:    msg.file_name,
             file_size:    msg.file_size,
-            mime_type:    _guessMimeFromText(msg.text) || (msg.msg_type === 'image' ? 'image/jpeg' : 'application/octet-stream'),
-            download_url: _extractDownloadUrl(msg.text),
+            // FIX BUG-6: раньше игнорировались уже готовые поля из серверной истории
+            // и mime_type/download_url парсились заново из текста (ненадёжно).
+            // Теперь: берём готовые поля если они есть, иначе парсим из текста как fallback.
+            mime_type:    msg.mime_type   || _guessMimeFromText(msg.text)
+                || (msg.msg_type === 'image' ? 'image/jpeg' : 'application/octet-stream'),
+            download_url: msg.download_url || _extractDownloadUrl(msg.text),
             created_at:   msg.created_at,
         });
     }
@@ -139,7 +143,7 @@ function _guessMimeFromText(text) {
     if (!m) return null;
     const ext = m[1].split('.').pop().toLowerCase();
     return { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
-             gif: 'image/gif', webp: 'image/webp',
-             mp4: 'video/mp4', webm: 'video/webm',
-             mp3: 'audio/mpeg', ogg: 'audio/ogg', wav: 'audio/wav' }[ext] || null;
+        gif: 'image/gif', webp: 'image/webp',
+        mp4: 'video/mp4', webm: 'video/webm',
+        mp3: 'audio/mpeg', ogg: 'audio/ogg', wav: 'audio/wav' }[ext] || null;
 }

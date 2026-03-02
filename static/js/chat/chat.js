@@ -140,7 +140,8 @@ export async function showRoomFilesModal() {
     const S = window.AppState;
     if (!S.currentRoom) return;
 
-    const { openModal, closeModal, api, esc, fmtSize: _fmtSize } = await import('../utils.js');
+    // utils.js — уровнем выше, '../utils.js'
+    const { openModal, api, esc, fmtSize: _fmtSize } = await import('../utils.js');
     openModal('files-modal');
 
     const el = document.getElementById('files-list');
