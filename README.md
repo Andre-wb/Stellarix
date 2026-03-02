@@ -374,7 +374,7 @@ WAF_RATE_LIMIT_REQUESTS=120
 WAF_BLOCK_DURATION=3600
 
 # ─── Флаг инициализации ──────────────────────────────────
-NODE_INITIALIZED=true        # удали эту строку → откроется wizard
+NODE_INITIALIZED=true
 ```
 
 ---
