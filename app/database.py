@@ -1,10 +1,10 @@
 """SQLite — локальная БД, WAL-режим, никаких внешних серверов."""
 from __future__ import annotations
 from sqlalchemy import create_engine, event
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from app.config import Config
 from app import models, models_rooms
+from app.bases.base import Base
 
 DATABASE_URL = f"sqlite:///{Config.DB_PATH}"
 
@@ -27,8 +27,6 @@ def _set_pragmas(conn, _):
 
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
 
 def get_db():
     db = SessionLocal()
