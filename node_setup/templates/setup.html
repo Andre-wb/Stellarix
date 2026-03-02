@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚡ VORTEX — Настройка узла</title>
+    <link rel="stylesheet" href="/setup/css/setup.css">
+</head>
+<body>
+
+<div class="header">
+    <div class="logo-ascii">
+        ██╗   ██╗ ██████╗ ██████╗ ████████╗███████╗██╗  ██╗
+        ██║   ██║██╔═══██╗██╔══██╗╚══██╔══╝██╔════╝╚██╗██╔╝
+        ██║   ██║██║   ██║██████╔╝   ██║   █████╗   ╚███╔╝
+        ╚██╗ ██╔╝██║   ██║██╔══██╗   ██║   ██╔══╝   ██╔██╗
+        ╚████╔╝ ╚██████╔╝██║  ██║   ██║   ███████╗██╔╝ ██╗
+        ╚═══╝   ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝╚═╝  ╚═╝</div>
+    <div class="header-sub">Node Setup Wizard</div>
+</div>
+
+<div class="stepbar">
+    <div class="step-dot active" data-n="1" id="sdot-1" onclick="goStep(1)">
+        <div class="step-label">Узел</div>
+    </div>
+    <div class="step-line" id="sline-1"></div>
+    <div class="step-dot" data-n="2" id="sdot-2" onclick="goStep(2)">
+        <div class="step-label">SSL</div>
+    </div>
+    <div class="step-line" id="sline-2"></div>
+    <div class="step-dot" data-n="3" id="sdot-3" onclick="goStep(3)">
+        <div class="step-label">Итог</div>
+    </div>
+    <div class="step-line" id="sline-3"></div>
+    <div class="step-dot" data-n="4" id="sdot-4" onclick="goStep(4)">
+        <div class="step-label">Готово</div>
+    </div>
+</div>
+
+<div class="card">
+
+    <div class="step active" id="step-1">
+        <div class="step-title">Настройка <span>узла</span></div>
+        <div class="step-desc">Укажите имя устройства и порт. Эти данные будут видны другим участникам локальной сети.</div>
+
+        <div id="alert-s1" class="alert"></div>
+
+        <div class="form-group">
+            <label class="form-label">Имя устройства</label>
+            <input class="form-input" id="device-name" type="text"
+                   placeholder="MacBook-Boris, Server-Home, Pi4..." autocomplete="off">
+            <div class="form-hint">Видно другим узлам в сети.</div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Порт HTTP(S)</label>
+                <input class="form-input" id="node-port" type="number" value="8000" min="1024" max="65535">
+                <div class="form-hint" id="port-hint">Порт для веб-интерфейса</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">UDP порт (P2P)</label>
+                <input class="form-input" id="udp-port" type="number" value="4200" min="1024" max="65535">
+                <div class="form-hint">Обнаружение соседних узлов</div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Макс. размер файла (МБ)</label>
+            <input class="form-input" id="max-file" type="number" value="100" min="1" max="2048">
+            <div class="form-hint">Рекомендуется 100–500 МБ.</div>
+        </div>
+
+        <div class="status-row">
+            <div class="dot dot-yellow" id="ip-dot"></div>
+            <span id="ip-text" style="color:var(--text3);font-size:12px;">Определение IP...</span>
+        </div>
+
+        <div class="btn-row">
+            <div class="spacer"></div>
+            <button class="btn btn-primary" id="btn-s1-next" onclick="step1Next()">
+                Продолжить →
+            </button>
+        </div>
+    </div>
+
+    <div class="step" id="step-2">
+        <div class="step-title">Настройка <span>SSL</span></div>
+        <div class="step-desc">Выберите способ получения HTTPS-сертификата. Рекомендуется для безопасной работы всех функций браузера (микрофон, камера, WebRTC).</div>
+
+        <div id="alert-s2" class="alert"></div>
+
+        <div class="ssl-options">
+            <div class="ssl-option selected" id="opt-self" onclick="selectSSL('self')">
+                <div class="ssl-icon">🔐</div>
+                <div class="ssl-title">Самоподписанный</div>
+                <div class="ssl-desc">Генерируется автоматически, работает в LAN без интернета</div>
+                <div class="ssl-badge badge-recommended">✓ Рекомендуется</div>
+            </div>
+            <div class="ssl-option" id="opt-mkcert" onclick="selectSSL('mkcert')">
+                <div class="ssl-icon">🏆</div>
+                <div class="ssl-title">mkcert</div>
+                <div class="ssl-desc">Полностью доверенный, без предупреждений браузера</div>
+                <div class="ssl-badge" id="mkcert-badge">Проверка...</div>
+            </div>
+            <div class="ssl-option" id="opt-le" onclick="selectSSL('le')">
+                <div class="ssl-icon">🌐</div>
+                <div class="ssl-title">Let's Encrypt</div>
+                <div class="ssl-desc">Бесплатный доверенный сертификат. Нужен домен и порт 80.</div>
+                <div class="ssl-badge badge-internet">Требует домен</div>
+            </div>
+            <div class="ssl-option" id="opt-skip" onclick="selectSSL('skip')">
+                <div class="ssl-icon">⚡</div>
+                <div class="ssl-title">Без SSL</div>
+                <div class="ssl-desc">Только HTTP. Некоторые функции браузера могут быть недоступны.</div>
+                <div class="ssl-badge badge-advanced">Не рекомендуется</div>
+            </div>
+        </div>
+
+        <div class="ssl-detail active" id="detail-self">
+            <div class="form-group">
+                <label class="form-label">Название организации (для сертификата)</label>
+                <input class="form-input" id="ssl-org" type="text" value="Vortex Node">
+            </div>
+            <div class="toggle-row">
+                <div>
+                    <div class="toggle-label">Установить CA в системное хранилище</div>
+                    <div class="toggle-sub">Браузер перестанет показывать предупреждение (требует sudo/admin)</div>
+                </div>
+                <label class="toggle">
+                    <input type="checkbox" id="install-ca" checked>
+                    <div class="toggle-track"></div>
+                    <div class="toggle-thumb"></div>
+                </label>
+            </div>
+        </div>
+
+        <div class="ssl-detail" id="detail-mkcert">
+            <div class="alert alert-info show">
+                mkcert создаёт локально доверенные сертификаты без предупреждений браузера.<br>
+                Полностью бесплатно, работает без интернета.
+            </div>
+        </div>
+
+        <div class="ssl-detail" id="detail-le">
+            <div class="form-group">
+                <label class="form-label">Домен</label>
+                <input class="form-input" id="le-domain" type="text" placeholder="node.example.com">
+                <div class="form-hint">Домен должен указывать на IP этого сервера</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Email для уведомлений</label>
+                <input class="form-input" id="le-email" type="email" placeholder="admin@example.com">
+            </div>
+            <div class="toggle-row">
+                <div>
+                    <div class="toggle-label">Тестовый режим (staging)</div>
+                    <div class="toggle-sub">Не использует лимиты LE, сертификат не будет доверенным</div>
+                </div>
+                <label class="toggle">
+                    <input type="checkbox" id="le-staging">
+                    <div class="toggle-track"></div>
+                    <div class="toggle-thumb"></div>
+                </label>
+            </div>
+        </div>
+
+        <div class="ssl-detail" id="detail-skip">
+            <div class="alert alert-error show">
+                ⚠ Без HTTPS недоступны: микрофон/камера для звонков, уведомления, геолокация.
+                Некоторые браузеры блокируют WebSocket без SSL.
+            </div>
+        </div>
+
+        <div id="ssl-gen-block" style="display:none;">
+            <div class="terminal" id="ssl-terminal"></div>
+        </div>
+
+        <div class="btn-row">
+            <button class="btn btn-secondary" onclick="goStep(1)">← Назад</button>
+            <div class="spacer"></div>
+            <button class="btn btn-primary" id="btn-ssl-gen" onclick="generateSSL()">
+                🔒 Сгенерировать →
+            </button>
+        </div>
+    </div>
+
+    <div class="step" id="step-3">
+        <div class="step-title"><span>Проверьте</span> настройки</div>
+        <div class="step-desc">
+            Всё выглядит правильно? После запуска настройки сохранятся в файл <code>.env</code>.
+        </div>
+
+        <div id="alert-s3" class="alert"></div>
+
+        <ul class="info-list" id="summary-list"></ul>
+
+        <div id="ca-install-block" style="display:none;margin-top:16px;">
+            <div class="divider">Установка CA вручную</div>
+            <div class="code-block" id="ca-cmd">
+                <button class="code-copy" onclick="copyCode('ca-cmd')">copy</button>
+                <span id="ca-cmd-text"></span>
+            </div>
+            <div class="form-hint" style="margin-top:8px;">
+                Выполните в терминале и перезапустите браузер
+            </div>
+        </div>
+
+        <div class="btn-row">
+            <button class="btn btn-secondary" onclick="goStep(2)">← Назад</button>
+            <div class="spacer"></div>
+            <button class="btn btn-primary" id="btn-launch" onclick="launchNode()">
+                ⚡ Запустить узел
+            </button>
+        </div>
+    </div>
+
+    <div class="step" id="step-4">
+        <div class="success-icon">⚡</div>
+        <div class="step-title" style="text-align:center;">Узел <span>запущен!</span></div>
+        <div class="step-desc" style="text-align:center;margin-bottom:20px;">
+            Мастер настройки завершён. Открывается основной интерфейс...
+        </div>
+
+        <div class="success-url" id="node-url" onclick="openNodeUrl()">
+            https://localhost:8000
+        </div>
+
+        <div id="ca-warn-block" style="display:none;">
+            <div class="alert alert-info show">
+                💡 При первом открытии браузер покажет предупреждение о сертификате.<br>
+                Нажмите <strong>«Дополнительно» → «Продолжить»</strong> — это нормально для самоподписанного.<br><br>
+                Для полного доверия установите CA:
+            </div>
+            <div class="code-block" style="margin-top:8px;">
+                <button class="code-copy" onclick="copyCode('ca-final')">copy</button>
+                <span id="ca-final"></span>
+            </div>
+        </div>
+
+        <div class="progress-wrap" style="margin-top:24px;">
+            <div class="progress-bar" id="redirect-bar" style="width:0%"></div>
+        </div>
+        <div style="text-align:center;font-size:11px;color:var(--text3);margin-top:8px;"
+             id="redirect-text">Переход через 5 секунд...</div>
+
+        <div class="btn-row" style="justify-content:center;">
+            <button class="btn btn-primary" onclick="openNodeUrl()">Открыть Vortex →</button>
+        </div>
+    </div>
+
+</div>
+
+<script src="/setup/js/setup.js"></script>
+</body>
+</html>
