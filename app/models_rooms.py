@@ -7,7 +7,7 @@ from sqlalchemy import (
     Integer, LargeBinary, String, Text, UniqueConstraint, Index,
 )
 from sqlalchemy.orm import relationship
-from app.database import Base
+from app.base import Base
 
 
 class RoomRole(str, enum.Enum):

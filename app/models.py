@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from sqlalchemy import Boolean, Column, DateTime, Integer, LargeBinary, String, Text
 from sqlalchemy.orm import relationship
-from app.database import Base
+from app.base import Base
 from app.security.crypto import hash_password, verify_password
 from pydantic import BaseModel, Field, field_validator
 import re

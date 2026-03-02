@@ -11,7 +11,6 @@
 <div id="auth-screen" class="screen active" style="display:flex;">
     <div class="auth-card">
         <div class="auth-logo">
-            <div class="big-icon">⚡</div>
             <h1>VORTEX</h1>
             <p>// децентрализованный чат без интернета</p>
         </div>
@@ -74,7 +73,7 @@
                     <button class="emoji-btn" data-emoji="🚀" onclick="selectEmoji(this)">🚀</button>
                 </div>
             </div>
-            <button class="btn btn-primary" onclick="doRegister()">✦ Создать аккаунт</button>
+            <button class="btn btn-primary" onclick="doRegister()">Создать аккаунт</button>
         </div>
     </div>
 </div>
@@ -82,14 +81,19 @@
 <div id="app" style="display:none;">
     <div id="sidebar">
         <div class="sidebar-header">
-            <div class="logo"><div class="logo-icon">⚡</div>VORTEX</div>
+            <div class="logo">VORTEX</div>
             <div class="user-badge" onclick="showProfileModal()">
                 <div class="avatar" id="sb-avatar">👤</div>
                 <div class="user-info">
                     <div class="user-name" id="sb-name">—</div>
                     <div class="user-phone" id="sb-phone">—</div>
                 </div>
-                <span style="color:var(--text3);font-size:12px;">⚙</span>
+                <span style="color:var(--text3);font-size:12px;">
+                    <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                          fill="currentColor" viewBox="0 0 24 24" >
+                    <path d="m22,12.5v-1h-1.03c-.04-.78-.18-1.54-.41-2.26l.95-.37-.36-.93-.95.37c-.38-.85-.89-1.62-1.5-2.3l.73-.73-.71-.71-.73.73c-.57-.51-1.2-.95-1.89-1.3l.42-.93-.91-.41-.42.94c-.84-.32-1.75-.52-2.69-.57v-1.03h-1v1.03c-.78.04-1.54.18-2.26.41l-.37-.95-.93.36.37.95c-.85.38-1.62.89-2.3,1.5l-.73-.73-.71.71.73.73c-.51.57-.95,1.2-1.3,1.89l-.93-.42-.41.91.94.42c-.32.84-.52,1.75-.57,2.69h-1.03v1h1.03c.04.78.18,1.54.41,2.26l-.95.37.36.93.95-.37c.38.85.89,1.62,1.5,2.3l-.73.73.71.71.73-.73c.57.51,1.2.95,1.89,1.3l-.42.93.91.41.42-.94c.84.32,1.75.52,2.69.57v1.03h1v-1.03c.78-.04,1.54-.18,2.26-.41l.37.95.93-.36-.37-.95c.85-.38,1.62-.89,2.3-1.5l.73.73.71-.71-.73-.73c.51-.57.95-1.2,1.3-1.89l.93.42.41-.91-.94-.42c.32-.84.52-1.75.57-2.69h1.03Zm-10-7.5c3.1,0,5.72,2.02,6.65,4.81l-4.05.71c-.52-.91-1.48-1.53-2.6-1.53-.37,0-.72.08-1.05.2l-2.64-3.14c1.07-.67,2.33-1.06,3.68-1.06Zm1,7c0,.55-.45,1-1,1s-1-.45-1-1,.45-1,1-1,1,.45,1,1Zm-4.31,6.17c-2.2-1.18-3.69-3.5-3.69-6.17,0-1.79.68-3.42,1.79-4.66l2.64,3.14c-.26.45-.42.96-.42,1.51,0,.93.43,1.75,1.1,2.3l-1.41,3.86Zm3.31.83c-.49,0-.97-.05-1.43-.15l1.4-3.85s.02,0,.03,0c1.49,0,2.71-1.08,2.95-2.5l4.04-.71c0,.07.01.14.01.22,0,3.86-3.14,7-7,7Z"/>
+                </svg>
+                </span>
             </div>
         </div>
 
@@ -101,16 +105,46 @@
         <div class="nav-section">
             <div class="nav-label">Меню</div>
             <div class="nav-item active" onclick="showWelcome()" id="nav-welcome">
-                <span class="icon">🏠</span> Главная
+                <span class="icon">
+                    <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                          fill="currentColor" viewBox="0 0 24 24" >
+                    <path d="M12.71 2.29a.996.996 0 0 0-1.41 0l-8.01 8A1 1 0 0 0 3 11v9c0 1.1.9 2 2 2h4c.55 0 1-.45 1-1v-6h4v6c0 .55.45 1 1 1h4c1.1 0 2-.9 2-2v-9c0-.27-.11-.52-.29-.71zM16 20v-5c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v5H5v-8.59l7-7 7 7V20z"></path>
+                    </svg>
+                </span> Главная
             </div>
             <div class="nav-item" onclick="showCreateRoomModal()">
-                <span class="icon">＋</span> Новая комната
+                <span class="icon">
+                    <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                          fill="currentColor" viewBox="0 0 24 24" >
+                    <path d="M3 13h8v8h2v-8h8v-2h-8V3h-2v8H3z"></path>
+                    </svg>
+                </span>
+                <div class="nav-text">
+                    Новая комната
+                </div>
+
             </div>
             <div class="nav-item" onclick="showJoinModal()">
-                <span class="icon">🔗</span> Вступить по коду
+                <span class="icon">
+                    <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                          fill="currentColor" viewBox="0 0 24 24" >
+                    <path d="M9.88 18.36a3 3 0 0 1-4.24 0 3 3 0 0 1 0-4.24l2.83-2.83-1.41-1.41-2.83 2.83a5.003 5.003 0 0 0 0 7.07c.98.97 2.25 1.46 3.54 1.46s2.56-.49 3.54-1.46l2.83-2.83-1.41-1.41-2.83 2.83Zm2.83-14.14L9.88 7.05l1.41 1.41 2.83-2.83a3 3 0 0 1 4.24 0 3 3 0 0 1 0 4.24l-2.83 2.83 1.41 1.41 2.83-2.83a5.003 5.003 0 0 0 0-7.07 5.003 5.003 0 0 0-7.07 0Z"></path><path d="m16.95 8.46-.71-.7-.7-.71-4.25 4.24-4.24 4.25.71.7.7.71 4.25-4.24z"></path>
+                    </svg>
+                </span>
+                <div class="nav-text">
+                    Вступить по коду
+                </div>
             </div>
             <div class="nav-item" onclick="togglePeersPanel()">
-                <span class="icon">📡</span> Устройства в сети
+                <span class="icon">
+                    <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                          fill="currentColor" viewBox="0 0 24 24" >
+                    <path d="M15 12c1.65 0 3-1.35 3-3s-1.35-3-3-3-3 1.35-3 3c0 .46.11.89.3 1.29l-1.1 1.1L6.11 6.3a.996.996 0 0 0-1.41 0c-3.35 3.35-3.57 8.66-.67 12.26L2.29 20.3l1.41 1.41 1.73-1.73A9.18 9.18 0 0 0 11.19 22a9.2 9.2 0 0 0 6.51-2.69.996.996 0 0 0 0-1.41l-5.09-5.09 1.1-1.1c.39.19.82.3 1.29.3Zm-8.89 5.89a7.21 7.21 0 0 1-.66-9.43l10.09 10.09a7.21 7.21 0 0 1-9.43-.66M15 8c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1"></path><path d="M19.95 4.05a6.9 6.9 0 0 0-2.32-1.54 7.06 7.06 0 0 0-5.27 0l.75 1.85c1.2-.49 2.57-.49 3.76 0 .62.25 1.18.62 1.65 1.1.48.48.85 1.03 1.1 1.65.24.6.37 1.23.37 1.88s-.12 1.28-.37 1.88l1.85.75c.34-.84.51-1.73.51-2.63s-.17-1.79-.51-2.63c-.35-.87-.87-1.65-1.54-2.32Z"></path>
+                    </svg>
+                </span>
+                <div class="nav-text">
+                    Устройства в сети
+                </div>
                 <span class="badge" id="peers-badge">0</span>
             </div>
         </div>
@@ -118,22 +152,44 @@
         <div class="nav-section">
             <div class="nav-label">Мои комнаты</div>
         </div>
-        <div class="rooms-list" id="rooms-list"></div>
+        <div class="rooms-list" id="rooms-list">
+        </div>
 
         <div class="sidebar-footer">
-            <button class="footer-btn" onclick="loadPublicRooms()">🌐 Публичные</button>
-            <button class="footer-btn danger" onclick="doLogout()">← Выйти</button>
+            <button class="footer-btn" onclick="loadPublicRooms()">
+                <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                      fill="currentColor" viewBox="0 0 24 24" >
+                    <path d="M12 2C6.49 2 2 6.49 2 12s4.49 10 10 10 10-4.49 10-10S17.51 2 12 2m5.66 4.35c-.72.17-1.45.3-2.19.4-.18-.83-.42-1.59-.7-2.25a8.05 8.05 0 0 1 2.89 1.85M12 20c-.31 0-.97-1-1.45-2.94.96-.05 1.93-.05 2.9 0C12.97 19 12.31 20 12 20m-1.81-4.93c-.08-.63-.14-1.32-.17-2.07h3.96c-.03.75-.09 1.44-.17 2.07-1.2-.08-2.42-.08-3.62 0M12 4c.31 0 .97 1 1.45 2.94-.96.05-1.93.05-2.9 0C11.03 5 11.69 4 12 4m0 5c.61 0 1.21-.03 1.81-.06.08.63.14 1.32.17 2.06h-3.96c.03-.75.09-1.43.17-2.06.6.04 1.2.06 1.81.06m-3.98 2H4.07c.13-1.05.47-2.04.97-2.92 1.03.28 2.09.51 3.16.66-.09.74-.15 1.5-.18 2.27Zm0 2c.03.77.09 1.53.18 2.27-1.08.15-2.13.38-3.16.65-.5-.88-.84-1.87-.97-2.93h3.95Zm7.96 0h3.95a8 8 0 0 1-.97 2.93c-1.03-.28-2.09-.5-3.16-.65.09-.74.15-1.51.18-2.27Zm0-2c-.03-.76-.09-1.53-.18-2.27 1.08-.15 2.13-.38 3.16-.66.5.88.83 1.87.97 2.92h-3.95ZM9.24 4.5c-.28.66-.52 1.43-.7 2.25-.74-.1-1.47-.24-2.19-.4.81-.81 1.8-1.44 2.89-1.85M6.35 17.65c.72-.17 1.45-.3 2.19-.4.18.83.42 1.59.7 2.25a8.05 8.05 0 0 1-2.89-1.85m8.42 1.85c.28-.66.52-1.43.7-2.25.74.1 1.47.24 2.19.4-.81.81-1.8 1.44-2.89 1.85"></path>
+                </svg>
+                <div>Публичные</div>
+            </button>
+            <button class="footer-btn danger" onclick="doLogout()">
+                <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                      fill="currentColor" viewBox="0 0 24 24" >
+                    <path d="m6 12 6 5v-4h6v-2h-6V7z"></path>
+                </svg>
+                <div>
+                    Выйти
+                </div>
+            </button>
         </div>
     </div>
 
     <div id="main">
         <div id="welcome-screen" class="screen active">
-            <div class="welcome-icon">⚡</div>
             <div class="welcome-title">Добро пожаловать</div>
             <div class="welcome-sub">Выберите комнату или создайте новую. Связь работает без интернета — только локальная сеть.</div>
             <div style="display:flex;gap:10px;margin-top:8px;">
                 <button class="btn btn-primary btn-sm" onclick="showCreateRoomModal()">+ Создать комнату</button>
-                <button class="btn btn-secondary btn-sm" onclick="showJoinModal()">🔗 Вступить по коду</button>
+                <button class="btn btn-secondary btn-sm" onclick="showJoinModal()">
+                    <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                          fill="currentColor" viewBox="0 0 24 24" >
+                        <path d="M9.88 18.36a3 3 0 0 1-4.24 0 3 3 0 0 1 0-4.24l2.83-2.83-1.41-1.41-2.83 2.83a5.003 5.003 0 0 0 0 7.07c.98.97 2.25 1.46 3.54 1.46s2.56-.49 3.54-1.46l2.83-2.83-1.41-1.41-2.83 2.83Zm2.83-14.14L9.88 7.05l1.41 1.41 2.83-2.83a3 3 0 0 1 4.24 0 3 3 0 0 1 0 4.24l-2.83 2.83 1.41 1.41 2.83-2.83a5.003 5.003 0 0 0 0-7.07 5.003 5.003 0 0 0-7.07 0Z"></path><path d="m16.95 8.46-.71-.7-.7-.71-4.25 4.24-4.24 4.25.71.7.7.71 4.25-4.24z"></path>
+                    </svg>
+                    <div>
+                        Вступить по коду
+                    </div>
+                </button>
             </div>
         </div>
 
@@ -143,11 +199,36 @@
                     <div class="chat-title" id="chat-room-name">—</div>
                     <div class="chat-meta" id="chat-room-meta">—</div>
                 </div>
-                <button class="header-btn" onclick="showMembersModal()" title="Участники">👥</button>
-                <button class="header-btn" onclick="startVoiceCall()" title="Звонок" id="call-btn">📞</button>
-                <button class="header-btn" onclick="showRoomFilesModal()" title="Файлы">📁</button>
-                <button class="header-btn" onclick="togglePeersPanel()" title="Устройства">📡</button>
-                <button class="header-btn" onclick="copyInviteCode()" title="Скопировать код">🔗</button>
+                <button class="header-btn" onclick="showMembersModal()" title="Участники">
+                    <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                          fill="currentColor" viewBox="0 0 24 24" >
+                        <path d="M10 13H8c-2.76 0-5 2.24-5 5v1c0 .55.45 1 1 1h10c.55 0 1-.45 1-1v-1c0-2.76-2.24-5-5-5m-5 5c0-1.65 1.35-3 3-3h2c1.65 0 3 1.35 3 3zm7.73-11.49c-.08-.22-.19-.42-.3-.62v-.01c-.69-1.14-1.93-1.89-3.42-1.89-2.28 0-4 1.72-4 4s1.72 4 4 4c1.49 0 2.73-.74 3.42-1.89v-.01c.12-.2.22-.4.3-.62.02-.06.03-.12.05-.18.06-.17.11-.34.15-.52.05-.25.07-.51.07-.78s-.03-.53-.07-.78c-.03-.18-.09-.35-.15-.52-.02-.06-.03-.12-.05-.18M9 10c-1.18 0-2-.82-2-2s.82-2 2-2 2 .82 2 2-.82 2-2 2m6 0q-.165 0-.33-.03c-.22.66-.56 1.27-.98 1.81.41.13.84.22 1.31.22 2.28 0 4-1.72 4-4s-1.72-4-4-4c-.47 0-.9.09-1.31.22.43.53.76 1.14.98 1.81.11-.01.21-.03.33-.03 1.18 0 2 .82 2 2s-.82 2-2 2m1 3h-1.11c.6.58 1.08 1.27 1.44 2.03C17.83 15.2 19 16.46 19 18h-2v1c0 .35-.07.69-.18 1H20c.55 0 1-.45 1-1v-1c0-2.76-2.24-5-5-5"></path>
+                    </svg>
+                </button>
+                <button class="header-btn" onclick="startVoiceCall()" title="Звонок" id="call-btn">
+                    <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                          fill="currentColor" viewBox="0 0 24 24" >
+                        <path d="M18.07 22h.35c.47-.02.9-.26 1.17-.64l2.14-3.09c.23-.33.32-.74.24-1.14s-.31-.74-.64-.97l-4.64-3.09a1.47 1.47 0 0 0-.83-.25c-.41 0-.81.16-1.1.48l-1.47 1.59c-.69-.43-1.61-1.07-2.36-1.82-.72-.72-1.37-1.64-1.82-2.36l1.59-1.47c.54-.5.64-1.32.23-1.93L7.84 2.67c-.22-.33-.57-.57-.97-.64a1.46 1.46 0 0 0-1.13.24L2.65 4.41c-.39.27-.62.7-.64 1.17-.03.69-.16 6.9 4.68 11.74 4.35 4.35 9.81 4.69 11.38 4.69ZM6.88 10.05c-.16.15-.21.39-.11.59.05.09 1.15 2.24 2.74 3.84 1.6 1.6 3.75 2.7 3.84 2.75.2.1.44.06.59-.11l1.99-2.15 3.86 2.57-1.7 2.46c-1.16 0-6.13-.24-9.99-4.1S4 7.06 4 5.91l2.46-1.7 2.57 3.86-2.15 1.99Z"></path>
+                    </svg>
+                </button>
+                <button class="header-btn" onclick="showRoomFilesModal()" title="Файлы">
+                    <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                          fill="currentColor" viewBox="0 0 24 24" >
+                        <path d="m19.94 7.68-.03-.09a.8.8 0 0 0-.2-.29l-5-5c-.09-.09-.19-.15-.29-.2l-.09-.03a.8.8 0 0 0-.26-.05c-.02 0-.04-.01-.06-.01H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-12s-.01-.04-.01-.06c0-.09-.02-.17-.05-.26ZM6 20V4h7v4c0 .55.45 1 1 1h4v11z"></path>
+                    </svg>
+                </button>
+                <button class="header-btn" onclick="togglePeersPanel()" title="Устройства">
+                    <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                          fill="currentColor" viewBox="0 0 24 24" >
+                        <path d="M15 12c1.65 0 3-1.35 3-3s-1.35-3-3-3-3 1.35-3 3c0 .46.11.89.3 1.29l-1.1 1.1L6.11 6.3a.996.996 0 0 0-1.41 0c-3.35 3.35-3.57 8.66-.67 12.26L2.29 20.3l1.41 1.41 1.73-1.73A9.18 9.18 0 0 0 11.19 22a9.2 9.2 0 0 0 6.51-2.69.996.996 0 0 0 0-1.41l-5.09-5.09 1.1-1.1c.39.19.82.3 1.29.3Zm-8.89 5.89a7.21 7.21 0 0 1-.66-9.43l10.09 10.09a7.21 7.21 0 0 1-9.43-.66M15 8c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1"></path><path d="M19.95 4.05a6.9 6.9 0 0 0-2.32-1.54 7.06 7.06 0 0 0-5.27 0l.75 1.85c1.2-.49 2.57-.49 3.76 0 .62.25 1.18.62 1.65 1.1.48.48.85 1.03 1.1 1.65.24.6.37 1.23.37 1.88s-.12 1.28-.37 1.88l1.85.75c.34-.84.51-1.73.51-2.63s-.17-1.79-.51-2.63c-.35-.87-.87-1.65-1.54-2.32Z"></path>
+                    </svg>
+                </button>
+                <button class="header-btn" onclick="copyInviteCode()" title="Скопировать код">
+                    <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                          fill="currentColor" viewBox="0 0 24 24" >
+                        <path d="M9.88 18.36a3 3 0 0 1-4.24 0 3 3 0 0 1 0-4.24l2.83-2.83-1.41-1.41-2.83 2.83a5.003 5.003 0 0 0 0 7.07c.98.97 2.25 1.46 3.54 1.46s2.56-.49 3.54-1.46l2.83-2.83-1.41-1.41-2.83 2.83Zm2.83-14.14L9.88 7.05l1.41 1.41 2.83-2.83a3 3 0 0 1 4.24 0 3 3 0 0 1 0 4.24l-2.83 2.83 1.41 1.41 2.83-2.83a5.003 5.003 0 0 0 0-7.07 5.003 5.003 0 0 0-7.07 0Z"></path><path d="m16.95 8.46-.71-.7-.7-.71-4.25 4.24-4.24 4.25.71.7.7.71 4.25-4.24z"></path>
+                    </svg>
+                </button>
             </div>
 
             <div id="messages-container"></div>
@@ -159,7 +240,12 @@
 
             <div id="input-area">
                 <div class="input-row">
-                    <button class="input-btn" onclick="triggerFileUpload()" title="Прикрепить файл">📎</button>
+                    <button class="input-btn" onclick="triggerFileUpload()" title="Прикрепить файл">
+                        <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24" style="transform: rotate(-45deg)"
+                              fill="currentColor" viewBox="0 0 24 24" >
+                            <path d="M17 5H9c-3.86 0-7 3.14-7 7s3.14 7 7 7h9v-2H9c-2.76 0-5-2.24-5-5s2.24-5 5-5h8c.79 0 1.54.31 2.11.89a2.967 2.967 0 0 1 .01 4.23 3 3 0 0 1-2.12.89H9c-.26 0-.5-.11-.7-.3-.19-.2-.3-.44-.3-.7s.11-.51.3-.7.44-.3.7-.3h8v-2H9c-.79 0-1.54.32-2.11.89S6 11.22 6 12.01s.31 1.54.89 2.11c.57.57 1.32.89 2.11.89h8c1.32 0 2.58-.52 3.53-1.47S22 11.34 22 10.01s-.52-2.58-1.47-3.53a4.95 4.95 0 0 0-3.52-1.47Z"/>
+                        </svg>
+                    </button>
                     <textarea id="msg-input" rows="1" placeholder="Сообщение..."
                               onkeydown="handleKey(event)" oninput="handleTyping()"></textarea>
                     <button class="input-btn send" onclick="sendMessage()" title="Отправить">↑</button>
@@ -172,7 +258,13 @@
 
     <div id="peers-panel">
         <div class="panel-header">
-            📡 Устройства в сети
+            <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                  fill="currentColor" viewBox="0 0 24 24" >
+                <path d="M15 12c1.65 0 3-1.35 3-3s-1.35-3-3-3-3 1.35-3 3c0 .46.11.89.3 1.29l-1.1 1.1L6.11 6.3a.996.996 0 0 0-1.41 0c-3.35 3.35-3.57 8.66-.67 12.26L2.29 20.3l1.41 1.41 1.73-1.73A9.18 9.18 0 0 0 11.19 22a9.2 9.2 0 0 0 6.51-2.69.996.996 0 0 0 0-1.41l-5.09-5.09 1.1-1.1c.39.19.82.3 1.29.3Zm-8.89 5.89a7.21 7.21 0 0 1-.66-9.43l10.09 10.09a7.21 7.21 0 0 1-9.43-.66M15 8c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1"></path><path d="M19.95 4.05a6.9 6.9 0 0 0-2.32-1.54 7.06 7.06 0 0 0-5.27 0l.75 1.85c1.2-.49 2.57-.49 3.76 0 .62.25 1.18.62 1.65 1.1.48.48.85 1.03 1.1 1.65.24.6.37 1.23.37 1.88s-.12 1.28-.37 1.88l1.85.75c.34-.84.51-1.73.51-2.63s-.17-1.79-.51-2.63c-.35-.87-.87-1.65-1.54-2.32Z"></path>
+            </svg>
+            <div>
+                Устройства в сети
+            </div>
             <span class="panel-close" onclick="togglePeersPanel()">×</span>
         </div>
         <div id="peers-list" style="overflow-y:auto;flex:1;"></div>
@@ -181,7 +273,15 @@
 
 <div class="modal-overlay" id="create-room-modal">
     <div class="modal">
-        <div class="modal-title">🏠 Новая комната</div>
+        <div class="modal-title">
+            <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                  fill="currentColor" viewBox="0 0 24 24" >
+                <path d="M12 2C6.49 2 2 6.49 2 12c0 2.12.68 4.19 1.93 5.9l-1.75 2.53c-.21.31-.24.7-.06 1.03.17.33.51.54.89.54h9c5.51 0 10-4.49 10-10S17.51 2 12 2m0 18H4.91L6 18.43c.26-.37.23-.88-.06-1.22A7.98 7.98 0 0 1 4.01 12c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8Z"></path>
+            </svg>
+            <div>
+                Новая комната
+            </div>
+        </div>
         <div id="cr-alert" class="alert"></div>
         <div class="form-group">
             <label class="form-label">Название</label>
@@ -204,7 +304,15 @@
 
 <div class="modal-overlay" id="join-modal">
     <div class="modal">
-        <div class="modal-title">🔗 Вступить по коду</div>
+        <div class="modal-title">
+            <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                  fill="currentColor" viewBox="0 0 24 24" >
+                <path d="M12 2C6.49 2 2 6.49 2 12s4.49 10 10 10 10-4.49 10-10S17.51 2 12 2m5.66 4.35c-.72.17-1.45.3-2.19.4-.18-.83-.42-1.59-.7-2.25a8.05 8.05 0 0 1 2.89 1.85M12 20c-.31 0-.97-1-1.45-2.94.96-.05 1.93-.05 2.9 0C12.97 19 12.31 20 12 20m-1.81-4.93c-.08-.63-.14-1.32-.17-2.07h3.96c-.03.75-.09 1.44-.17 2.07-1.2-.08-2.42-.08-3.62 0M12 4c.31 0 .97 1 1.45 2.94-.96.05-1.93.05-2.9 0C11.03 5 11.69 4 12 4m0 5c.61 0 1.21-.03 1.81-.06.08.63.14 1.32.17 2.06h-3.96c.03-.75.09-1.43.17-2.06.6.04 1.2.06 1.81.06m-3.98 2H4.07c.13-1.05.47-2.04.97-2.92 1.03.28 2.09.51 3.16.66-.09.74-.15 1.5-.18 2.27Zm0 2c.03.77.09 1.53.18 2.27-1.08.15-2.13.38-3.16.65-.5-.88-.84-1.87-.97-2.93h3.95Zm7.96 0h3.95a8 8 0 0 1-.97 2.93c-1.03-.28-2.09-.5-3.16-.65.09-.74.15-1.51.18-2.27Zm0-2c-.03-.76-.09-1.53-.18-2.27 1.08-.15 2.13-.38 3.16-.66.5.88.83 1.87.97 2.92h-3.95ZM9.24 4.5c-.28.66-.52 1.43-.7 2.25-.74-.1-1.47-.24-2.19-.4.81-.81 1.8-1.44 2.89-1.85M6.35 17.65c.72-.17 1.45-.3 2.19-.4.18.83.42 1.59.7 2.25a8.05 8.05 0 0 1-2.89-1.85m8.42 1.85c.28-.66.52-1.43.7-2.25.74.1 1.47.24 2.19.4-.81.81-1.8 1.44-2.89 1.85"></path>
+            </svg>
+            <div>
+                Вступить по коду
+            </div>
+        </div>
         <div id="join-alert" class="alert"></div>
         <div class="form-group">
             <label class="form-label">Invite-код (8 символов)</label>
@@ -221,25 +329,49 @@
 
 <div class="modal-overlay" id="members-modal">
     <div class="modal">
-        <div class="modal-title">👥 Участники</div>
+        <div class="modal-title">
+            <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                  fill="currentColor" viewBox="0 0 24 24" >
+                <path d="M12 2C6.49 2 2 6.49 2 12s4.49 10 10 10 10-4.49 10-10S17.51 2 12 2m5.66 4.35c-.72.17-1.45.3-2.19.4-.18-.83-.42-1.59-.7-2.25a8.05 8.05 0 0 1 2.89 1.85M12 20c-.31 0-.97-1-1.45-2.94.96-.05 1.93-.05 2.9 0C12.97 19 12.31 20 12 20m-1.81-4.93c-.08-.63-.14-1.32-.17-2.07h3.96c-.03.75-.09 1.44-.17 2.07-1.2-.08-2.42-.08-3.62 0M12 4c.31 0 .97 1 1.45 2.94-.96.05-1.93.05-2.9 0C11.03 5 11.69 4 12 4m0 5c.61 0 1.21-.03 1.81-.06.08.63.14 1.32.17 2.06h-3.96c.03-.75.09-1.43.17-2.06.6.04 1.2.06 1.81.06m-3.98 2H4.07c.13-1.05.47-2.04.97-2.92 1.03.28 2.09.51 3.16.66-.09.74-.15 1.5-.18 2.27Zm0 2c.03.77.09 1.53.18 2.27-1.08.15-2.13.38-3.16.65-.5-.88-.84-1.87-.97-2.93h3.95Zm7.96 0h3.95a8 8 0 0 1-.97 2.93c-1.03-.28-2.09-.5-3.16-.65.09-.74.15-1.51.18-2.27Zm0-2c-.03-.76-.09-1.53-.18-2.27 1.08-.15 2.13-.38 3.16-.66.5.88.83 1.87.97 2.92h-3.95ZM9.24 4.5c-.28.66-.52 1.43-.7 2.25-.74-.1-1.47-.24-2.19-.4.81-.81 1.8-1.44 2.89-1.85M6.35 17.65c.72-.17 1.45-.3 2.19-.4.18.83.42 1.59.7 2.25a8.05 8.05 0 0 1-2.89-1.85m8.42 1.85c.28-.66.52-1.43.7-2.25.74.1 1.47.24 2.19.4-.81.81-1.8 1.44-2.89 1.85"></path>
+            </svg>
+            <div>
+                Участники
+            </div>
+        </div>
         <div id="members-list" style="max-height:300px;overflow-y:auto;"></div>
         <div style="margin-top:16px;padding:12px;background:var(--bg3);border-radius:var(--radius);font-family:var(--mono);font-size:12px;">
             <div style="color:var(--text2);margin-bottom:4px;">Invite-код комнаты:</div>
             <div style="display:flex;align-items:center;gap:8px;">
                 <span id="modal-invite-code" style="font-size:16px;letter-spacing:3px;font-weight:700;color:var(--accent2);">—</span>
-                <button class="btn btn-secondary btn-sm" onclick="copyInviteCode()">📋 Скопировать</button>
+                <button class="btn btn-secondary btn-sm" onclick="copyInviteCode()">
+                    <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                          fill="currentColor" viewBox="0 0 24 24" >
+                        <path d="M12 2C6.49 2 2 6.49 2 12s4.49 10 10 10 10-4.49 10-10S17.51 2 12 2m5.66 4.35c-.72.17-1.45.3-2.19.4-.18-.83-.42-1.59-.7-2.25a8.05 8.05 0 0 1 2.89 1.85M12 20c-.31 0-.97-1-1.45-2.94.96-.05 1.93-.05 2.9 0C12.97 19 12.31 20 12 20m-1.81-4.93c-.08-.63-.14-1.32-.17-2.07h3.96c-.03.75-.09 1.44-.17 2.07-1.2-.08-2.42-.08-3.62 0M12 4c.31 0 .97 1 1.45 2.94-.96.05-1.93.05-2.9 0C11.03 5 11.69 4 12 4m0 5c.61 0 1.21-.03 1.81-.06.08.63.14 1.32.17 2.06h-3.96c.03-.75.09-1.43.17-2.06.6.04 1.2.06 1.81.06m-3.98 2H4.07c.13-1.05.47-2.04.97-2.92 1.03.28 2.09.51 3.16.66-.09.74-.15 1.5-.18 2.27Zm0 2c.03.77.09 1.53.18 2.27-1.08.15-2.13.38-3.16.65-.5-.88-.84-1.87-.97-2.93h3.95Zm7.96 0h3.95a8 8 0 0 1-.97 2.93c-1.03-.28-2.09-.5-3.16-.65.09-.74.15-1.51.18-2.27Zm0-2c-.03-.76-.09-1.53-.18-2.27 1.08-.15 2.13-.38 3.16-.66.5.88.83 1.87.97 2.92h-3.95ZM9.24 4.5c-.28.66-.52 1.43-.7 2.25-.74-.1-1.47-.24-2.19-.4.81-.81 1.8-1.44 2.89-1.85M6.35 17.65c.72-.17 1.45-.3 2.19-.4.18.83.42 1.59.7 2.25a8.05 8.05 0 0 1-2.89-1.85m8.42 1.85c.28-.66.52-1.43.7-2.25.74.1 1.47.24 2.19.4-.81.81-1.8 1.44-2.89 1.85"></path>
+                    </svg>
+                    <div>
+                        Скопировать
+                    </div>
+                </button>
             </div>
         </div>
         <div class="modal-actions">
             <button class="btn btn-secondary" onclick="closeModal('members-modal')">Закрыть</button>
-            <button class="btn btn-danger" onclick="leaveRoom()">← Выйти из комнаты</button>
+            <button class="btn btn-danger" onclick="leaveRoom()">Выйти из комнаты</button>
         </div>
     </div>
 </div>
 
 <div class="modal-overlay" id="public-modal">
     <div class="modal" style="width:480px;">
-        <div class="modal-title">🌐 Публичные комнаты</div>
+        <div class="modal-title">
+            <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                  fill="currentColor" viewBox="0 0 24 24" >
+                <path d="M12 2C6.49 2 2 6.49 2 12s4.49 10 10 10 10-4.49 10-10S17.51 2 12 2m5.66 4.35c-.72.17-1.45.3-2.19.4-.18-.83-.42-1.59-.7-2.25a8.05 8.05 0 0 1 2.89 1.85M12 20c-.31 0-.97-1-1.45-2.94.96-.05 1.93-.05 2.9 0C12.97 19 12.31 20 12 20m-1.81-4.93c-.08-.63-.14-1.32-.17-2.07h3.96c-.03.75-.09 1.44-.17 2.07-1.2-.08-2.42-.08-3.62 0M12 4c.31 0 .97 1 1.45 2.94-.96.05-1.93.05-2.9 0C11.03 5 11.69 4 12 4m0 5c.61 0 1.21-.03 1.81-.06.08.63.14 1.32.17 2.06h-3.96c.03-.75.09-1.43.17-2.06.6.04 1.2.06 1.81.06m-3.98 2H4.07c.13-1.05.47-2.04.97-2.92 1.03.28 2.09.51 3.16.66-.09.74-.15 1.5-.18 2.27Zm0 2c.03.77.09 1.53.18 2.27-1.08.15-2.13.38-3.16.65-.5-.88-.84-1.87-.97-2.93h3.95Zm7.96 0h3.95a8 8 0 0 1-.97 2.93c-1.03-.28-2.09-.5-3.16-.65.09-.74.15-1.51.18-2.27Zm0-2c-.03-.76-.09-1.53-.18-2.27 1.08-.15 2.13-.38 3.16-.66.5.88.83 1.87.97 2.92h-3.95ZM9.24 4.5c-.28.66-.52 1.43-.7 2.25-.74-.1-1.47-.24-2.19-.4.81-.81 1.8-1.44 2.89-1.85M6.35 17.65c.72-.17 1.45-.3 2.19-.4.18.83.42 1.59.7 2.25a8.05 8.05 0 0 1-2.89-1.85m8.42 1.85c.28-.66.52-1.43.7-2.25.74.1 1.47.24 2.19.4-.81.81-1.8 1.44-2.89 1.85"></path>
+            </svg>
+            <div>
+                Публичные комнаты
+            </div>
+        </div>
         <div id="public-list" style="max-height:350px;overflow-y:auto;"></div>
         <div class="modal-actions">
             <button class="btn btn-secondary" onclick="closeModal('public-modal')">Закрыть</button>
@@ -249,7 +381,15 @@
 
 <div class="modal-overlay" id="files-modal">
     <div class="modal" style="width:460px;">
-        <div class="modal-title">📁 Файлы комнаты</div>
+        <div class="modal-title">
+            <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                  fill="currentColor" viewBox="0 0 24 24" >
+                <path d="m19.94 7.68-.03-.09a.8.8 0 0 0-.2-.29l-5-5c-.09-.09-.19-.15-.29-.2l-.09-.03a.8.8 0 0 0-.26-.05c-.02 0-.04-.01-.06-.01H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-12s-.01-.04-.01-.06c0-.09-.02-.17-.05-.26ZM6 20V4h7v4c0 .55.45 1 1 1h4v11z"></path>
+            </svg>
+            <div>
+                Файлы комнаты
+            </div>
+        </div>
         <div id="files-list" style="max-height:320px;overflow-y:auto;"></div>
         <div class="modal-actions">
             <button class="btn btn-secondary" onclick="closeModal('files-modal')">Закрыть</button>
@@ -259,7 +399,15 @@
 
 <div class="modal-overlay" id="profile-modal">
     <div class="modal">
-        <div class="modal-title">⚙ Профиль</div>
+        <div class="modal-title">
+            <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                  fill="currentColor" viewBox="0 0 24 24" >
+                <path d="M12 2C6.49 2 2 6.49 2 12c0 2.12.68 4.19 1.93 5.9l-1.75 2.53c-.21.31-.24.7-.06 1.03.17.33.51.54.89.54h9c5.51 0 10-4.49 10-10S17.51 2 12 2m0 18H4.91L6 18.43c.26-.37.23-.88-.06-1.22A7.98 7.98 0 0 1 4.01 12c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8Z"></path>
+            </svg>
+            <div>
+                Профиль
+            </div>
+        </div>
         <div style="background:var(--bg3);border-radius:var(--radius);padding:14px;margin-bottom:16px;">
             <div style="font-size:12px;color:var(--text2);font-family:var(--mono);margin-bottom:4px;">Телефон</div>
             <div style="font-weight:700;font-family:var(--mono);" id="prof-phone">—</div>
@@ -281,9 +429,22 @@
     <div class="call-name"   id="call-peer-name">—</div>
     <div class="call-status" id="call-status">Вызов...</div>
     <div class="call-controls">
-        <button class="call-btn mute" id="mute-btn" onclick="toggleMute()">🎤</button>
-        <button class="call-btn mute" id="cam-btn"  onclick="toggleCam()">📷</button>
-        <button class="call-btn hangup" onclick="hangup()">📵</button>
+        <button class="call-btn mute" id="mute-btn" onclick="toggleMute()">
+            <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                  fill="currentColor" viewBox="0 0 24 24" >
+            <path d="M16 12V6c0-2.21-1.79-4-4-4S8 3.79 8 6v6c0 2.21 1.79 4 4 4s4-1.79 4-4m-6 0V6c0-1.1.9-2 2-2s2 .9 2 2v6c0 1.1-.9 2-2 2s-2-.9-2-2"></path><path d="M18 12c0 3.31-2.69 6-6 6s-6-2.69-6-6H4c0 4.07 3.06 7.44 7 7.93V22h2v-2.07c3.94-.49 7-3.86 7-7.93z"></path>
+        </svg>
+        </button>
+        <button class="call-btn mute" id="cam-btn"  onclick="toggleCam()">
+            <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                  fill="currentColor" viewBox="0 0 24 24" >
+                <path d="M18 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-4.33L22 17V7l-4 3.33zm-2 12H4V6h12z"></path>
+            </svg>
+        </button>
+        <button class="call-btn hangup" onclick="hangup()">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+                <path d="M567 39.1C576.4 29.7 591.6 29.7 600.9 39.1C610.2 48.5 610.3 63.7 600.9 73L73 601.1C63.6 610.5 48.4 610.5 39.1 601.1C29.8 591.7 29.7 576.5 39.1 567.2L173.5 432.6C121.2 374.5 83.6 302.8 66.8 223.4C50.7 147.1 105.9 84.6 170.5 66.9L176 65.4C195.7 60 216.3 70.1 224.1 88.9L264.6 186.2C271.5 202.7 266.7 221.8 252.8 233.2L208.7 269.3C221.6 297.8 238.3 324.1 258.2 347.8L567 39.1zM416.6 573.1C353.6 559.7 295.3 533.3 244.9 496.8L329.8 412C342 420.2 354.8 427.6 368.1 434.2L406.7 387C418 373.1 437.1 368.4 453.7 375.2L551 415.8C569.8 423.6 579.9 444.2 574.5 463.9L573 469.4C555.4 534 492.8 589.2 416.6 573.1z"/></svg>
+        </button>
     </div>
 </div>
 
@@ -306,7 +467,7 @@
     <div class="fpo-preview" onclick="event.stopPropagation()">
         <img id="preview-img" src="" alt="" style="display:none;">
         <div id="preview-file-card" class="fpo-file-card" style="display:none;">
-            <span id="fpo-file-icon" class="fpo-file-icon">📄</span>
+            <span id="fpo-file-icon" class="fpo-file-icon"></span>
             <div>
                 <div id="fpo-file-name" class="fpo-file-name-card">—</div>
                 <div id="fpo-file-size" class="fpo-file-size-card">—</div>
@@ -344,7 +505,11 @@
             <button class="fpo-cancel-btn" id="fpo-cancel-btn"
                     onclick="cancelFilePreview()">Отмена</button>
             <button class="fpo-send-btn" id="fpo-send-btn"
-                    onclick="sendPendingFile()">↑ Отправить</button>
+                    onclick="sendPendingFile()">
+                <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                                      fill="currentColor" viewBox="0 0 24 24" >
+                <path d="M12 2C6.49 2 2 6.49 2 12c0 2.12.68 4.19 1.93 5.9l-1.75 2.53c-.21.31-.24.7-.06 1.03.17.33.51.54.89.54h9c5.51 0 10-4.49 10-10S17.51 2 12 2m0 18H4.91L6 18.43c.26-.37.23-.88-.06-1.22A7.98 7.98 0 0 1 4.01 12c0-4.41 3.59-8 8-8s8 3.59 8 8-3.59 8-8 8Z"></path>
+            </svg> Отправить</button>
         </div>
     </div>
 </div>
