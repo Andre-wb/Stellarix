@@ -19,41 +19,35 @@ import tempfile
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from pathlib import Path
-
 from fastapi import UploadFile, HTTPException, Request
+from PIL import Image
+import PIL
+import io
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+
+logger = logging.getLogger(__name__)
 try:
     import magic as _magic_lib
     _MAGIC_AVAILABLE = True
 except (ImportError, OSError):
-    _magic_lib = None  # type: ignore
+    _magic_lib = None
     _MAGIC_AVAILABLE = False
     logger.warning(
         "python-magic / libmagic не найдены — MIME-валидация будет по расширению. "
         "Установите: pip install python-magic && apt-get install libmagic1"
     )
 
-from PIL import Image
-import PIL
-import io
-
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-
-logger = logging.getLogger(__name__)
-
 
 class FileUploadConfig:
     """Настройки загрузки файлов."""
-
-    # Максимальный размер файла (5 MB)
-    MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024
+    MAX_FILE_SIZE = 10 * 1024 * 1024 * 1024
 
     # Ограничения для изображений
-    MAX_IMAGE_DIMENSION = 4000      # максимальная ширина/высота в пикселях
-    MIN_IMAGE_DIMENSION = 50        # минимальная ширина/высота
+    MAX_IMAGE_DIMENSION = 10000
+    MIN_IMAGE_DIMENSION = 50
 
     # Допустимые MIME-типы и соответствующие расширения
-    # FIX: было только 3 image типа — любой видео/аудио/PDF получал HTTP 415
     ALLOWED_MIME_TYPES: dict[str, list[str]] = {
         # ── Изображения ──────────────────────────────────────────────────
         'image/jpeg':     ['.jpg', '.jpeg', '.jfif', '.jpe'],   # FIX: добавлены .jfif/.jpe (iPhone, Windows)
@@ -100,10 +94,7 @@ class FileUploadConfig:
     # Квоты загрузок
     MAX_FILES_PER_HOUR = 10
     MAX_FILES_PER_DAY = 50
-
-    # Размер буфера для чтения в память (10 MB)
-    MAX_MEMORY_BUFFER = 10 * 1024 * 1024
-
+    MAX_MEMORY_BUFFER = 10 * 1024 * 1024 * 1024
     # Время жизни временных файлов в секундах (для очистки)
     TEMP_FILE_LIFETIME = 300
 
@@ -123,10 +114,6 @@ class FileAnomalyDetector:
         Проверяет наличие двойного расширения с опасным промежуточным расширением.
         Флагирует: shell.php.jpg, virus.exe.png
         НЕ флагирует: photo.vacation.jpg, my.photo.png, photo 2024-01-01 12.34.jpg
-
-        FIX (BUG-2): старая версия проверяла name_parts[1:] включая ПОСЛЕДНЕЕ расширение,
-        поэтому ANY фото с точкой в имени (vacation.jpg, 12.34.jpg) блокировалось.
-        Исправление: проверяем только ПРОМЕЖУТОЧНЫЕ части (не первую и не последнюю).
         """
         _DANGEROUS_EXTS = frozenset({
             '.php', '.php3', '.php4', '.php5', '.phtml',
@@ -261,7 +248,7 @@ class UploadQuotaManager:
         """
         try:
             # Импортируем модель внутри функции, чтобы избежать циклических импортов
-            from .models import UploadQuota
+            from app.models import UploadQuota
 
             current_time = datetime.utcnow()
             hour_ago = current_time - timedelta(hours=1)
@@ -305,7 +292,7 @@ class UploadQuotaManager:
         Записывает факт загрузки в БД для учёта квот.
         """
         try:
-            from .models import UploadQuota
+            from app.models import UploadQuota
 
             upload_record = UploadQuota(
                 user_id=user_id,
@@ -338,10 +325,6 @@ def validate_file_mime_type(content: bytes, filename: str) -> Tuple[bool, Option
     """
     Проверяет MIME-тип файла по первым байтам и соответствие расширения.
     Возвращает (успех, MIME-тип или сообщение об ошибке).
-
-    FIX BUG-3: добавлен fallback если libmagic не установлена.
-    FIX BUG-4: смягчена проверка расширения — принимаем родственные расширения
-               (например .jfif для image/jpeg).
     """
     file_ext = Path(filename).suffix.lower()
 
@@ -378,12 +361,9 @@ def validate_file_mime_type(content: bytes, filename: str) -> Tuple[bool, Option
             return False, f"Неподдерживаемый тип файла: {mime}"
 
     # ── Шаг 4: проверяем расширение — мягкая проверка ───────────────────────
-    # FIX BUG-4: раньше .jfif отвергался для image/jpeg. Теперь проверяем
-    # только что расширение хоть в каком-то image/* если mime image/*.
     expected_exts = FileUploadConfig.ALLOWED_MIME_TYPES.get(mime, [])
     if file_ext and expected_exts and file_ext not in expected_exts:
-        # Проверяем соответствие по категории (image, video, audio, etc.)
-        mime_category = mime.split('/')[0]  # 'image', 'video', 'audio', etc.
+        mime_category = mime.split('/')[0]
         # Находим все расширения для данной категории
         all_category_exts: set[str] = set()
         for m, exts in FileUploadConfig.ALLOWED_MIME_TYPES.items():

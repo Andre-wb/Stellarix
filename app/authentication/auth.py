@@ -154,10 +154,6 @@ async def refresh(request: Request, db: Session = Depends(get_db)):
     _set_auth_cookies(response, user, db, request)
     return response
 
-
-# BUG-003 FIX: добавлена аннотация типа `Response`.
-# Без неё FastAPI не знал что инжектировать — роут падал с 500,
-# куки не удалялись и пользователь не мог выйти из системы.
 @router.post("/logout")
 async def logout(response: Response):
     r = JSONResponse({"ok": True})

@@ -6,10 +6,13 @@ import {
     appendFileMessage,
     appendSystemMessage,
     resetMessageState,
+    deleteMessageAnim,
+    updateMessageText,
 } from './messages.js';
 
 const _typers       = {};
 let   _typingActive = false;
+const _fileSenders  = {}; // username → filename
 
 export function connectWS(roomId) {
     const S     = window.AppState;
@@ -67,16 +70,24 @@ function handleWsMessage(msg) {
 
         case 'user_joined':
             appendSystemMessage(`${msg.display_name || msg.username} вошёл в чат`);
-            updateRoomMeta();
+            if (msg.online_users) _updateOnlineList(msg.online_users);
             break;
 
         case 'user_left':
             appendSystemMessage(`${msg.username} покинул чат`);
-            updateRoomMeta();
+            if (msg.online_users) _updateOnlineList(msg.online_users);
             break;
 
         case 'typing':
             _showTyping(msg.username, msg.is_typing);
+            break;
+
+        case 'file_sending':
+            _showFileSending(msg.display_name || msg.username, msg.filename);
+            break;
+
+        case 'stop_file_sending':
+            _showFileSending(msg.sender, null);
             break;
 
         case 'kicked':
@@ -97,17 +108,104 @@ function handleWsMessage(msg) {
             appendSystemMessage(msg.text);
             break;
 
+        case 'message_deleted':
+            deleteMessageAnim(msg.msg_id);
+            break;
+
+        case 'message_edited':
+            updateMessageText(msg.msg_id, msg.text, msg.is_edited);
+            break;
+
         case 'pong':
             break;
     }
 }
+
+function _updateOnlineList(users) {
+    const S = window.AppState;
+    if (!S.currentRoom) return;
+    const el = document.getElementById('chat-room-meta');
+    if (el) {
+        el.textContent = `${S.currentRoom.member_count} участников · ${users.length} онлайн`;
+    }
+}
+
+let _replyTo   = null;
+let _editingId = null;
+
+window.setReplyTo = (msg) => {
+    _replyTo   = msg;
+    _editingId = null;
+    const bar  = document.getElementById('reply-bar');
+    const name = document.getElementById('reply-bar-name');
+    const text = document.getElementById('reply-bar-text');
+    if (bar) {
+        bar.classList.add('visible');
+        if (name) name.textContent = msg.display_name || msg.sender || '?';
+        if (text) text.textContent = _truncate(msg.text || msg.file_name || 'файл', 60);
+    }
+    document.getElementById('msg-input')?.focus();
+};
+
+window.cancelReply = () => {
+    _replyTo   = null;
+    _editingId = null;
+    const bar = document.getElementById('reply-bar');
+    if (bar) {
+        bar.classList.remove('visible');
+        delete bar.dataset.mode;
+    }
+    const input = document.getElementById('msg-input');
+    if (input) { input.placeholder = 'Сообщение…'; input.value = ''; }
+};
+
+window.startEditMessage = (msg) => {
+    _editingId = msg.msg_id;
+    _replyTo   = null;
+    const bar      = document.getElementById('reply-bar');
+    const nameEl   = document.getElementById('reply-bar-name');
+    const textEl   = document.getElementById('reply-bar-text');
+    if (bar) {
+        bar.dataset.mode = 'edit';
+        bar.classList.add('visible');
+        if (nameEl) nameEl.textContent = '✏️ Редактирование';
+        if (textEl) textEl.textContent = _truncate(msg.text || '', 60);
+    }
+    const input = document.getElementById('msg-input');
+    if (input) {
+        input.value = msg.text || '';
+        input.focus();
+    }
+};
+
+window.deleteMessage = (msgId) => {
+    const S = window.AppState;
+    if (!msgId || !S.ws || S.ws.readyState !== WebSocket.OPEN) return;
+    S.ws.send(JSON.stringify({ action: 'delete_message', msg_id: msgId }));
+};
+
+function _truncate(str, n) { return str?.length > n ? str.slice(0, n) + '…' : str || ''; }
 
 export function sendMessage() {
     const input = document.getElementById('msg-input');
     const text  = input.value.trim();
     const S     = window.AppState;
     if (!text || !S.ws || S.ws.readyState !== WebSocket.OPEN) return;
-    S.ws.send(JSON.stringify({ action: 'message', text }));
+
+    if (_editingId) {
+        S.ws.send(JSON.stringify({ action: 'edit_message', msg_id: _editingId, text }));
+        _editingId = null;
+        const bar = document.getElementById('reply-bar');
+        if (bar) { bar.classList.remove('visible'); delete bar.dataset.mode; }
+    } else {
+        const payload = { action: 'message', text };
+        if (_replyTo?.msg_id) payload.reply_to_id = _replyTo.msg_id;
+        S.ws.send(JSON.stringify(payload));
+        _replyTo = null;
+        const bar2 = document.getElementById('reply-bar');
+        if (bar2) { bar2.classList.remove('visible'); delete bar2.dataset.mode; }
+    }
+
     input.value = '';
     input.style.height = 'auto';
 }
@@ -140,7 +238,6 @@ export async function showRoomFilesModal() {
     const S = window.AppState;
     if (!S.currentRoom) return;
 
-    // utils.js — уровнем выше, '../utils.js'
     const { openModal, api, esc, fmtSize: _fmtSize } = await import('../utils.js');
     openModal('files-modal');
 
@@ -152,16 +249,8 @@ export async function showRoomFilesModal() {
         el.innerHTML = data.files.length
             ? data.files.map(f => {
                 const isImage  = f.mime_type?.startsWith('image/');
-                const icon     = isImage ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">\n' +
-                    '  <path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />\n' +
-                    '</svg>\n' : f.mime_type?.startsWith('video/') ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">\n' +
-                    '  <path stroke-linecap="round" stroke-linejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />\n' +
-                    '</svg>\n'
-                    : f.mime_type?.startsWith('audio/') ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">\n' +
-                        '  <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />\n' +
-                        '</svg>\n' : '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">\n' +
-                        '  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />\n' +
-                        '</svg>\n';
+                const icon     = isImage ? '🖼' : f.mime_type?.startsWith('video/') ? '🎬'
+                    : f.mime_type?.startsWith('audio/') ? '🎵' : '📄';
                 const safeName = esc(f.file_name).replace(/'/g, "\\'");
                 return `
                 <div style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
@@ -182,22 +271,35 @@ export async function showRoomFilesModal() {
 function _showTyping(username, isTyping) {
     if (isTyping) _typers[username] = true;
     else delete _typers[username];
-
-    const names = Object.keys(_typers);
-    const el    = document.getElementById('typing-indicator');
-    if (names.length) {
-        el.classList.add('visible');
-        document.getElementById('typing-text').textContent =
-            names.join(', ') + (names.length === 1 ? ' печатает' : ' печатают');
-    } else {
-        el.classList.remove('visible');
-    }
+    _renderTypingBar();
 }
 
-function _updateOnlineList(users) {
-    const S = window.AppState;
-    if (S.currentRoom) {
-        document.getElementById('chat-room-meta').textContent =
-            `${S.currentRoom.member_count} участников · ${users.length} онлайн`;
+function _showFileSending(username, filename) {
+    if (filename) _fileSenders[username] = filename;
+    else          delete _fileSenders[username];
+    _renderTypingBar();
+}
+
+function _renderTypingBar() {
+    const typers  = Object.keys(_typers);
+    const filers  = Object.entries(_fileSenders);
+    const el      = document.getElementById('typing-indicator');
+    const textEl  = document.getElementById('typing-text');
+
+    const parts = [];
+    if (typers.length)
+        parts.push(typers.join(', ') + (typers.length === 1 ? ' печатает' : ' печатают'));
+    if (filers.length) {
+        filers.forEach(([name, fname]) => {
+            const short = fname.length > 24 ? fname.slice(0, 22) + '…' : fname;
+            parts.push(`${name} отправляет файл «${short}»`);
+        });
+    }
+
+    if (parts.length) {
+        el.classList.add('visible');
+        textEl.textContent = parts.join(' · ');
+    } else {
+        el.classList.remove('visible');
     }
 }

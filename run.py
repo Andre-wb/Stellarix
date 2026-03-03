@@ -22,6 +22,8 @@ import threading
 import time
 import webbrowser
 from pathlib import Path
+import shutil
+from typing import NamedTuple
 
 
 # ── Константы ─────────────────────────────────────────────────────────────────
@@ -30,6 +32,14 @@ ENV_FILE  = Path(".env")
 CERT_DIR  = Path("certs")
 CERT_FILE = CERT_DIR / "vortex.crt"
 KEY_FILE  = CERT_DIR / "vortex.key"
+
+class SSLResult(NamedTuple):
+    ok: bool
+    cert: str
+    key: str
+    ca: str
+    message: str
+    trusted: bool
 
 BANNER = r"""
   ██╗   ██╗ ██████╗ ██████╗ ████████╗███████╗██╗  ██╗
@@ -205,7 +215,6 @@ def cmd_reset() -> None:
         ENV_FILE.unlink()
         deleted.append(".env")
     if CERT_DIR.exists():
-        import shutil
         shutil.rmtree(CERT_DIR)
         deleted.append("certs/")
     _p(f"\n✓ Удалено: {', '.join(deleted) if deleted else 'нечего удалять'}", "green")
@@ -217,8 +226,8 @@ def cmd_reset() -> None:
 def cmd_setup(wizard_port: int, no_browser: bool) -> None:
     _p(BANNER, "cyan")
     _p("  ⚡ Открываем мастер настройки узла...\n", "cyan")
-
     missing = _check_deps()
+
     if missing:
         _p(f"✗ Отсутствуют зависимости: {', '.join(missing)}", "red")
         _p(f"  Выполните: pip install {' '.join(missing)}", "yellow")

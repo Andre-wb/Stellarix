@@ -9,7 +9,7 @@ export function connectSignal(roomId) {
     const S = window.AppState;
 
     if (S.signalWs) {
-        S.signalWs.onclose = null;  // не триггерим реконнект при ручном закрытии
+        S.signalWs.onclose = null;
         S.signalWs.close();
         S.signalWs = null;
     }
@@ -39,6 +39,7 @@ export function connectSignal(roomId) {
 
     S.signalWs.onerror = err => console.error('Signal WS error:', err);
 }
+
 function waitForSignalOpen(timeout = 5000) {
     return new Promise((resolve, reject) => {
         const S = window.AppState;
@@ -57,6 +58,10 @@ function signal(msg) {
     } else {
         console.warn('signal(): WS не готов, тип=', msg.type);
     }
+}
+
+function _sdpHasVideo(sdp) {
+    return typeof sdp === 'string' && /^m=video /m.test(sdp);
 }
 
 export async function startVoiceCall() {
@@ -80,10 +85,10 @@ export async function startVoiceCall() {
         return;
     }
 
-    $('call-peer-name').textContent = S.currentRoom.name;
+    $('call-peer-name').textContent   = S.currentRoom.name;
     $('call-peer-avatar').textContent = '💬';
-    $('call-status').textContent = 'Вызов...';
-    $('local-video').srcObject = S.localStream;
+    $('call-status').textContent      = 'Вызов...';
+    $('local-video').srcObject        = S.localStream;
     $('call-overlay').classList.add('show');
     _isHangingUp = false;
 
@@ -93,7 +98,7 @@ export async function startVoiceCall() {
     const offer = await S.pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: false });
     await S.pc.setLocalDescription(offer);
 
-    signal({ type: 'invite' });
+    signal({ type: 'invite', hasVideo: false });
     await new Promise(r => setTimeout(r, 50));
     signal({ type: 'offer', sdp: offer.sdp });
 }
@@ -119,12 +124,14 @@ export async function startVideoCall() {
         return;
     }
 
-    $('call-peer-name').textContent = S.currentRoom.name;
+    $('call-peer-name').textContent   = S.currentRoom.name;
     $('call-peer-avatar').textContent = '💬';
-    $('call-status').textContent = 'Видеозвонок...';
-    $('local-video').srcObject = S.localStream;
+    $('call-status').textContent      = 'Видеозвонок...';
+    $('local-video').srcObject        = S.localStream;
     $('call-overlay').classList.add('show');
     _isHangingUp = false;
+    S.isCamOff = false;
+    _updateCamBtn(false);
 
     S.pc = createPeerConnection();
     S.localStream.getTracks().forEach(t => S.pc.addTrack(t, S.localStream));
@@ -132,7 +139,7 @@ export async function startVideoCall() {
     const offer = await S.pc.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
     await S.pc.setLocalDescription(offer);
 
-    signal({ type: 'invite' });
+    signal({ type: 'invite', hasVideo: true });
     await new Promise(r => setTimeout(r, 50));
     signal({ type: 'offer', sdp: offer.sdp });
 }
@@ -145,6 +152,7 @@ function createPeerConnection() {
     };
 
     pc.ontrack = e => {
+        console.log('ontrack:', e.track.kind, e.streams[0]);
         $('remote-video').srcObject = e.streams[0];
         $('call-status').textContent = 'Соединение установлено';
     };
@@ -153,7 +161,6 @@ function createPeerConnection() {
         const state = pc.connectionState;
         console.log('RTCPeerConnection state:', state);
         if (state === 'connected') $('call-status').textContent = 'Разговор...';
-
         if (['disconnected', 'failed', 'closed'].includes(state) && !_isHangingUp) {
             hangup();
         }
@@ -169,25 +176,17 @@ async function handleSignal(msg) {
     if (msg.type === 'invite') {
         if ($('call-overlay').classList.contains('show')) return;
         _incomingCallFrom = from;
-        showIncomingCallUI(msg.username || 'Собеседник', from);
+        S._offerHasVideo = !!msg.hasVideo;
+        showIncomingCallUI(msg.username || 'Собеседник');
         return;
     }
 
     if (msg.type === 'offer') {
         if (!S.pc) S.pc = createPeerConnection();
+
+        S._offerHasVideo = S._offerHasVideo ?? _sdpHasVideo(msg.sdp)
         await S.pc.setRemoteDescription({ type: 'offer', sdp: msg.sdp });
-
-        const answer = await S.pc.createAnswer();
-        await S.pc.setLocalDescription(answer);
-
-        S._pendingAnswer = { sdp: answer.sdp, to: from };
-
-        if (S._pendingCandidates?.length) {
-            for (const c of S._pendingCandidates) {
-                try { await S.pc.addIceCandidate(c); } catch {}
-            }
-            S._pendingCandidates = [];
-        }
+        S._pendingOfferFrom = from;
     }
 
     if (msg.type === 'answer') {
@@ -232,7 +231,7 @@ function showIncomingCallUI(callerName) {
             <div style="font-size:32px" id="call-ring-emoji">📞</div>
             <div>
                 <div id="incoming-caller-name" style="font-weight:700;font-size:16px;margin-bottom:4px"></div>
-                <div style="font-size:13px;color:#4ecdc4">Входящий звонок...</div>
+                <div style="font-size:13px;color:#4ecdc4" id="incoming-call-type">Входящий звонок...</div>
             </div>
             <div style="display:flex;gap:10px;margin-left:12px">
                 <button onclick="window.acceptCall()"
@@ -259,7 +258,11 @@ function showIncomingCallUI(callerName) {
     }
 
     const nameEl = document.getElementById('incoming-caller-name');
+    const typeEl = document.getElementById('incoming-call-type');
     if (nameEl) nameEl.textContent = callerName + ' звонит';
+    if (typeEl) typeEl.textContent = window.AppState._offerHasVideo
+        ? '📹 Входящий видеозвонок...'
+        : '📞 Входящий звонок...';
     banner.style.display = 'flex';
 }
 
@@ -271,35 +274,51 @@ function hideIncomingCallUI() {
 export async function acceptCall() {
     const S = window.AppState;
     hideIncomingCallUI();
-
+    const needVideo = !!S._offerHasVideo;
     try {
-        S.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        S.localStream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+            video: needVideo,
+        });
         $('local-video').srcObject = S.localStream;
     } catch (e) {
-        console.warn('Нет микрофона:', e.message);
+        if (needVideo) {
+            console.warn('Нет камеры, пробуем только аудио:', e.message);
+            try {
+                S.localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                $('local-video').srcObject = S.localStream;
+            } catch (e2) {
+                console.warn('Нет микрофона:', e2.message);
+            }
+        } else {
+            console.warn('Нет микрофона:', e.message);
+        }
     }
-
     if (S.pc && S.localStream) {
         S.localStream.getTracks().forEach(t => {
             try { S.pc.addTrack(t, S.localStream); } catch {}
         });
     }
-
-    if (S._pendingCandidates?.length && S.pc?.remoteDescription) {
+    const to = S._pendingOfferFrom;
+    if (S.pc && S.pc.signalingState === 'have-remote-offer') {
+        const answer = await S.pc.createAnswer();
+        await S.pc.setLocalDescription(answer);
+        signal({ type: 'answer', sdp: answer.sdp, to });
+    }
+    S._pendingOfferFrom = null;
+    if (S._pendingCandidates?.length) {
         for (const c of S._pendingCandidates) {
             try { await S.pc.addIceCandidate(c); } catch {}
         }
         S._pendingCandidates = [];
     }
 
-    if (S._pendingAnswer) {
-        signal({ type: 'answer', sdp: S._pendingAnswer.sdp, to: S._pendingAnswer.to });
-        S._pendingAnswer = null;
-    }
+    S.isCamOff = !needVideo;
+    _updateCamBtn(S.isCamOff);
 
-    $('call-peer-name').textContent = 'Собеседник';
-    $('call-peer-avatar').textContent = '📞';
-    $('call-status').textContent = 'Подключение...';
+    $('call-peer-name').textContent   = 'Собеседник';
+    $('call-peer-avatar').textContent = needVideo ? '📹' : '📞';
+    $('call-status').textContent      = 'Подключение...';
     $('call-overlay').classList.add('show');
     _isHangingUp = false;
 }
@@ -308,8 +327,10 @@ export function declineCall() {
     const S = window.AppState;
     hideIncomingCallUI();
     signal({ type: 'bye', to: _incomingCallFrom });
-    S._pendingAnswer = null;
+    S._pendingAnswer     = null;
     S._pendingCandidates = [];
+    S._offerHasVideo     = null;
+    S._pendingOfferFrom  = null;
     if (S.pc) { S.pc.close(); S.pc = null; }
     _incomingCallFrom = null;
 }
@@ -324,8 +345,8 @@ export function hangup() {
 
     if (S.pc) {
         S.pc.onconnectionstatechange = null;
-        S.pc.onicecandidate = null;
-        S.pc.ontrack = null;
+        S.pc.onicecandidate          = null;
+        S.pc.ontrack                 = null;
         S.pc.close();
         S.pc = null;
     }
@@ -338,14 +359,16 @@ export function hangup() {
     $('call-overlay').classList.remove('show');
     hideIncomingCallUI();
 
-    S._pendingAnswer = null;
+    S._pendingAnswer     = null;
     S._pendingCandidates = [];
-    _incomingCallFrom = null;
+    S._offerHasVideo     = null;
+    S._pendingOfferFrom  = null;
+    _incomingCallFrom    = null;
 
-    $('mute-btn').textContent = '🎤';
-    $('cam-btn').textContent  = '📷';
     S.isMuted  = false;
     S.isCamOff = false;
+    _updateMuteBtn(false);
+    _updateCamBtn(false);
 
     setTimeout(() => { _isHangingUp = false; }, 500);
 }
@@ -354,14 +377,58 @@ export function toggleMute() {
     const S = window.AppState;
     S.isMuted = !S.isMuted;
     S.localStream?.getAudioTracks().forEach(t => { t.enabled = !S.isMuted; });
-    $('mute-btn').innerHTML = S.isMuted ? '<svg  xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" viewBox="0 0 24 24" > <path d="M8.03 12.27a3.98 3.98 0 0 0 3.7 3.7zM20 12h-2c0 1.29-.42 2.49-1.12 3.47l-1.44-1.44c.36-.59.56-1.28.56-2.02v-6c0-2.21-1.79-4-4-4s-4 1.79-4 4v.59L2.71 1.29 1.3 2.7l20 20 1.41-1.41-4.4-4.4A7.9 7.9 0 0 0 20 12M10 6c0-1.1.9-2 2-2s2 .9 2 2v6c0 .18-.03.35-.07.51L10 8.58V5.99Z"></path><path d="M12 18c-3.31 0-6-2.69-6-6H4c0 4.07 3.06 7.44 7 7.93V22h2v-2.07c.74-.09 1.45-.29 2.12-.57l-1.57-1.57c-.49.13-1.01.21-1.55.21"></path></svg>' : '<svg  xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" viewBox="0 0 24 24" ><path d="M16 12V6c0-2.21-1.79-4-4-4S8 3.79 8 6v6c0 2.21 1.79 4 4 4s4-1.79 4-4m-6 0V6c0-1.1.9-2 2-2s2 .9 2 2v6c0 1.1-.9 2-2 2s-2-.9-2-2"></path><path d="M18 12c0 3.31-2.69 6-6 6s-6-2.69-6-6H4c0 4.07 3.06 7.44 7 7.93V22h2v-2.07c3.94-.49 7-3.86 7-7.93z"></path>';
-
+    _updateMuteBtn(S.isMuted);
 }
 
-export function toggleCam() {
+export async function toggleCam() {
     const S = window.AppState;
-    S.isCamOff = !S.isCamOff;
-    S.localStream?.getVideoTracks().forEach(t => { t.enabled = !S.isCamOff; });
-    $('cam-btn').innerHTML = S.isCamOff ? '<svg  xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" viewBox="0 0 24 24" ><path d="M4 18V8.24L2.12 6.36c-.07.2-.12.42-.12.64v11c0 1.1.9 2 2 2h11.76l-2-2zm18 0V7c0-1.1-.9-2-2-2h-2.59L14.7 2.29a1 1 0 0 0-.71-.29h-4c-.27 0-.52.11-.71.29L6.57 5H6.4L2.71 1.29 1.3 2.7l20 20 1.41-1.41-1.62-1.62c.55-.36.91-.97.91-1.67M10.41 4h3.17l2.71 2.71c.19.19.44.29.71.29h3v11h-.59l-3.99-3.99c.36-.59.57-1.28.57-2.01 0-2.17-1.83-4-4-4-.73 0-1.42.21-2.01.57L7.91 6.5zm1.08 6.08c.16-.05.33-.08.51-.08 1.07 0 2 .93 2 2 0 .17-.03.34-.08.51z"></path><path d="M8.03 12.27c.14 1.95 1.75 3.56 3.7 3.7z"></path></svg>' : '<svg  xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" viewBox="0 0 24 24" > <path d="M12 8c-2.17 0-4 1.83-4 4s1.83 4 4 4 4-1.83 4-4-1.83-4-4-4m0 6c-1.07 0-2-.93-2-2s.93-2 2-2 2 .93 2 2-.93 2-2 2"></path><path d="M20 5h-2.59L14.7 2.29a1 1 0 0 0-.71-.29h-4c-.27 0-.52.11-.71.29L6.57 5H3.98c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2Zm0 13H4V7h3c.27 0 .52-.11.71-.29L10.42 4h3.17l2.71 2.71c.19.19.44.29.71.29h3v11Z"></path></svg>';
+    const existingVideoTracks = S.localStream?.getVideoTracks() ?? [];
 
+    if (existingVideoTracks.length > 0) {
+        S.isCamOff = !S.isCamOff;
+        existingVideoTracks.forEach(t => { t.enabled = !S.isCamOff; });
+        _updateCamBtn(S.isCamOff);
+        return;
+    }
+
+    if (!S.pc) {
+        console.warn('toggleCam: нет RTCPeerConnection');
+        return;
+    }
+
+    try {
+        const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const videoTrack  = videoStream.getVideoTracks()[0];
+
+        if (S.localStream) {
+            S.localStream.addTrack(videoTrack);
+        } else {
+            S.localStream = videoStream;
+        }
+        $('local-video').srcObject = S.localStream;
+
+        S.pc.addTrack(videoTrack, S.localStream);
+
+        S.isCamOff = false;
+        _updateCamBtn(false);
+
+        const offer = await S.pc.createOffer();
+        await S.pc.setLocalDescription(offer);
+        signal({ type: 'offer', sdp: offer.sdp });
+
+    } catch (e) {
+        alert('Не удалось включить камеру: ' + e.message);
+    }
+}
+
+function _updateMuteBtn(muted) {
+    $('mute-btn').innerHTML = muted
+        ? '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" viewBox="0 0 24 24"><path d="M8.03 12.27a3.98 3.98 0 0 0 3.7 3.7zM20 12h-2c0 1.29-.42 2.49-1.12 3.47l-1.44-1.44c.36-.59.56-1.28.56-2.02v-6c0-2.21-1.79-4-4-4s-4 1.79-4 4v.59L2.71 1.29 1.3 2.7l20 20 1.41-1.41-4.4-4.4A7.9 7.9 0 0 0 20 12M10 6c0-1.1.9-2 2-2s2 .9 2 2v6c0 .18-.03.35-.07.51L10 8.58V5.99Z"></path><path d="M12 18c-3.31 0-6-2.69-6-6H4c0 4.07 3.06 7.44 7 7.93V22h2v-2.07c.74-.09 1.45-.29 2.12-.57l-1.57-1.57c-.49.13-1.01.21-1.55.21"></path></svg>'
+        : '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V6c0-2.21-1.79-4-4-4S8 3.79 8 6v6c0 2.21 1.79 4 4 4s4-1.79 4-4m-6 0V6c0-1.1.9-2 2-2s2 .9 2 2v6c0 1.1-.9 2-2 2s-2-.9-2-2"></path><path d="M18 12c0 3.31-2.69 6-6 6s-6-2.69-6-6H4c0 4.07 3.06 7.44 7 7.93V22h2v-2.07c3.94-.49 7-3.86 7-7.93z"></path></svg>';
+}
+
+function _updateCamBtn(camOff) {
+    $('cam-btn').innerHTML = camOff
+        ? '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" viewBox="0 0 24 24"><path d="M4 18V8.24L2.12 6.36c-.07.2-.12.42-.12.64v11c0 1.1.9 2 2 2h11.76l-2-2zm18 0V7c0-1.1-.9-2-2-2h-2.59L14.7 2.29a1 1 0 0 0-.71-.29h-4c-.27 0-.52.11-.71.29L6.57 5H6.4L2.71 1.29 1.3 2.7l20 20 1.41-1.41-1.62-1.62c.55-.36.91-.97.91-1.67M10.41 4h3.17l2.71 2.71c.19.19.44.29.71.29h3v11h-.59l-3.99-3.99c.36-.59.57-1.28.57-2.01 0-2.17-1.83-4-4-4-.73 0-1.42.21-2.01.57L7.91 6.5zm1.08 6.08c.16-.05.33-.08.51-.08 1.07 0 2 .93 2 2 0 .17-.03.34-.08.51z"></path><path d="M8.03 12.27c.14 1.95 1.75 3.56 3.7 3.7z"></path></svg>'
+        : '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" viewBox="0 0 24 24"><path d="M12 8c-2.17 0-4 1.83-4 4s1.83 4 4 4 4-1.83 4-4-1.83-4-4-4m0 6c-1.07 0-2-.93-2-2s.93-2 2-2 2 .93 2 2-.93 2-2 2"></path><path d="M20 5h-2.59L14.7 2.29a1 1 0 0 0-.71-.29h-4c-.27 0-.52.11-.71.29L6.57 5H3.98c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2Zm0 13H4V7h3c.27 0 .52-.11.71-.29L10.42 4h3.17l2.71 2.71c.19.19.44.29.71.29h3v11Z"></path></svg>';
 }

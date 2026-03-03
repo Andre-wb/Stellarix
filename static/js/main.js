@@ -60,6 +60,26 @@ window.bootApp = async function bootApp() {
         imageViewer.initImageViewer();
     }
 
+    // Динамические импорты — не ломают приложение если файл не найден на сервере
+    try {
+        const voiceRecorder = await import('./voice_recorder.js');
+        Object.assign(window, voiceRecorder);
+        if (typeof voiceRecorder.initVoiceRecorder === 'function') {
+            voiceRecorder.initVoiceRecorder();
+        }
+        console.log('🎙 voice_recorder загружен');
+    } catch (e) {
+        console.warn('voice_recorder.js не загружен:', e.message);
+    }
+
+    try {
+        const photoEditor = await import('./photo_editor.js');
+        Object.assign(window, photoEditor);
+        console.log('📷 photo_editor загружен');
+    } catch (e) {
+        console.warn('photo_editor.js не загружен:', e.message);
+    }
+
     showWelcome();
 };
 

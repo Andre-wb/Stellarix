@@ -100,18 +100,6 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
 
 class CSRFMiddleware(BaseHTTPMiddleware):
-    """
-    Double-submit cookie CSRF защита.
-
-    BUG-001 FIX: оригинал вызывал `await request.form()` для multipart запросов
-    чтобы найти поле csrf_token в теле. Это дренировало ASGI receive()-стрим:
-    upload_file handler получал пустое тело → зависал бесконечно → браузер
-    таймаутил через 5–10 с → Chrome: "Failed to fetch", Safari: молчит.
-
-    Решение: для multipart/form-data тело НЕ читаем вообще.
-    Клиент (sendPendingFile в chat.js) передаёт X-CSRF-Token в заголовке —
-    читаем только его. Тело остаётся нетронутым для upload handler.
-    """
 
     _SAFE_METHODS  = frozenset({"GET", "HEAD", "OPTIONS", "TRACE"})
     _SKIP_PATHS    = frozenset({

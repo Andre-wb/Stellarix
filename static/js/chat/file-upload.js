@@ -8,6 +8,7 @@ let _origDataUrl     = null;
 let _skipCompression = false;
 
 const $ = id => document.getElementById(id);
+
 export function uploadFile(e) {
     const file = e.target.files[0];
     e.target.value = '';
@@ -55,6 +56,8 @@ export function uploadFile(e) {
                 $('fpo-filesize').textContent  = fmtSize(file.size);
                 _showCompressionSection(100);
                 _updateCompressionInfo(100);
+                // ← ДОБАВЛЕНО: показываем кнопку редактора фото
+                _showEditPhotoBtn(true);
             };
             img.onerror = () => _showAsFileCard('🖼', file.name, file.size);
             img.src = _origDataUrl;
@@ -62,26 +65,66 @@ export function uploadFile(e) {
         reader.readAsDataURL(file);
 
     } else {
-        const icon = file.type.startsWith('video/') ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">\n' +
-            '  <path stroke-linecap="round" stroke-linejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />\n' +
-            '</svg>\n'
-            : file.type.startsWith('audio/') ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">\n' +
-                '  <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />\n' +
-                '</svg>\n'
-                : '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">\n' +
-                '  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />\n' +
-                '</svg>\n';
+        const icon = file.type.startsWith('video/') ? '🎬'
+            : file.type.startsWith('audio/') ? '🎵'
+                : '📄';
         _showAsFileCard(icon, file.name, file.size);
         $('compress-section').style.display = 'none';
         $('file-preview-overlay').classList.add('show');
         closeDotMenu();
+        _showEditPhotoBtn(false);
     }
+}
+
+function _showEditPhotoBtn(show) {
+    let btn = $('fpo-edit-photo-btn');
+    if (!btn) {
+        btn = document.createElement('button');
+        btn.id        = 'fpo-edit-photo-btn';
+        btn.className = 'fpo-cancel-btn';
+        btn.style.cssText = 'display:none;';
+        btn.textContent   = '✏️ Редактировать';
+        btn.onclick = () => {
+            if (!_pendingFile) return;
+            $('file-preview-overlay').classList.remove('show');
+            // Открываем редактор; после сохранения — возвращаем в превью
+            if (typeof window.openPhotoEditor === 'function') {
+                window.openPhotoEditor(_pendingFile, (blob, fileName) => {
+                    // Заменяем pending file отредактированным
+                    _pendingFile  = new File([blob], fileName, { type: blob.type });
+                    _resizedBlob  = null;
+                    _skipCompression = false;
+                    // Перечитываем превью
+                    const reader = new FileReader();
+                    reader.onload = ev => {
+                        _origDataUrl = ev.target.result;
+                        const img = new Image();
+                        img.onload = () => {
+                            _origW = img.naturalWidth;
+                            _origH = img.naturalHeight;
+                            $('preview-img').src          = _origDataUrl;
+                            $('fpo-filename').textContent = fileName;
+                            $('fpo-filesize').textContent = fmtSize(_pendingFile.size);
+                            _updateCompressionInfo(parseInt($('compress-slider')?.value || 100));
+                        };
+                        img.src = _origDataUrl;
+                    };
+                    reader.readAsDataURL(_pendingFile);
+                    $('file-preview-overlay').classList.add('show');
+                });
+            }
+        };
+        // Вставляем перед кнопкой «Отмена» в bottom-bar
+        const actions = document.querySelector('.fpo-actions');
+        if (actions) actions.insertBefore(btn, actions.firstChild);
+    }
+    btn.style.display = show ? '' : 'none';
 }
 
 function _showAsFileCard(icon, name, size) {
     $('preview-img').style.display       = 'none';
     $('preview-file-card').style.display = 'flex';
-    $('fpo-file-icon').innerHTML = icon;
+    $('fpo-file-icon').textContent       = icon;
     $('fpo-file-name').textContent       = name;
     $('fpo-file-size').textContent       = fmtSize(size);
     $('fpo-filename').textContent        = name;
@@ -185,6 +228,7 @@ export function cancelFilePreview() {
     if (errEl) errEl.style.display = 'none';
     closeDotMenu();
     _resetSendBtn();
+    _showEditPhotoBtn(false);
 }
 
 export async function sendPendingFile() {
@@ -207,6 +251,10 @@ export async function sendPendingFile() {
     const formData = new FormData();
     formData.append('file', new File([blobToSend], fileName, { type: mimeType }));
 
+    if (S.ws?.readyState === WebSocket.OPEN) {
+        S.ws.send(JSON.stringify({ action: 'file_sending', filename: fileName }));
+    }
+
     try {
         await _xhrUpload(
             `/api/files/upload/${S.currentRoom.id}`,
@@ -218,6 +266,9 @@ export async function sendPendingFile() {
 
     } catch (err) {
         _failPendingBubble(pendingEl, err.message);
+        if (S.ws?.readyState === WebSocket.OPEN) {
+            S.ws.send(JSON.stringify({ action: 'stop_file_sending' }));
+        }
     }
 }
 
@@ -287,19 +338,11 @@ function _insertPendingBubble(fileName, fileSize, mimeType, localSrc) {
         meta.className   = 'pending-img-meta';
         meta.textContent = `${fileName} · ${fmtSize(fileSize)}`;
         bubble.appendChild(meta);
-
         wrap.appendChild(bubble);
-
     } else {
-        const icon = mimeType.startsWith('video/') ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">\n' +
-            '  <path stroke-linecap="round" stroke-linejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />\n' +
-            '</svg>\n'
-            : mimeType.startsWith('audio/') ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">\n' +
-                '  <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />\n' +
-                '</svg>\n'
-                : '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">\n' +
-                '  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />\n' +
-                '</svg>\n';
+        const icon = mimeType.startsWith('video/') ? '🎬'
+            : mimeType.startsWith('audio/') ? '🎵'
+                : '📄';
         const bubble = document.createElement('div');
         bubble.className = 'msg-bubble own file-msg pending-file-bubble';
         bubble.innerHTML = `
@@ -326,19 +369,15 @@ function _insertPendingBubble(fileName, fileSize, mimeType, localSrc) {
 
 function _updatePendingProgress(el, pct) {
     if (!el) return;
-
     const fill  = el.querySelector('.ucb-fill');
     const pctEl = el.querySelector('.ucb-pct');
     if (fill) {
-        const circ = 43.98; // 2π×7
+        const circ = 43.98;
         fill.style.strokeDashoffset = `${circ * (1 - pct / 100)}`;
     }
     if (pctEl) pctEl.textContent = pct + '%';
-
     const barFill = el.querySelector('.upload-bar-fill');
-    const barPct  = el.querySelector('.upload-bar-pct');
     if (barFill) barFill.style.width = pct + '%';
-    if (barPct)  barPct.textContent  = pct + '%';
 }
 
 function _finishPendingBubble(el) {
@@ -348,22 +387,18 @@ function _finishPendingBubble(el) {
 
 function _failPendingBubble(el, msg) {
     if (!el) return;
-
     const badge = el.querySelector('.upload-corner-badge');
     const fill  = el.querySelector('.ucb-fill');
     const pctEl = el.querySelector('.ucb-pct');
     if (badge) badge.classList.add('fail');
     if (fill)  { fill.style.strokeDashoffset = '0'; fill.style.stroke = 'var(--red)'; }
     if (pctEl) pctEl.textContent = '✕';
-
     const bubble = el.querySelector('.pending-img-bubble, .pending-file-bubble');
     if (bubble) bubble.classList.add('upload-fail');
-
     const errDiv = document.createElement('div');
     errDiv.className   = 'upload-error-label';
     errDiv.textContent = '⚠ ' + msg;
     el.appendChild(errDiv);
-
     const retryBtn = document.createElement('button');
     retryBtn.className   = 'upload-retry-btn';
     retryBtn.textContent = '↺ Повторить';

@@ -38,9 +38,15 @@ class ConnectionManager:
             )
         logger.info(f"WS+ {username}({user_id}) → room {room_id}")
         await self.broadcast_to_room(room_id, {
-            "type": "user_joined", "user_id": user_id,
-            "username": username, "display_name": display_name,
+            "type":         "user_joined",
+            "user_id":      user_id,
+            "username":     username,
+            "display_name": display_name,
             "avatar_emoji": avatar_emoji,
+            # ← Актуальный список онлайн для всех уже подключённых.
+            # Без этого у них нет способа обновить счётчик —
+            # "online" сообщение получает только новый юзер при входе.
+            "online_users": self.get_online_users(room_id),
         }, exclude=user_id)
 
     async def disconnect(self, room_id: int, user_id: int):
@@ -51,7 +57,10 @@ class ConnectionManager:
         if user:
             logger.info(f"WS- {user.username}({user_id}) ← room {room_id}")
             await self.broadcast_to_room(room_id, {
-                "type": "user_left", "user_id": user_id, "username": user.username,
+                "type":         "user_left",
+                "user_id":      user_id,
+                "username":     user.username,
+                "online_users": self.get_online_users(room_id),
             })
 
     async def broadcast_to_room(self, room_id: int, payload: dict[str, Any],

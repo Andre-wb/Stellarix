@@ -1,7 +1,5 @@
 """
 app/chats/chat.py — WebSocket чат, история сообщений, загрузка файлов.
-
-Используется secure_upload.py с исправленной логикой двойных расширений.
 """
 from __future__ import annotations
 
@@ -31,7 +29,6 @@ from app.security.secure_upload import (
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["chat"])
 
-# Опасные серверные расширения (для проверки двойных расширений)
 _DANGEROUS_EXTS = frozenset({
     '.php', '.php3', '.php4', '.php5', '.phtml',
     '.asp', '.aspx', '.ascx', '.ashx',
@@ -42,21 +39,10 @@ _DANGEROUS_EXTS = frozenset({
 
 
 def _check_double_extension(filename: str) -> bool:
-    """
-    Правильная проверка двойных расширений.
-
-    Флагирует: shell.php.jpg, virus.exe.png
-    НЕ флагирует: фото 2024-01-01 12.34.56.jpg, my.photo.png
-
-    Старый баг: проверял все части включая ПОСЛЕДНЕЕ расширение,
-    что флагировало любой файл с точками в имени (скриншоты macOS).
-    Исправление: проверяем только ПРОМЕЖУТОЧНЫЕ части на опасные расширения.
-    """
     name  = Path(filename).name
     parts = name.split('.')
     if len(parts) <= 2:
         return False
-    # Проверяем только промежуточные части (не первую и не последнюю)
     intermediate = {'.' + p.lower() for p in parts[1:-1]}
     return bool(intermediate & _DANGEROUS_EXTS)
 
@@ -117,8 +103,30 @@ async def ws_chat(
 
             if action == "message":
                 await _handle_text_message(room_id, user, data, db)
+
+            elif action == "edit_message":
+                await _handle_edit_message(room_id, user, data, db)
+
+            elif action == "delete_message":
+                await _handle_delete_message(room_id, user, data, db)
+
             elif action == "typing":
                 await manager.set_typing(room_id, user.id, bool(data.get("is_typing")))
+
+            elif action == "file_sending":
+                await manager.broadcast_to_room(room_id, {
+                    "type":         "file_sending",
+                    "sender":       user.username,
+                    "display_name": user.display_name or user.username,
+                    "filename":     data.get("filename", ""),
+                }, exclude=user.id)
+
+            elif action == "stop_file_sending":
+                await manager.broadcast_to_room(room_id, {
+                    "type":   "stop_file_sending",
+                    "sender": user.username,
+                }, exclude=user.id)
+
             elif action == "ping":
                 await manager.send_to_user(room_id, user.id, {"type": "pong"})
 
@@ -140,21 +148,48 @@ async def _handle_text_message(room_id: int, user: User, data: dict, db: Session
     if not room:
         return
 
-    # Авто-генерация ключа для старых комнат, созданных без него
     if not room.room_key:
         room.room_key = generate_key()
         db.commit()
 
+    reply_to_id   = data.get("reply_to_id")
+    reply_to_text = None
+    reply_to_sender = None
+
+    if reply_to_id:
+        replied = db.query(Message).filter(
+            Message.id == reply_to_id,
+            Message.room_id == room_id,
+            ).first()
+        if replied:
+            if replied.msg_type == MessageType.TEXT and room.room_key:
+                try:
+                    from app.security.crypto import decrypt_message
+                    reply_to_text = decrypt_message(replied.content_encrypted, room.room_key).decode()
+                except Exception:
+                    reply_to_text = "[сообщение]"
+            else:
+                reply_to_text = replied.file_name or "[файл]"
+
+            if replied.sender:
+                reply_to_sender = replied.sender.display_name or replied.sender.username
+        else:
+            reply_to_id = None
+
     encrypted = encrypt_message(text.encode(), room.room_key)
     msg = Message(
-        room_id=room_id, sender_id=user.id,
+        room_id=room_id,
+        sender_id=user.id,
         msg_type=MessageType.TEXT,
         content_encrypted=encrypted,
         content_hash=hash_message(text.encode()),
+        reply_to_id=reply_to_id,
     )
-    db.add(msg); db.commit(); db.refresh(msg)
+    db.add(msg)
+    db.commit()
+    db.refresh(msg)
 
-    await manager.broadcast_to_room(room_id, {
+    payload = {
         "type":         "message",
         "msg_id":       msg.id,
         "sender_id":    user.id,
@@ -164,6 +199,69 @@ async def _handle_text_message(room_id: int, user: User, data: dict, db: Session
         "text":         text,
         "msg_type":     "text",
         "created_at":   msg.created_at.isoformat(),
+    }
+    if reply_to_id:
+        payload["reply_to_id"]     = reply_to_id
+        payload["reply_to_text"]   = reply_to_text
+        payload["reply_to_sender"] = reply_to_sender
+
+    await manager.broadcast_to_room(room_id, payload)
+
+
+async def _handle_edit_message(room_id: int, user: User, data: dict, db: Session):
+    msg_id   = data.get("msg_id")
+    new_text = (data.get("text") or "").strip()
+    if not msg_id or not new_text or len(new_text) > 4096:
+        return
+
+    msg = db.query(Message).filter(
+        Message.id == msg_id,
+        Message.room_id == room_id,
+        Message.sender_id == user.id,
+        Message.msg_type == MessageType.TEXT,
+    ).first()
+
+    if not msg:
+        return
+
+    room = db.query(Room).filter(Room.id == room_id).first()
+    if not room or not room.room_key:
+        return
+
+    from app.security.crypto import encrypt_message, hash_message
+    msg.content_encrypted = encrypt_message(new_text.encode(), room.room_key)
+    msg.content_hash      = hash_message(new_text.encode())
+    msg.is_edited         = True
+    db.commit()
+
+    await manager.broadcast_to_room(room_id, {
+        "type":      "message_edited",
+        "msg_id":    msg_id,
+        "text":      new_text,
+        "is_edited": True,
+    })
+
+
+async def _handle_delete_message(room_id: int, user: User, data: dict, db: Session):
+    msg_id = data.get("msg_id")
+    if not msg_id:
+        return
+
+    msg = db.query(Message).filter(
+        Message.id == msg_id,
+        Message.room_id == room_id,
+        Message.sender_id == user.id,   # только своё
+    ).first()
+
+    if not msg:
+        return
+
+    db.delete(msg)
+    db.commit()
+
+    await manager.broadcast_to_room(room_id, {
+        "type":   "message_deleted",
+        "msg_id": msg_id,
     })
 
 
@@ -194,14 +292,34 @@ async def _send_history(room_id: int, user_id: int, db: Session):
             "created_at":   m.created_at.isoformat(),
             "file_name":    m.file_name,
             "file_size":    m.file_size,
+            "is_edited":    m.is_edited,
         }
+
+        # Данные цитируемого сообщения
+        if m.reply_to_id and m.reply:
+            entry["reply_to_id"] = m.reply_to_id
+            if m.reply.msg_type == MessageType.TEXT and room.room_key:
+                try:
+                    entry["reply_to_text"] = decrypt_message(
+                        m.reply.content_encrypted, room.room_key
+                    ).decode()
+                except Exception:
+                    entry["reply_to_text"] = "[сообщение]"
+            else:
+                entry["reply_to_text"] = m.reply.file_name or "[файл]"
+
+            if m.reply.sender:
+                entry["reply_to_sender"] = (
+                        m.reply.sender.display_name or m.reply.sender.username
+                )
 
         if m.msg_type == MessageType.TEXT and room.room_key:
             try:
                 entry["text"] = decrypt_message(m.content_encrypted, room.room_key).decode()
             except Exception:
                 entry["text"] = "[ошибка расшифровки]"
-        elif m.msg_type in (MessageType.IMAGE, MessageType.FILE):
+
+        elif m.msg_type in (MessageType.IMAGE, MessageType.FILE, MessageType.VOICE):
             ft = db.query(FileTransfer).filter(
                 FileTransfer.room_id == room_id,
                 FileTransfer.original_name == m.file_name,
@@ -245,9 +363,7 @@ async def upload_file(
         raise HTTPException(403, "Нет доступа к комнате")
 
     filename  = file.filename or "file"
-    client_ip = request.client.host if request.client else "unknown"
 
-    # ── 1. Читаем файл ───────────────────────────────────────────────────
     try:
         content, size = await read_file_chunked(file, FileUploadConfig.MAX_FILE_SIZE)
     except HTTPException:
@@ -255,31 +371,26 @@ async def upload_file(
     except Exception as e:
         raise HTTPException(400, f"Ошибка чтения файла: {e}")
 
-    # ── 2. Проверяем имя файла ───────────────────────────────────────────
     if FileAnomalyDetector.detect_null_bytes(filename):
         raise HTTPException(400, "Недопустимые символы в имени файла")
     if FileAnomalyDetector.detect_path_traversal(filename):
         raise HTTPException(400, "Недопустимое имя файла")
-    # Используем исправленную функцию (не из secure_upload.py — там баг)
     if _check_double_extension(filename):
         raise HTTPException(400, "Недопустимое расширение файла")
     if FileAnomalyDetector.detect_zip_bomb_indicators(content):
         raise HTTPException(400, "Файл имеет признаки архивной бомбы")
 
-    # ── 3. Валидация MIME (magic bytes) ──────────────────────────────────
     mime_ok, mime_result = validate_file_mime_type(content, filename)
     if not mime_ok:
         raise HTTPException(415, mime_result or "Неподдерживаемый тип файла")
     mime_type = mime_result
 
-    # ── 4. Валидация изображения ──────────────────────────────────────────
     is_image = mime_type and mime_type.startswith("image/")
     if is_image:
         img_ok, img_err = await FileAnomalyDetector.validate_image_content(content)
         if not img_ok:
             raise HTTPException(400, img_err or "Неверное содержимое изображения")
 
-    # ── 5. Сохраняем ─────────────────────────────────────────────────────
     ext       = Path(filename).suffix.lower()
     file_hash = calculate_file_hash(content)
 
@@ -288,7 +399,6 @@ async def upload_file(
     stored_path = Config.UPLOAD_DIR / safe_name
     stored_path.write_bytes(content)
 
-    # ── 6. БД ─────────────────────────────────────────────────────────────
     ft = FileTransfer(
         room_id=room_id, uploader_id=u.id,
         original_name=filename, stored_name=safe_name,
@@ -296,8 +406,9 @@ async def upload_file(
     )
     db.add(ft)
 
-    msg_type = MessageType.IMAGE if is_image else MessageType.FILE
-    room     = db.query(Room).filter(Room.id == room_id).first()
+    is_voice   = filename.startswith("voice_") and mime_type and mime_type.startswith("audio/")
+    msg_type   = MessageType.VOICE if is_voice else (MessageType.IMAGE if is_image else MessageType.FILE)
+    room       = db.query(Room).filter(Room.id == room_id).first()
 
     if room and room.room_key:
         from app.security.crypto import encrypt_message, hash_message
@@ -317,7 +428,6 @@ async def upload_file(
 
     download_url = f"/api/files/download/{ft.id}"
 
-    # ── 7. Бродкаст ───────────────────────────────────────────────────────
     await manager.broadcast_to_room(room_id, {
         "type":         "file",
         "sender_id":    u.id,
