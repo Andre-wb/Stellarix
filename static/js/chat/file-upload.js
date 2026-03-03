@@ -62,9 +62,15 @@ export function uploadFile(e) {
         reader.readAsDataURL(file);
 
     } else {
-        const icon = file.type.startsWith('video/') ? '🎬'
-            : file.type.startsWith('audio/') ? '🎵'
-                : '📄';
+        const icon = file.type.startsWith('video/') ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">\n' +
+            '  <path stroke-linecap="round" stroke-linejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />\n' +
+            '</svg>\n'
+            : file.type.startsWith('audio/') ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">\n' +
+                '  <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />\n' +
+                '</svg>\n'
+                : '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">\n' +
+                '  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />\n' +
+                '</svg>\n';
         _showAsFileCard(icon, file.name, file.size);
         $('compress-section').style.display = 'none';
         $('file-preview-overlay').classList.add('show');
@@ -75,7 +81,7 @@ export function uploadFile(e) {
 function _showAsFileCard(icon, name, size) {
     $('preview-img').style.display       = 'none';
     $('preview-file-card').style.display = 'flex';
-    $('fpo-file-icon').textContent       = icon;
+    $('fpo-file-icon').innerHTML = icon;
     $('fpo-file-name').textContent       = name;
     $('fpo-file-size').textContent       = fmtSize(size);
     $('fpo-filename').textContent        = name;
@@ -285,9 +291,15 @@ function _insertPendingBubble(fileName, fileSize, mimeType, localSrc) {
         wrap.appendChild(bubble);
 
     } else {
-        const icon = mimeType.startsWith('video/') ? '🎬'
-            : mimeType.startsWith('audio/') ? '🎵'
-                : '📄';
+        const icon = mimeType.startsWith('video/') ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">\n' +
+            '  <path stroke-linecap="round" stroke-linejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />\n' +
+            '</svg>\n'
+            : mimeType.startsWith('audio/') ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">\n' +
+                '  <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />\n' +
+                '</svg>\n'
+                : '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">\n' +
+                '  <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />\n' +
+                '</svg>\n';
         const bubble = document.createElement('div');
         bubble.className = 'msg-bubble own file-msg pending-file-bubble';
         bubble.innerHTML = `

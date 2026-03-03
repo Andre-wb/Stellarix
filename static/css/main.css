@@ -1010,3 +1010,6 @@ video {
     transition: border-color 0.12s;
 }
 .upload-retry-btn:hover { border-color: var(--accent2); }
+
+.size-6 { width: 24px; height: 24px; display: block; }
+.file-icon svg { width: 24px; height: 24px; display: block; }
