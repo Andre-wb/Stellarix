@@ -5,7 +5,7 @@
     --bg:       #09090b;
     --bg2:      #111115;
     --bg3:      #18181d;
-    --border:   #27272f;
+    --border: #202027;
     --accent:   #7c3aed;
     --accent2:  #a855f7;
     --green:    #22c55e;
@@ -111,17 +111,20 @@ html, body {
 }
 
 /* ROOMS LIST */
-.rooms-list { flex: 1; overflow-y: auto; padding: 4px 8px; }
+.rooms-list { flex: 1; overflow-y: auto; padding: 4px 0 }
 
 .room-item {
     display: flex; align-items: center; gap: 10px;
-    padding: 9px 10px; border-radius: var(--radius);
+    padding: 9px 10px;
+    width: 100%;
     cursor: pointer; transition: all 0.12s;
-    border: 1px solid transparent; margin-bottom: 2px;
+    margin-bottom: -1px;
+    border-bottom: 1px solid var(--border);
+    border-top: 1px solid var(--border);
     position: relative;
 }
-.room-item:hover { background: var(--bg3); }
-.room-item.active { background: var(--bg3); border-color: var(--accent); }
+.room-item:hover { background: var(--border); }
+.room-item.active { background: var(--border); }
 .room-item.active::before {
     content: '';
     position: absolute; left: 0; top: 50%; transform: translateY(-50%);
@@ -1032,7 +1035,7 @@ video {
     animation: slideDown .15s ease;
 }
 #reply-bar.visible { display: flex; }
-#reply-bar-name { font-weight: 700; color: var(--accent2); flex-shrink: 0; }
+#reply-bar-name { font-weight: 700; color: var(--accent2); flex-shrink: 0; display: flex; align-items: center; gap: 10px}
 #reply-bar-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #reply-bar-close {
     flex-shrink: 0; background: none; border: none;

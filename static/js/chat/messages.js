@@ -162,7 +162,7 @@ export function appendFileMessage(msg) {
                 <div class="chat-image-meta">${esc(msg.file_name || '')} · ${fmtSize(msg.file_size || 0)}</div>
             </div>`;
     } else {
-        const icon = isVideo ? '🎬' : isAudio ? '🎵' : '📄';
+        const icon = isVideo ? '<svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" ><path d="M20 3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2M9.54 9 6.87 5h2.6l2.67 4zm5 0-2.67-4h2.6l2.67 4zM4 5h.46l2.67 4H4zm0 14v-8h16V9h-.46l-2.67-4H20v14z"></path><path d="m10 18 5-3-5-3z"></path></svg>' : isAudio ? '<svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" ><path d="M21 3H9c-.55 0-1 .45-1 1v9.56c-.59-.34-1.27-.56-2-.56-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V5h10v8.56c-.59-.34-1.27-.56-2-.56-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V4c0-.55-.45-1-1-1M6 19c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2m12 0c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2"></path></svg>' : '<svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" ><path d="m19.94 7.68-.03-.09a.8.8 0 0 0-.2-.29l-5-5c-.09-.09-.19-.15-.29-.2l-.09-.03a.8.8 0 0 0-.26-.05c-.02 0-.04-.01-.06-.01H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-12s-.01-.04-.01-.06c0-.09-.02-.17-.05-.26ZM6 20V4h7v4c0 .55.45 1 1 1h4v11z"/></svg>';
         div.innerHTML = `
             ${authorHtml}${quoteHtml}
             <div class="msg-bubble ${isOwn ? 'own' : ''} file-msg">
@@ -273,7 +273,7 @@ function _buildActions(msg, isOwn) {
     const replyBtn = document.createElement('button');
     replyBtn.className   = 'msg-action-btn';
     replyBtn.title       = 'Ответить';
-    replyBtn.textContent = '↩';
+    replyBtn.innerHTML = '<svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" ><path d="M9 10h6c2.21 0 4 1.79 4 4v6h2v-6c0-3.31-2.69-6-6-6H9V4L3 9l6 5z"></path></svg>';
     replyBtn.onclick     = () => window.setReplyTo(msg);
     wrap.appendChild(replyBtn);
 
@@ -281,7 +281,7 @@ function _buildActions(msg, isOwn) {
         const editBtn = document.createElement('button');
         editBtn.className   = 'msg-action-btn';
         editBtn.title       = 'Редактировать';
-        editBtn.textContent = '✏️';
+        editBtn.innerHTML = '<svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" > <path d="M19.67 2.61c-.81-.81-2.14-.81-2.95 0L3.38 15.95c-.13.13-.22.29-.26.46l-1.09 4.34c-.08.34.01.7.26.95.19.19.45.29.71.29.08 0 .16 0 .24-.03l4.34-1.09c.18-.04.34-.13.46-.26L21.38 7.27c.81-.81.81-2.14 0-2.95L19.66 2.6ZM6.83 19.01l-2.46.61.61-2.46 9.96-9.94 1.84 1.84zM19.98 5.86 18.2 7.64 16.36 5.8l1.78-1.78s.09-.03.12 0l1.72 1.72s.03.09 0 .12"></path></svg>';
         editBtn.onclick     = () => window.startEditMessage(msg);
         wrap.appendChild(editBtn);
     }
@@ -290,7 +290,7 @@ function _buildActions(msg, isOwn) {
         const delBtn = document.createElement('button');
         delBtn.className   = 'msg-action-btn danger';
         delBtn.title       = 'Удалить';
-        delBtn.textContent = '🗑';
+        delBtn.innerHTML = '<svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" > <path d="M17 6V4c0-1.1-.9-2-2-2H9c-1.1 0-2 .9-2 2v2H2v2h2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8h2V6zM9 4h6v2H9zM6 20V8h12v12z"></path><path d="M9 10h2v8H9zm4 0h2v8h-2z"></path></svg>';
         delBtn.onclick     = () => window.deleteMessage(msg.msg_id);
         wrap.appendChild(delBtn);
     }
