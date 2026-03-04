@@ -1,27 +1,55 @@
-let _mediaRecorder = null;
-let _chunks        = [];
-let _startTime     = 0;
-let _timerInterval = null;
-let _stream        = null;
-let _animFrame     = null;
-let _analyser      = null;
-let _peaks         = [];
-let _peakInterval  = null;
-const VOICE_BTN_ID = 'voice-record-btn';
+// static/js/voice_recorder.js
+// ============================================================================
+// Модуль записи голосовых сообщений.
+// Позволяет записывать аудио с микрофона, отображать живую волну,
+// предварительно прослушивать запись, визуализировать громкость (пики)
+// и отправлять готовый файл на сервер.
+// ============================================================================
+
+// Приватные переменные состояния записи
+let _mediaRecorder = null;      // MediaRecorder для записи
+let _chunks        = [];        // массив полученных аудио-чанков
+let _startTime     = 0;         // время начала записи (мс)
+let _timerInterval = null;      // интервал обновления таймера
+let _stream        = null;      // MediaStream с микрофона
+let _animFrame     = null;      // requestAnimationFrame для рисования волны
+let _analyser      = null;      // AnalyserNode для получения данных громкости
+let _peaks         = [];        // массив пиков громкости (для отрисовки после записи)
+let _peakInterval  = null;      // интервал сбора пиков
+const VOICE_BTN_ID = 'voice-record-btn'; // id кнопки запуска записи
+
+// Иконки для кнопки воспроизведения
 const SVG_PLAY  = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="M15.5 12L10 15.5V8.5L15.5 12Z" fill="currentColor"/></svg>`;
 const SVG_PAUSE = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="8" width="2.2" height="8" rx="1" fill="currentColor"/><rect x="12.8" y="8" width="2.2" height="8" rx="1" fill="currentColor"/></svg>`;
 
+// ----------------------------------------------------------------------------
+// Инициализация
+// ----------------------------------------------------------------------------
+/**
+ * Устанавливает обработчик клика на кнопку записи голоса.
+ * Вызывается при загрузке приложения.
+ */
 export function initVoiceRecorder() {
     document.addEventListener('click', e => {
         if (e.target.closest(`#${VOICE_BTN_ID}`)) toggleVoiceRecording();
     });
 }
 
+// ----------------------------------------------------------------------------
+// Основное управление записью
+// ----------------------------------------------------------------------------
+/**
+ * Переключает состояние записи (старт/стоп).
+ */
 export async function toggleVoiceRecording() {
     if (_mediaRecorder?.state === 'recording') _stopRecording();
     else await _startRecording();
 }
 
+/**
+ * Запускает запись с микрофона.
+ * Запрашивает доступ, создаёт MediaRecorder, Analyser, отображает интерфейс записи.
+ */
 async function _startRecording() {
     try {
         _stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -30,12 +58,14 @@ async function _startRecording() {
         return;
     }
 
+    // Создаём AudioContext и Analyser для визуализации
     const actx = new AudioContext();
     const src  = actx.createMediaStreamSource(_stream);
     _analyser  = actx.createAnalyser();
     _analyser.fftSize = 256;
     src.connect(_analyser);
 
+    // Определяем поддерживаемый MIME-тип для записи
     const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus'
         : MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')
@@ -46,16 +76,19 @@ async function _startRecording() {
 
     _mediaRecorder.ondataavailable = e => { if (e.data.size > 0) _chunks.push(e.data); };
     _mediaRecorder.onstop = _onStop;
-    _mediaRecorder.start(100);
+    _mediaRecorder.start(100); // запускаем с интервалом 100 мс
 
-    _swapInputTo('record');
-    _startTimer();
-    _startPeaks();
-    requestAnimationFrame(() => _drawLiveWave());
+    _swapInputTo('record');          // меняем интерфейс ввода на режим записи
+    _startTimer();                    // запускаем таймер
+    _startPeaks();                    // начинаем сбор пиков громкости
+    requestAnimationFrame(() => _drawLiveWave()); // отрисовка живой волны
 
     document.getElementById(VOICE_BTN_ID)?.classList.add('recording');
 }
 
+/**
+ * Останавливает запись (вызывается по кнопке «Стоп» или автоматически).
+ */
 function _stopRecording() {
     if (_mediaRecorder?.state === 'recording') _mediaRecorder.stop();
     _stream?.getTracks().forEach(t => t.stop());
@@ -68,6 +101,11 @@ function _stopRecording() {
     document.getElementById(VOICE_BTN_ID)?.classList.remove('recording');
 }
 
+/**
+ * Обработчик окончания записи.
+ * Если длительность меньше 0.5 секунды – просто возвращаемся в обычный режим.
+ * Иначе создаём Blob и переключаем интерфейс на предпросмотр.
+ */
 function _onStop() {
     const dur = (Date.now() - _startTime) / 1000;
     if (dur < 0.5) { _swapInputTo('normal'); return; }
@@ -80,6 +118,12 @@ function _onStop() {
     _swapInputTo('preview', { blob, name, mime, dur, peaks: [..._peaks] });
 }
 
+// ----------------------------------------------------------------------------
+// Визуализация во время записи
+// ----------------------------------------------------------------------------
+/**
+ * Запускает интервал для сбора пиков громкости (усреднённых значений).
+ */
 function _startPeaks() {
     const buf = new Uint8Array(_analyser?.frequencyBinCount || 128);
     _peakInterval = setInterval(() => {
@@ -88,11 +132,14 @@ function _startPeaks() {
         let sum = 0;
         for (let i = 0; i < buf.length; i++) sum += buf[i];
         const avg  = sum / buf.length;
-        const logV = avg > 0 ? Math.log10(1 + avg) / Math.log10(256) : 0;
+        const logV = avg > 0 ? Math.log10(1 + avg) / Math.log10(256) : 0; // логарифмическое сжатие
         _peaks.push(Math.min(1, logV));
     }, 80);
 }
 
+/**
+ * Рисует живую волну на canvas, используя данные с AnalyserNode.
+ */
 function _drawLiveWave() {
     const canvas = document.getElementById('vr-live-canvas');
     if (!canvas || !_analyser) return;
@@ -102,14 +149,14 @@ function _drawLiveWave() {
     function draw() {
         if (!_analyser) return;
         _animFrame = requestAnimationFrame(draw);
-        _analyser.getByteTimeDomainData(buf);
+        _analyser.getByteTimeDomainData(buf); // получаем данные временной области
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.lineWidth   = 1.5;
         ctx.strokeStyle = 'rgba(200,220,255,0.6)';
         ctx.beginPath();
         const sw = canvas.width / buf.length;
         for (let i = 0; i < buf.length; i++) {
-            const y = ((buf[i] / 128) * canvas.height) / 2;
+            const y = ((buf[i] / 128) * canvas.height) / 2; // нормализация (128 = среднее значение)
             i === 0 ? ctx.moveTo(0, y) : ctx.lineTo(i * sw, y);
         }
         ctx.stroke();
@@ -117,10 +164,22 @@ function _drawLiveWave() {
     draw();
 }
 
+// ----------------------------------------------------------------------------
+// Переключение интерфейса ввода
+// ----------------------------------------------------------------------------
+/**
+ * Меняет содержимое области ввода в зависимости от режима:
+ * 'normal' – обычная панель ввода текста,
+ * 'record' – панель с индикаторами во время записи,
+ * 'preview' – панель предпросмотра с возможностью прослушать и отправить.
+ * @param {string} mode - режим ('normal', 'record', 'preview')
+ * @param {Object} [data] - данные для режима preview (blob, name, mime, dur, peaks)
+ */
 function _swapInputTo(mode, data) {
     const area    = document.getElementById('input-area');
     const msgRow  = area?.querySelector('.input-row');
 
+    // Удаляем предыдущие кастомные UI
     document.getElementById('vr-record-ui')?.remove();
     document.getElementById('vr-preview-ui')?.remove();
 
@@ -155,7 +214,7 @@ function _swapInputTo(mode, data) {
         const { blob, name, mime, dur, peaks } = data;
         ui.id = 'vr-preview-ui';
 
-        const normPeaks = _normPeaks(peaks, 40);
+        const normPeaks = _normPeaks(peaks, 40); // нормализуем пики для 40 столбиков
         const url       = URL.createObjectURL(blob);
         const durStr    = _fmtDur(dur);
 
@@ -212,6 +271,7 @@ function _swapInputTo(mode, data) {
 
         if (area) area.appendChild(ui);
 
+        // Настраиваем плеер для предпросмотра
         const audio    = new Audio(url);
         const playBtn  = document.getElementById('vr-play-btn');
         const barsEl   = document.getElementById('vr-bars');
@@ -248,11 +308,13 @@ function _swapInputTo(mode, data) {
             };
         }
 
+        // Обработчик отправки
         document.getElementById('vr-send').onclick = async () => {
             const btn = document.getElementById('vr-send');
             btn.disabled = true;
             btn.textContent = '⏳ Отправка…';
             try {
+                // Сохраняем пики в sessionStorage для последующей визуализации в сообщении
                 try { sessionStorage.setItem('vp:' + name, JSON.stringify(peaks)); } catch {}
                 await _upload(blob, name, mime);
                 audio.pause();
@@ -279,6 +341,16 @@ function _swapInputTo(mode, data) {
     }
 }
 
+// ----------------------------------------------------------------------------
+// Отправка голосового файла на сервер
+// ----------------------------------------------------------------------------
+/**
+ * Загружает готовый голосовой файл через FormData.
+ * @param {Blob} blob - аудио-данные
+ * @param {string} name - имя файла
+ * @param {string} mime - MIME-тип
+ * @returns {Promise<void>}
+ */
 async function _upload(blob, name, mime) {
     const S = window.AppState;
     if (!S?.currentRoom) throw new Error('Нет активной комнаты');
@@ -300,6 +372,15 @@ async function _upload(blob, name, mime) {
     if (!res.ok) throw new Error(await res.text());
 }
 
+// ----------------------------------------------------------------------------
+// Вспомогательные функции
+// ----------------------------------------------------------------------------
+/**
+ * Нормализует массив пиков громкости до диапазона [0,1] и масштабирует под нужное количество столбиков.
+ * @param {number[]} peaks - исходные пики
+ * @param {number} N - желаемое количество столбиков
+ * @returns {number[]}
+ */
 function _normPeaks(peaks, N) {
     if (!peaks?.length) return Array(N).fill(0.3);
     const out = [];
@@ -314,6 +395,13 @@ function _normPeaks(peaks, N) {
     return out.map(v => v / max);
 }
 
+/**
+ * Возвращает стили для кнопки действия.
+ * @param {string} bg - цвет фона
+ * @param {boolean} [flex=false] - занимать всё доступное пространство
+ * @param {boolean} [border=false] - добавлять рамку
+ * @returns {string} CSS-строка
+ */
 function _btnStyle(bg, flex = false, border = false) {
     return `height:40px;padding:0 16px;border-radius:10px;
         background:${bg};border:${border ? '1px solid var(--border)' : 'none'};
@@ -322,6 +410,11 @@ function _btnStyle(bg, flex = false, border = false) {
         display:flex;align-items:center;justify-content:center;gap:6px;
         ${flex ? 'flex:1;' : ''}`;
 }
+
+/**
+ * Стили для иконной кнопки (круглая/квадратная).
+ * @returns {string}
+ */
 function _iconBtnStyle() {
     return `width:40px;height:40px;border-radius:10px;flex-shrink:0;
         background:var(--bg3);border:1px solid var(--border);
@@ -329,25 +422,40 @@ function _iconBtnStyle() {
         display:flex;align-items:center;justify-content:center;`;
 }
 
+/**
+ * Запускает интервал для обновления таймера записи.
+ */
 function _startTimer() {
     _timerInterval = setInterval(() => {
         const el  = document.getElementById('vr-timer');
         const sec = Math.floor((Date.now() - _startTime) / 1000);
         if (el) el.textContent = _fmtDur(sec);
-        if (sec >= 300) _stopRecording();
+        if (sec >= 300) _stopRecording(); // автоматическая остановка через 5 минут
     }, 500);
 }
 
+/**
+ * Форматирует секунды в MM:SS.
+ * @param {number} s - секунды
+ * @returns {string}
+ */
 function _fmtDur(s) {
     if (!isFinite(s) || s < 0) return '0:00';
     const m = Math.floor(s / 60), sec = Math.floor(s % 60);
     return `${m}:${String(sec).padStart(2, '0')}`;
 }
 
+// ----------------------------------------------------------------------------
+// Глобальные функции для отмены записи (доступны из HTML)
+// ----------------------------------------------------------------------------
 window.toggleVoiceRecording = toggleVoiceRecording;
+
+/**
+ * Отменяет текущую запись и возвращает интерфейс в нормальное состояние.
+ */
 window.cancelVoiceRecording = () => {
     if (_mediaRecorder?.state === 'recording') {
-        _mediaRecorder.onstop = null;
+        _mediaRecorder.onstop = null; // не вызываем _onStop
         _mediaRecorder.stop();
     }
     _stream?.getTracks().forEach(t => t.stop());

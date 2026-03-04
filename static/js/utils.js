@@ -1,7 +1,29 @@
+// static/js/utils.js
+// ============================================================================
+// Набор вспомогательных утилит, используемых во всём приложении:
+// работа с DOM, форматирование дат/времени/размеров, работа с куками,
+// универсальная функция запросов к API с CSRF-защитой, управление модалками,
+// уведомления и прокрутка.
+// ============================================================================
+
+// ----------------------------------------------------------------------------
 // DOM helper
+// ----------------------------------------------------------------------------
+/**
+ * Короткая функция для получения элемента по id.
+ * @param {string} id - идентификатор элемента
+ * @returns {HTMLElement|null}
+ */
 export const $ = id => document.getElementById(id);
 
-// Escaping
+// ----------------------------------------------------------------------------
+// Экранирование HTML-спецсимволов (защита от XSS)
+// ----------------------------------------------------------------------------
+/**
+ * Заменяет опасные символы на HTML-сущности.
+ * @param {string} str - исходная строка
+ * @returns {string} экранированная строка
+ */
 export function esc(str) {
     if (!str) return '';
     return String(str)
@@ -11,12 +33,24 @@ export function esc(str) {
         .replace(/"/g, '&quot;');
 }
 
-// Time formatting
+// ----------------------------------------------------------------------------
+// Форматирование времени и даты
+// ----------------------------------------------------------------------------
+/**
+ * Форматирует ISO-дату в локальное время (ЧЧ:ММ).
+ * @param {string} iso - дата в ISO формате
+ * @returns {string}
+ */
 export function fmtTime(iso) {
     const d = new Date(iso);
     return d.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
 }
 
+/**
+ * Форматирует ISO-дату: если сегодня – "Сегодня", иначе день месяц.
+ * @param {string} iso - дата в ISO формате
+ * @returns {string}
+ */
 export function fmtDate(iso) {
     const d = new Date(iso);
     const today = new Date();
@@ -24,19 +58,43 @@ export function fmtDate(iso) {
     return d.toLocaleDateString('ru', { day: 'numeric', month: 'long' });
 }
 
+/**
+ * Форматирует размер в байтах в человекочитаемый вид (Б, КБ, МБ).
+ * @param {number} bytes - размер в байтах
+ * @returns {string}
+ */
 export function fmtSize(bytes) {
     if (bytes < 1024) return bytes + ' Б';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' КБ';
     return (bytes / 1024 / 1024).toFixed(1) + ' МБ';
 }
 
-// Cookies
+// ----------------------------------------------------------------------------
+// Работа с куками
+// ----------------------------------------------------------------------------
+/**
+ * Возвращает значение cookie по имени.
+ * @param {string} name - имя cookie
+ * @returns {string|null}
+ */
 export function getCookie(name) {
     const v = document.cookie.split(';').find(c => c.trim().startsWith(name + '='));
     return v ? v.trim().slice(name.length + 1) : null;
 }
 
-// API helper with CSRF
+// ----------------------------------------------------------------------------
+// Универсальная функция для запросов к API с поддержкой CSRF и таймаута
+// ----------------------------------------------------------------------------
+/**
+ * Выполняет HTTP-запрос к API.
+ * Автоматически добавляет заголовок X-CSRF-Token для методов, изменяющих данные.
+ * Устанавливает таймаут 10 секунд через AbortController.
+ * @param {string} method - HTTP метод (GET, POST, ...)
+ * @param {string} path - путь (начинается с /api/...)
+ * @param {Object} [body] - тело запроса (будет преобразовано в JSON)
+ * @returns {Promise<any>} распарсенный JSON ответа
+ * @throws {Error} с сообщением об ошибке
+ */
 export async function api(method, path, body) {
     const opts = { method, credentials: 'include', headers: {} };
     if (body) {
@@ -48,7 +106,7 @@ export async function api(method, path, body) {
         opts.headers['X-CSRF-Token'] = state.csrfToken;
     }
 
-    // AbortController для таймаута (10 секунд)
+    // Таймаут 10 секунд
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
@@ -63,11 +121,11 @@ export async function api(method, path, body) {
         return data;
     } catch (err) {
         clearTimeout(timeoutId);
-        // AbortError = таймаут 10с (или зависший сервер) — заменяем браузерное сообщение
+        // Обработка таймаута
         if (err.name === 'AbortError') {
             throw new Error('Сервер не отвечает (таймаут). Попробуйте ещё раз.');
         }
-        // Ошибки сети (offline, CORS, refused)
+        // Обработка сетевых ошибок
         if (err instanceof TypeError && err.message.toLowerCase().includes('fetch')) {
             throw new Error('Нет соединения с сервером.');
         }
@@ -75,7 +133,12 @@ export async function api(method, path, body) {
     }
 }
 
-// Load CSRF token
+// ----------------------------------------------------------------------------
+// Загрузка CSRF-токена
+// ----------------------------------------------------------------------------
+/**
+ * Получает CSRF-токен с сервера и сохраняет в AppState.
+ */
 export async function loadCsrfToken() {
     try {
         const d = await api('GET', '/api/authentication/csrf-token');
@@ -83,15 +146,34 @@ export async function loadCsrfToken() {
     } catch { }
 }
 
-// Modal helpers
+// ----------------------------------------------------------------------------
+// Управление модальными окнами
+// ----------------------------------------------------------------------------
+/**
+ * Открывает модальное окно (добавляет класс 'show').
+ * @param {string} id - id модального окна
+ */
 export function openModal(id) {
     $(id).classList.add('show');
 }
+
+/**
+ * Закрывает модальное окно (убирает класс 'show').
+ * @param {string} id - id модального окна
+ */
 export function closeModal(id) {
     $(id).classList.remove('show');
 }
 
-// Alerts
+// ----------------------------------------------------------------------------
+// Показ всплывающих уведомлений
+// ----------------------------------------------------------------------------
+/**
+ * Показывает алерт в указанном элементе на 5 секунд.
+ * @param {string} id - id элемента для сообщения
+ * @param {string} msg - текст сообщения
+ * @param {string} [type='error'] - тип (error, success, ...)
+ */
 export function showAlert(id, msg, type = 'error') {
     const el = $(id);
     el.textContent = msg;
@@ -99,7 +181,13 @@ export function showAlert(id, msg, type = 'error') {
     setTimeout(() => el.classList.remove('show'), 5000);
 }
 
-// Scroll to bottom
+// ----------------------------------------------------------------------------
+// Прокрутка контейнера сообщений вниз
+// ----------------------------------------------------------------------------
+/**
+ * Прокручивает контейнер с сообщениями в самый низ.
+ * @param {boolean} [smooth=false] - использовать плавную прокрутку
+ */
 export function scrollToBottom(smooth = false) {
     const c = $('messages-container');
     if (c) c.scrollTo({ top: c.scrollHeight, behavior: smooth ? 'smooth' : 'instant' });

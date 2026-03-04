@@ -1,5 +1,12 @@
+// static/js/photo_editor.js
+// ============================================================================
+// Редактор фото перед отправкой.
+// Позволяет изменять яркость, контраст, насыщенность, тон, размытие,
+// поворачивать, отражать и применять фильтры.
+// ============================================================================
+
 /**
- * photo-editor.js — Редактор фото перед отправкой
+ * @fileoverview photo-editor.js — Редактор фото перед отправкой
  * Тон, яркость, контраст, насыщенность, поворот, зеркало
  */
 
@@ -8,6 +15,7 @@ let _canvas     = null;
 let _ctx        = null;
 let _onSave     = null; // callback(blob, fileName)
 
+// Значения по умолчанию для всех регулировок
 const DEFAULTS = {
     brightness:  100,
     contrast:    100,
@@ -22,7 +30,7 @@ const DEFAULTS = {
 let _state = { ...DEFAULTS };
 
 /**
- * Открыть редактор
+ * Открывает редактор фото.
  * @param {File|Blob} file  — изображение
  * @param {Function}  onSave — вызывается с (blob, fileName) когда пользователь сохраняет
  */
@@ -35,6 +43,9 @@ export function openPhotoEditor(file, onSave) {
     _loadImage();
 }
 
+/**
+ * Создаёт DOM-элементы редактора и вставляет их в body.
+ */
 function _buildEditorUI() {
     document.getElementById('photo-editor-modal')?.remove();
 
@@ -122,6 +133,9 @@ function _buildEditorUI() {
     _ctx    = _canvas.getContext('2d');
 }
 
+/**
+ * Загружает изображение в canvas, масштабируя до 800px по большей стороне.
+ */
 function _loadImage() {
     const url = URL.createObjectURL(_origImage);
     const img = new Image();
@@ -143,6 +157,10 @@ function _loadImage() {
     img.src = url;
 }
 
+/**
+ * Перерисовывает canvas с учётом текущих настроек (_state).
+ * Применяет CSS-фильтры, поворот, отражение.
+ */
 function _redraw() {
     if (!_canvas?._img) return;
     const img = _canvas._img;
@@ -169,6 +187,11 @@ function _redraw() {
     _ctx.restore();
 }
 
+/**
+ * Обработчик изменения ползунка (вызывается из HTML).
+ * @param {string} key - название параметра (brightness, contrast, ...)
+ * @param {number} val - новое значение
+ */
 window._peUpdate = (key, val) => {
     _state[key] = val;
     const lbl = document.getElementById(`lbl-${key}`);
@@ -176,17 +199,29 @@ window._peUpdate = (key, val) => {
     _redraw();
 };
 
+/**
+ * Поворачивает изображение на заданное количество градусов.
+ * @param {number} deg - угол поворота (положительный или отрицательный)
+ */
 window._peRotate = (deg) => {
     _state.rotation = (_state.rotation + deg + 360) % 360;
     _redraw();
 };
 
+/**
+ * Отражает изображение по горизонтали или вертикали.
+ * @param {string} axis - 'H' или 'V'
+ */
 window._peFlip = (axis) => {
     if (axis === 'H') _state.flipH = !_state.flipH;
     else               _state.flipV = !_state.flipV;
     _redraw();
 };
 
+/**
+ * Применяет предустановленный фильтр.
+ * @param {string} name - название фильтра (none, grayscale, sepia, vivid, cold, warm, drama)
+ */
 window._peFilter = (name) => {
     document.querySelectorAll('.photo-ed-filter-btn').forEach(b => b.classList.remove('active'));
     event?.target?.classList.add('active');
@@ -221,6 +256,7 @@ window._peFilter = (name) => {
             break;
     }
 
+    // Обновляем ползунки и подписи
     ['brightness','contrast','saturation','hue','blur'].forEach(k => {
         const el = document.getElementById(`ed-${k}`);
         if (el) el.value = _state[k];
@@ -230,6 +266,9 @@ window._peFilter = (name) => {
     _redraw();
 };
 
+/**
+ * Сбрасывает все настройки к значениям по умолчанию.
+ */
 window._peReset = () => {
     _state = { ...DEFAULTS };
     ['brightness','contrast','saturation','hue','blur'].forEach(k => {
@@ -241,11 +280,18 @@ window._peReset = () => {
     _redraw();
 };
 
+/**
+ * Закрывает редактор и удаляет модальное окно.
+ */
 window.closePhotoEditor = () => {
     document.getElementById('photo-editor-modal')?.remove();
     _origImage = null; _onSave = null;
 };
 
+/**
+ * Сохраняет отредактированное изображение в полном размере,
+ * вызывает колбэк _onSave и закрывает редактор.
+ */
 window.savePhotoEdit = () => {
     if (!_canvas) return;
     const offscreen = document.createElement('canvas');

@@ -1,3 +1,11 @@
+# node_setup/ssl_manager.py
+# ==============================================================================
+# Модуль управления SSL-сертификатами для узла Vortex.
+# Содержит функции для генерации самоподписанных сертификатов,
+# работы с mkcert, Let's Encrypt, ручной загрузки, проверки срока действия,
+# а также установки CA в системное хранилище доверия.
+# ==============================================================================
+
 from __future__ import annotations
 import datetime
 import ipaddress
@@ -10,6 +18,7 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import NamedTuple
+
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -18,7 +27,17 @@ from cryptography.hazmat.backends import default_backend
 
 logger = logging.getLogger(__name__)
 
+
 class SSLResult(NamedTuple):
+    """
+    Результат операции с SSL-сертификатом.
+    ok: успешно ли выполнено
+    cert: путь к файлу сертификата
+    key: путь к файлу приватного ключа
+    ca: путь к файлу CA (если есть)
+    message: текстовое сообщение для пользователя
+    trusted: доверяет ли система этому сертификату (CA установлен)
+    """
     ok: bool
     cert: str
     key: str
@@ -26,8 +45,17 @@ class SSLResult(NamedTuple):
     message: str
     trusted: bool
 
+
 def _local_ips() -> list[str]:
-    """Собирает все IP-адреса этой машины."""
+    """
+    Собирает все локальные IP-адреса (IPv4 и IPv6) этой машины.
+    Использует несколько методов:
+      - 127.0.0.1, ::1 всегда присутствуют
+      - socket.gethostbyname(hostname)
+      - netifaces (если установлен) для получения всех интерфейсов
+      - сокетное подключение к внешним адресам для определения основного IP
+    Возвращает отсортированный список уникальных IP-адресов.
+    """
     ips = {"127.0.0.1", "::1"}
     try:
         hostname = socket.gethostname()
@@ -40,8 +68,9 @@ def _local_ips() -> list[str]:
             addrs = netifaces.ifaddresses(iface)
             for family in (netifaces.AF_INET, netifaces.AF_INET6):
                 for addr in addrs.get(family, []):
-                    ips.add(addr["addr"].split("%")[0])
+                    ips.add(addr["addr"].split("%")[0])  # удаляем scope_id для IPv6
     except ImportError:
+        # fallback: пробуем подключиться к известным адресам
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             for target in ("192.168.1.1", "10.0.0.1", "8.8.8.8"):
@@ -58,12 +87,17 @@ def _local_ips() -> list[str]:
 
 
 def _get_system() -> str:
-    """Возвращает строку системы: 'windows' | 'macos' | 'debian' | 'rhel' | 'arch' | 'linux'."""
+    """
+    Определяет тип операционной системы для выбора правильных команд установки CA.
+    Возвращает:
+      'windows', 'macos', 'debian', 'rhel', 'arch', 'linux'
+    """
     s = platform.system().lower()
     if s == "windows":
         return "windows"
     if s == "darwin":
         return "macos"
+    # Проверка наличия специфичных файлов для дистрибутивов Linux
     if Path("/etc/debian_version").exists():
         return "debian"
     if Path("/etc/redhat-release").exists() or Path("/etc/fedora-release").exists():
@@ -71,6 +105,7 @@ def _get_system() -> str:
     if Path("/etc/arch-release").exists():
         return "arch"
     return "linux"
+
 
 def generate_self_signed(
         cert_dir: Path,
@@ -80,23 +115,26 @@ def generate_self_signed(
         install_ca: bool = True,
 ) -> SSLResult:
     """
-    Генерирует самоподписанный CA + сертификат сервера.
-    Добавляет все локальные IP как SAN записи.
-
-    Возвращает SSLResult с путями к файлам.
+    Генерирует самоподписанный корневой CA и сертификат сервера.
+    - Создаёт CA на 10 лет.
+    - Создаёт сертификат сервера с SAN, включающим все локальные IP и localhost.
+    - Сохраняет файлы: vortex-ca.crt, vortex.crt, vortex.key.
+    - Если install_ca=True, пытается установить CA в системное хранилище.
+    Возвращает SSLResult с путями к файлам и информацией о доверии.
     """
-
     cert_dir.mkdir(parents=True, exist_ok=True)
-    backend  = default_backend()
+    backend = default_backend()
     hostname = hostname or socket.gethostname()
-    now      = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.timezone.utc)
+
+    # --- Генерация корневого CA ---
     ca_key = rsa.generate_private_key(
         public_exponent=65537, key_size=4096, backend=backend
     )
     ca_name = x509.Name([
-        x509.NameAttribute(NameOID.COUNTRY_NAME,             "XX"),
-        x509.NameAttribute(NameOID.ORGANIZATION_NAME,        f"{org_name} CA"),
-        x509.NameAttribute(NameOID.COMMON_NAME,              f"{org_name} Root CA"),
+        x509.NameAttribute(NameOID.COUNTRY_NAME, "XX"),
+        x509.NameAttribute(NameOID.ORGANIZATION_NAME, f"{org_name} CA"),
+        x509.NameAttribute(NameOID.COMMON_NAME, f"{org_name} Root CA"),
     ])
     ca_cert = (
         x509.CertificateBuilder()
@@ -105,7 +143,7 @@ def generate_self_signed(
         .public_key(ca_key.public_key())
         .serial_number(x509.random_serial_number())
         .not_valid_before(now - datetime.timedelta(hours=1))
-        .not_valid_after(now + datetime.timedelta(days=3650))  # 10 лет для CA
+        .not_valid_after(now + datetime.timedelta(days=3650))  # 10 лет
         .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
         .add_extension(x509.SubjectKeyIdentifier.from_public_key(ca_key.public_key()), critical=False)
         .add_extension(x509.KeyUsage(
@@ -115,9 +153,12 @@ def generate_self_signed(
         ), critical=True)
         .sign(ca_key, hashes.SHA256(), backend)
     )
+
+    # --- Генерация сертификата сервера ---
     srv_key = rsa.generate_private_key(
         public_exponent=65537, key_size=2048, backend=backend
     )
+    # Список SAN: localhost, hostname, hostname.local, все IP
     san_list: list = [
         x509.DNSName("localhost"),
         x509.DNSName(hostname),
@@ -130,9 +171,9 @@ def generate_self_signed(
             pass
 
     srv_name = x509.Name([
-        x509.NameAttribute(NameOID.COUNTRY_NAME,             "XX"),
-        x509.NameAttribute(NameOID.ORGANIZATION_NAME,        org_name),
-        x509.NameAttribute(NameOID.COMMON_NAME,              hostname),
+        x509.NameAttribute(NameOID.COUNTRY_NAME, "XX"),
+        x509.NameAttribute(NameOID.ORGANIZATION_NAME, org_name),
+        x509.NameAttribute(NameOID.COMMON_NAME, hostname),
     ])
     srv_cert = (
         x509.CertificateBuilder()
@@ -152,9 +193,11 @@ def generate_self_signed(
         .add_extension(x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
         .sign(ca_key, hashes.SHA256(), backend)
     )
-    ca_path   = cert_dir / "vortex-ca.crt"
+
+    # Запись файлов
+    ca_path = cert_dir / "vortex-ca.crt"
     cert_path = cert_dir / "vortex.crt"
-    key_path  = cert_dir / "vortex.key"
+    key_path = cert_dir / "vortex.key"
 
     ca_path.write_bytes(ca_cert.public_bytes(serialization.Encoding.PEM))
     cert_path.write_bytes(srv_cert.public_bytes(serialization.Encoding.PEM))
@@ -165,7 +208,7 @@ def generate_self_signed(
     ))
 
     try:
-        os.chmod(key_path, 0o600)
+        os.chmod(key_path, 0o600)  # защищаем ключ
     except Exception:
         pass
 
@@ -183,12 +226,12 @@ def generate_self_signed(
         trusted=trusted,
     )
 
+
 def install_ca_to_trust_store(ca_path: Path) -> bool:
     """
     Устанавливает CA-сертификат в системное хранилище доверия.
-    Требует прав администратора на большинстве систем.
-
-    Возвращает True если успешно.
+    В зависимости от ОС вызывает соответствующую команду с sudo.
+    Возвращает True, если установка прошла успешно.
     """
     system = _get_system()
     try:
@@ -206,6 +249,7 @@ def install_ca_to_trust_store(ca_path: Path) -> bool:
 
 
 def _install_ca_macos(ca_path: Path) -> bool:
+    """Установка CA на macOS через security add-trusted-cert."""
     result = subprocess.run(
         ["sudo", "security", "add-trusted-cert",
          "-d", "-r", "trustRoot",
@@ -217,15 +261,20 @@ def _install_ca_macos(ca_path: Path) -> bool:
 
 
 def _install_ca_windows(ca_path: Path) -> bool:
+    """Установка CA на Windows через certutil."""
+    flags = {}
+    if hasattr(subprocess, "CREATE_NO_WINDOW"):
+        flags["creationflags"] = subprocess.CREATE_NO_WINDOW
     result = subprocess.run(
         ["certutil", "-addstore", "-f", "ROOT", str(ca_path)],
         capture_output=True, text=True,
-        creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0,
+        **flags
     )
     return result.returncode == 0
 
 
 def _install_ca_debian(ca_path: Path) -> bool:
+    """Установка CA на Debian/Ubuntu: копирование в /usr/local/share/ca-certificates и update-ca-certificates."""
     dest = Path("/usr/local/share/ca-certificates") / ca_path.name
     subprocess.run(["sudo", "cp", str(ca_path), str(dest)], check=True)
     result = subprocess.run(["sudo", "update-ca-certificates"], capture_output=True, text=True)
@@ -233,6 +282,10 @@ def _install_ca_debian(ca_path: Path) -> bool:
 
 
 def _install_ca_linux_generic(ca_path: Path) -> bool:
+    """
+    Попытка установки CA на других Linux-системах.
+    Перебирает возможные каталоги и команды обновления.
+    """
     for dest_dir, update_cmd in [
         ("/etc/pki/ca-trust/source/anchors",    ["sudo", "update-ca-trust", "extract"]),
         ("/etc/ca-certificates/trust-source",   ["sudo", "trust", "extract-compat"]),
@@ -246,7 +299,10 @@ def _install_ca_linux_generic(ca_path: Path) -> bool:
 
 
 def get_ca_install_instructions(ca_path: Path) -> str:
-    """Возвращает инструкции по ручной установке CA для текущей ОС."""
+    """
+    Возвращает текстовую инструкцию для ручной установки CA,
+    если автоматическая установка не удалась или не была запрошена.
+    """
     system = _get_system()
     p = str(ca_path.resolve())
     instructions = {
@@ -259,8 +315,13 @@ def get_ca_install_instructions(ca_path: Path) -> str:
     }
     return instructions.get(system, instructions["linux"])
 
+
 def generate_with_mkcert(cert_dir: Path, hostname: str = "") -> SSLResult:
-    """Использует mkcert если установлен — создаёт браузерно-доверенные сертификаты."""
+    """
+    Генерирует сертификат с помощью утилиты mkcert.
+    mkcert создаёт локально доверенные сертификаты (CA устанавливается однократно).
+    Возвращает SSLResult с путями к файлам и флагом trusted=True (если успешно).
+    """
     mkcert_bin = shutil.which("mkcert")
     if not mkcert_bin:
         return SSLResult(ok=False, cert="", key="", ca="",
@@ -269,12 +330,12 @@ def generate_with_mkcert(cert_dir: Path, hostname: str = "") -> SSLResult:
     cert_dir.mkdir(parents=True, exist_ok=True)
     hostname = hostname or socket.gethostname()
     cert_path = cert_dir / "vortex.crt"
-    key_path  = cert_dir / "vortex.key"
-    ips       = _local_ips()
+    key_path = cert_dir / "vortex.key"
+    ips = _local_ips()
 
     domains = [hostname, "localhost", "127.0.0.1"] + ips
 
-    # Устанавливаем CA
+    # Устанавливаем CA mkcert (если ещё не установлен)
     subprocess.run([mkcert_bin, "-install"], capture_output=True)
 
     result = subprocess.run(
@@ -298,6 +359,7 @@ def generate_with_mkcert(cert_dir: Path, hostname: str = "") -> SSLResult:
 
 
 def _get_mkcert_ca_path() -> str:
+    """Возвращает путь к CA-сертификату mkcert, если он существует."""
     mkcert_bin = shutil.which("mkcert")
     if not mkcert_bin:
         return ""
@@ -310,6 +372,7 @@ def _get_mkcert_ca_path() -> str:
                 return str(p)
     return ""
 
+
 def generate_letsencrypt(
         cert_dir: Path,
         domain: str,
@@ -318,8 +381,9 @@ def generate_letsencrypt(
         staging: bool = False,
 ) -> SSLResult:
     """
-    Получает Let's Encrypt сертификат через certbot.
-    Требует: открытый порт 80, домен указывающий на этот IP.
+    Получает сертификат Let's Encrypt через certbot.
+    Требует, чтобы порт 80 был открыт и домен указывал на этот сервер.
+    При staging=True использует тестовый сервер (невалидные сертификаты, но без лимитов).
     """
     certbot_bin = shutil.which("certbot") or shutil.which("certbot3")
     if not certbot_bin:
@@ -349,18 +413,19 @@ def generate_letsencrypt(
                          message=f"certbot ошибка: {result.stderr[:400]}",
                          trusted=False)
 
-    live_dir  = cert_dir / "certbot" / "live" / domain
+    live_dir = cert_dir / "certbot" / "live" / domain
     cert_path = live_dir / "fullchain.pem"
-    key_path  = live_dir / "privkey.pem"
+    key_path = live_dir / "privkey.pem"
 
     if not cert_path.exists() or not key_path.exists():
         return SSLResult(ok=False, cert="", key="", ca="",
                          message=f"certbot: файлы не найдены в {live_dir}",
                          trusted=False)
 
+    # Копируем в стандартные имена vortex.crt / vortex.key
     import shutil as sh
     sh.copy2(cert_path, cert_dir / "vortex.crt")
-    sh.copy2(key_path,  cert_dir / "vortex.key")
+    sh.copy2(key_path, cert_dir / "vortex.key")
 
     return SSLResult(
         ok=True,
@@ -373,7 +438,10 @@ def generate_letsencrypt(
 
 
 def use_manual_cert(cert_src: str, key_src: str, cert_dir: Path) -> SSLResult:
-    """Копирует существующие файлы сертификата в рабочую директорию."""
+    """
+    Копирует предоставленные пользователем файлы сертификата в рабочую директорию.
+    Используется для ручной загрузки существующих сертификатов.
+    """
     import shutil as sh
     cert_dir.mkdir(parents=True, exist_ok=True)
     cert_path = cert_dir / "vortex.crt"
@@ -381,15 +449,24 @@ def use_manual_cert(cert_src: str, key_src: str, cert_dir: Path) -> SSLResult:
     try:
         sh.copy2(cert_src, cert_path)
         sh.copy2(key_src, key_path)
-        os.chmod(key_path,0o600)
+        os.chmod(key_path, 0o600)
         return SSLResult(ok=True, cert=str(cert_path), key=str(key_path), ca="",
                          message="Сертификат скопирован", trusted=True)
     except Exception as e:
         return SSLResult(ok=False, cert="", key="", ca="",
                          message=f"Ошибка копирования: {e}", trusted=False)
 
+
 def check_cert_expiry(cert_path: Path) -> dict:
-    """Возвращает информацию об истечении срока сертификата."""
+    """
+    Проверяет срок действия сертификата.
+    Возвращает словарь с полями:
+      valid: bool
+      expires_at: ISO дата
+      days_left: int
+      subject: строка subject
+      error: если произошла ошибка
+    """
     try:
         from cryptography import x509
         cert = x509.load_pem_x509_certificate(cert_path.read_bytes())
@@ -406,10 +483,15 @@ def check_cert_expiry(cert_path: Path) -> dict:
     except Exception as e:
         return {"valid": False, "error": str(e)}
 
+
 def detect_available_methods() -> dict[str, bool]:
+    """
+    Определяет, какие методы генерации сертификатов доступны на данной системе.
+    Возвращает словарь {имя_метода: bool}.
+    """
     return {
-        "self_signed": True,
+        "self_signed": True,  # всегда доступен (чистый Python)
         "mkcert": bool(shutil.which("mkcert")),
         "letsencrypt": bool(shutil.which("certbot") or shutil.which("certbot3")),
-        "manual": True,
+        "manual": True,       # всегда доступен (загрузка своих файлов)
     }

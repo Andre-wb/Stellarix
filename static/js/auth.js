@@ -1,9 +1,19 @@
+// static/js/auth.js
+// ============================================================================
+// Модуль аутентификации: вход, регистрация, выход, проверка сессии.
+// Использует глобальный объект AppState и функции из utils.js.
+// ============================================================================
+
 import { $, api, showAlert, openModal, closeModal } from './utils.js';
 
 // ============================================================================
 // AUTH
 // ============================================================================
 
+/**
+ * Переключает вкладки между формой входа и регистрации.
+ * @param {string} tab - 'login' или 'register'
+ */
 export function switchTab(tab) {
     $('login-form').style.display = tab === 'login' ? '' : 'none';
     $('register-form').style.display = tab === 'register' ? '' : 'none';
@@ -13,12 +23,20 @@ export function switchTab(tab) {
     $('auth-alert').classList.remove('show');
 }
 
+/**
+ * Выбирает эмодзи для аватара при регистрации.
+ * @param {HTMLElement} btn - кнопка с data-emoji
+ */
 export function selectEmoji(btn) {
     document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('emoji-selected'));
     btn.classList.add('emoji-selected');
     window.AppState.selectedEmoji = btn.dataset.emoji;
 }
 
+/**
+ * Отправляет запрос на вход.
+ * При успехе сохраняет пользователя и запускает приложение.
+ */
 export async function doLogin() {
     try {
         const data = await api('POST', '/api/authentication/login', {
@@ -32,6 +50,10 @@ export async function doLogin() {
     }
 }
 
+/**
+ * Отправляет запрос на регистрацию.
+ * При успехе сохраняет пользователя и запускает приложение.
+ */
 export async function doRegister() {
     try {
         const data = await api('POST', '/api/authentication/register', {
@@ -48,6 +70,9 @@ export async function doRegister() {
     }
 }
 
+/**
+ * Выход из системы: вызывает API, очищает состояние, переключает на экран входа.
+ */
 export async function doLogout() {
     try {
         await api('POST', '/api/authentication/logout');
@@ -60,6 +85,10 @@ export async function doLogout() {
     $('auth-screen').className = 'screen active';
 }
 
+/**
+ * Проверяет, есть ли активная сессия (вызывается при загрузке страницы).
+ * Если пользователь авторизован, запускает приложение.
+ */
 export async function checkSession() {
     try {
         const data = await api('GET', '/api/authentication/me');

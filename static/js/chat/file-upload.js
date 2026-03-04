@@ -1,19 +1,38 @@
+// static/js/chat/file-upload.js
+// =============================================================================
+// Модуль загрузки файлов в чат.
+// Управляет предпросмотром, сжатием изображений, отправкой через XHR,
+// отображением прогресса и обработкой ошибок.
+// =============================================================================
+
 import { fmtSize, getCookie } from '../utils.js';
 
-let _pendingFile     = null;
-let _resizedBlob     = null;
-let _origW           = 0;
-let _origH           = 0;
-let _origDataUrl     = null;
-let _skipCompression = false;
+// Приватные переменные состояния загружаемого файла
+let _pendingFile     = null;      // Исходный File объект
+let _resizedBlob     = null;      // Сжатый blob (если применимо)
+let _origW           = 0;         // Оригинальная ширина изображения
+let _origH           = 0;         // Оригинальная высота
+let _origDataUrl     = null;      // data:URL оригинального изображения (для предпросмотра)
+let _skipCompression = false;     // true если пользователь выбрал "без сжатия"
 
+// Короткая функция для получения элемента по id
 const $ = id => document.getElementById(id);
 
+/**
+ * Обработчик выбора файла через <input type="file">.
+ * Сохраняет файл в _pendingFile, показывает оверлей предпросмотра.
+ * Для изображений дополнительно загружает превью, определяет размеры,
+ * показывает слайдер сжатия и кнопку редактора.
+ * Для остальных файлов показывает карточку с иконкой.
+ *
+ * @param {Event} e - событие change input
+ */
 export function uploadFile(e) {
     const file = e.target.files[0];
-    e.target.value = '';
+    e.target.value = ''; // сбрасываем input, чтобы можно было выбрать тот же файл повторно
     if (!file) return;
 
+    // Сброс состояния
     _pendingFile     = file;
     _resizedBlob     = null;
     _skipCompression = false;
@@ -35,6 +54,7 @@ export function uploadFile(e) {
     const isImage = file.type.startsWith('image/');
 
     if (isImage) {
+        // Прячем карточку файла, показываем область для изображения
         $('preview-img').style.display       = 'none';
         $('preview-img').src                 = '';
         $('preview-file-card').style.display = 'none';
@@ -56,8 +76,7 @@ export function uploadFile(e) {
                 $('fpo-filesize').textContent  = fmtSize(file.size);
                 _showCompressionSection(100);
                 _updateCompressionInfo(100);
-                // ← ДОБАВЛЕНО: показываем кнопку редактора фото
-                _showEditPhotoBtn(true);
+                _showEditPhotoBtn(true);       // показываем кнопку «Редактировать»
             };
             img.onerror = () => _showAsFileCard('🖼', file.name, file.size);
             img.src = _origDataUrl;
@@ -76,6 +95,12 @@ export function uploadFile(e) {
     }
 }
 
+/**
+ * Показывает или скрывает кнопку «Редактировать фото».
+ * Если кнопка ещё не создана, создаёт её и вставляет в .fpo-actions.
+ *
+ * @param {boolean} show - true показать, false скрыть
+ */
 function _showEditPhotoBtn(show) {
     let btn = $('fpo-edit-photo-btn');
     if (!btn) {
@@ -87,10 +112,10 @@ function _showEditPhotoBtn(show) {
         btn.onclick = () => {
             if (!_pendingFile) return;
             $('file-preview-overlay').classList.remove('show');
-            // Открываем редактор; после сохранения — возвращаем в превью
+            // Вызываем глобальный редактор фото (определён в другом месте)
             if (typeof window.openPhotoEditor === 'function') {
                 window.openPhotoEditor(_pendingFile, (blob, fileName) => {
-                    // Заменяем pending file отредактированным
+                    // Заменяем ожидающий файл отредактированным
                     _pendingFile  = new File([blob], fileName, { type: blob.type });
                     _resizedBlob  = null;
                     _skipCompression = false;
@@ -114,13 +139,20 @@ function _showEditPhotoBtn(show) {
                 });
             }
         };
-        // Вставляем перед кнопкой «Отмена» в bottom-bar
+        // Вставляем перед кнопкой «Отмена» в нижней панели
         const actions = document.querySelector('.fpo-actions');
         if (actions) actions.insertBefore(btn, actions.firstChild);
     }
     btn.style.display = show ? '' : 'none';
 }
 
+/**
+ * Показывает предпросмотр в виде карточки (иконка + имя + размер) для не-изображений.
+ *
+ * @param {string} icon - эмодзи-иконка (🖼, 🎬, 🎵, 📄)
+ * @param {string} name - имя файла
+ * @param {number} size - размер в байтах
+ */
 function _showAsFileCard(icon, name, size) {
     $('preview-img').style.display       = 'none';
     $('preview-file-card').style.display = 'flex';
@@ -132,6 +164,11 @@ function _showAsFileCard(icon, name, size) {
     $('compress-section').style.display  = 'none';
 }
 
+/**
+ * Показывает секцию сжатия (слайдер) и устанавливает значение.
+ *
+ * @param {number} pct - начальный процент сжатия (обычно 100)
+ */
 function _showCompressionSection(pct) {
     const sec = $('compress-section');
     if (!sec) return;
@@ -140,13 +177,23 @@ function _showCompressionSection(pct) {
     if (slider) slider.value = pct;
 }
 
+/**
+ * Обработчик изменения слайдера сжатия.
+ * Вызывается из HTML (oninput).
+ * @param {string|number} val - текущее значение слайдера (0‑100)
+ */
 export function onCompressSlider(val) {
-    if (_skipCompression) return;
+    if (_skipCompression) return; // если выбрано «без сжатия», игнорируем
     const pct = parseInt(val, 10);
     _updateCompressionInfo(pct);
     _applyCompression(pct);
 }
 
+/**
+ * Обновляет текстовую информацию о сжатии (размеры, итоговый размер файла).
+ *
+ * @param {number} pct - процент от оригинала
+ */
 function _updateCompressionInfo(pct) {
     const w = Math.round(_origW * pct / 100);
     const h = Math.round(_origH * pct / 100);
@@ -156,11 +203,17 @@ function _updateCompressionInfo(pct) {
     const sizeLabel = $('fpo-filesize');
     if (sizeLabel) {
         sizeLabel.textContent = pct < 100
-            ? '~' + fmtSize(Math.round(_pendingFile.size * (pct / 100) * 0.7))
+            ? '~' + fmtSize(Math.round(_pendingFile.size * (pct / 100) * 0.7)) // эмпирический коэффициент 0.7
             : fmtSize(_pendingFile.size);
     }
 }
 
+/**
+ * Применяет сжатие изображения: создаёт canvas, ресайзит, конвертирует в blob.
+ * Обновляет preview и _resizedBlob.
+ *
+ * @param {number} pct - процент от оригинала
+ */
 function _applyCompression(pct) {
     if (!_pendingFile || !_pendingFile.type.startsWith('image/') || !_origDataUrl) return;
     if (pct >= 100) {
@@ -186,12 +239,24 @@ function _applyCompression(pct) {
     img.src = _origDataUrl;
 }
 
+/**
+ * Переключает отображение меню с точками (три точки) в предпросмотре.
+ */
 export function toggleDotMenu() {
     $('fpo-dot-menu')?.classList.toggle('show');
 }
+
+/**
+ * Закрывает меню с точками.
+ */
 export function closeDotMenu() {
     $('fpo-dot-menu')?.classList.remove('show');
 }
+
+/**
+ * Обработчик пункта «Отправить без сжатия».
+ * Устанавливает _skipCompression = true, блокирует слайдер, меняет текст кнопки.
+ */
 export function sendWithoutCompression() {
     _skipCompression = true;
     _resizedBlob     = null;
@@ -210,6 +275,9 @@ export function sendWithoutCompression() {
     closeDotMenu();
 }
 
+/**
+ * Отменяет предпросмотр файла (закрывает оверлей, сбрасывает состояние).
+ */
 export function cancelFilePreview() {
     if ($('file-preview-overlay')?.classList.contains('uploading')) return;
     _pendingFile = null; _resizedBlob = null; _origDataUrl = null;
@@ -231,6 +299,11 @@ export function cancelFilePreview() {
     _showEditPhotoBtn(false);
 }
 
+/**
+ * Отправляет ожидающий файл на сервер.
+ * Использует FormData и XHR с отслеживанием прогресса.
+ * При успехе удаляет временный pending-элемент, при ошибке показывает кнопку повтора.
+ */
 export async function sendPendingFile() {
     if (!_pendingFile) return;
     const S = window.AppState;
@@ -245,7 +318,7 @@ export async function sendPendingFile() {
     const localSrc   = _origDataUrl || null;
 
     $('file-preview-overlay')?.classList.remove('uploading');
-    cancelFilePreview();
+    cancelFilePreview(); // закрываем оверлей предпросмотра
 
     const pendingEl = _insertPendingBubble(fileName, blobToSend.size, mimeType, localSrc);
     const formData = new FormData();
@@ -272,10 +345,22 @@ export async function sendPendingFile() {
     }
 }
 
+/**
+ * Программно открывает диалог выбора файла.
+ */
 export function triggerFileUpload() {
     $('file-input').click();
 }
 
+/**
+ * Внутренняя функция XHR-загрузки с прогрессом.
+ *
+ * @param {string} url
+ * @param {FormData} formData
+ * @param {string} csrfToken
+ * @param {function(number)} onProgress - колбэк с процентом (0‑100)
+ * @returns {Promise<any>} - ответ сервера (распарсенный JSON)
+ */
 function _xhrUpload(url, formData, csrfToken, onProgress) {
     return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
@@ -303,6 +388,16 @@ function _xhrUpload(url, formData, csrfToken, onProgress) {
     });
 }
 
+/**
+ * Вставляет временный элемент сообщения (pending bubble) в список сообщений,
+ * пока файл загружается. Для изображений отображает миниатюру.
+ *
+ * @param {string} fileName
+ * @param {number} fileSize
+ * @param {string} mimeType
+ * @param {string|null} localSrc - data:URL для предпросмотра изображения
+ * @returns {HTMLElement} - обёртка, в которой будет обновляться прогресс
+ */
 function _insertPendingBubble(fileName, fileSize, mimeType, localSrc) {
     const S         = window.AppState;
     const isImage   = mimeType.startsWith('image/');
@@ -367,12 +462,18 @@ function _insertPendingBubble(fileName, fileSize, mimeType, localSrc) {
     return wrap;
 }
 
+/**
+ * Обновляет процент загрузки в pending-элементе (круговой индикатор и/или полоска).
+ *
+ * @param {HTMLElement} el - элемент-обёртка
+ * @param {number} pct - процент (0‑100)
+ */
 function _updatePendingProgress(el, pct) {
     if (!el) return;
     const fill  = el.querySelector('.ucb-fill');
     const pctEl = el.querySelector('.ucb-pct');
     if (fill) {
-        const circ = 43.98;
+        const circ = 43.98; // длина окружности для r=7 (2*pi*7 ≈ 43.98)
         fill.style.strokeDashoffset = `${circ * (1 - pct / 100)}`;
     }
     if (pctEl) pctEl.textContent = pct + '%';
@@ -380,11 +481,22 @@ function _updatePendingProgress(el, pct) {
     if (barFill) barFill.style.width = pct + '%';
 }
 
+/**
+ * Удаляет pending-элемент после успешной загрузки.
+ *
+ * @param {HTMLElement} el
+ */
 function _finishPendingBubble(el) {
     if (!el) return;
     el.remove();
 }
 
+/**
+ * Отображает ошибку загрузки в pending-элементе, добавляет кнопку повтора.
+ *
+ * @param {HTMLElement} el
+ * @param {string} msg - текст ошибки
+ */
 function _failPendingBubble(el, msg) {
     if (!el) return;
     const badge = el.querySelector('.upload-corner-badge');
@@ -406,15 +518,24 @@ function _failPendingBubble(el, msg) {
     el.appendChild(retryBtn);
 }
 
+/**
+ * Возвращает текущее время в формате ЧЧ:ММ.
+ */
 function _fmtNow() {
     return new Date().toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' });
 }
 
+/**
+ * Экранирует HTML-спецсимволы в строке.
+ */
 function _esc(str) {
     return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;')
         .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+/**
+ * Сбрасывает кнопку отправки в исходное состояние (после отмены или ошибки).
+ */
 function _resetSendBtn() {
     const btn = $('fpo-send-btn');
     if (!btn) return;
@@ -423,6 +544,11 @@ function _resetSendBtn() {
     btn.innerHTML        = '↑ Отправить';
 }
 
+/**
+ * Показывает сообщение об ошибке в оверлее предпросмотра.
+ *
+ * @param {string} msg
+ */
 function _showError(msg) {
     let el = $('fpo-error');
     if (!el) {

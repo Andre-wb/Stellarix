@@ -1,3 +1,14 @@
+# node_setup/wizard.py
+# ==============================================================================
+# Модуль мастера настройки узла Vortex.
+# Запускает временный веб-сервер (FastAPI) для проведения начальной конфигурации:
+#   - проверка системной информации
+#   - валидация портов
+#   - создание SSL-сертификатов (самоподписанные, mkcert, Let's Encrypt, ручные)
+#   - сохранение параметров в .env
+#   - завершение мастера и запуск основного приложения
+# ==============================================================================
+
 from __future__ import annotations
 import json
 import logging
@@ -29,21 +40,28 @@ from node_setup.ssl_manager import (
     use_manual_cert,
 )
 
-logger   = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
+
+# Файл с переменными окружения, который будет создан/дополнен
 ENV_FILE = Path(".env")
+# Директория для хранения сертификатов
 CERT_DIR = Path("certs")
 
+# FastAPI-приложение мастера (без документации, т.к. это внутренний интерфейс)
 wizard_app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
-# Раздача статики: /setup/css/* и /setup/js/*
+# Подключаем статические файлы (CSS, JS для веб-интерфейса)
 _STATIC_DIR = Path(__file__).parent / "static"
 wizard_app.mount("/setup", StaticFiles(directory=str(_STATIC_DIR)), name="setup_static")
 
+# Глобальная переменная для управления сервером
 _server_instance: uvicorn.Server | None = None
-_setup_done      = threading.Event()
+# Событие, сигнализирующее о завершении настройки (остановка сервера)
+_setup_done = threading.Event()
 
 
 def _load_html() -> str:
+    """Загружает HTML-шаблон страницы мастера."""
     html_path = Path(__file__).parent / "templates" / "setup.html"
     if html_path.exists():
         return html_path.read_text(encoding="utf-8")
@@ -52,13 +70,25 @@ def _load_html() -> str:
 
 @wizard_app.get("/", response_class=HTMLResponse)
 async def index():
+    """Главная страница мастера (отдаёт HTML)."""
     return _load_html()
+
 
 @wizard_app.get("/api/info")
 async def system_info():
+    """
+    Возвращает системную информацию для отображения в интерфейсе:
+    - hostname
+    - ОС
+    - локальные IP-адреса (определяются через сокет)
+    - доступные методы генерации SSL
+    - наличие существующих сертификатов
+    - признак инициализации узла (NODE_INITIALIZED в .env)
+    """
     ips = []
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # Пытаемся подключиться к разным адресам, чтобы узнать реальный IP
         for t in ("192.168.1.1", "10.0.0.1", "8.8.8.8"):
             try:
                 s.connect((t, 80))
@@ -81,8 +111,13 @@ async def system_info():
         "initialized": _read_env_dict().get("NODE_INITIALIZED") == "true",
     }
 
+
 @wizard_app.get("/api/validate/port/{port}")
 async def validate_port(port: int):
+    """
+    Проверяет, свободен ли указанный порт (попытка привязаться к 127.0.0.1).
+    Возвращает ok: True/False и сообщение.
+    """
     if not (1024 <= port <= 65535):
         return {"ok": False, "message": "Порт должен быть от 1024 до 65535"}
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -94,8 +129,13 @@ async def validate_port(port: int):
     except OSError:
         return {"ok": False, "message": f"Порт {port} уже занят"}
 
+
 @wizard_app.post("/api/ssl/self-signed")
 async def ssl_self_signed(body: SelfSignedRequest):
+    """
+    Генерирует самоподписанный сертификат с помощью ssl_manager.
+    Возвращает пути к файлам и инструкцию по установке CA.
+    """
     result = generate_self_signed(
         cert_dir    = CERT_DIR,
         hostname    = body.hostname or socket.gethostname(),
@@ -122,6 +162,10 @@ async def ssl_self_signed(body: SelfSignedRequest):
 
 @wizard_app.post("/api/ssl/letsencrypt")
 async def ssl_letsencrypt(body: LetsEncryptRequest):
+    """
+    Запрашивает сертификат Let's Encrypt через certbot.
+    Требует указания домена и email.
+    """
     if not body.domain:
         raise HTTPException(400, "Укажите домен")
     result = generate_letsencrypt(
@@ -137,6 +181,9 @@ async def ssl_letsencrypt(body: LetsEncryptRequest):
 
 @wizard_app.post("/api/ssl/mkcert")
 async def ssl_mkcert():
+    """
+    Генерирует сертификат через mkcert (локально доверенный).
+    """
     result = generate_with_mkcert(CERT_DIR)
     if not result.ok:
         raise HTTPException(500, result.message)
@@ -146,6 +193,10 @@ async def ssl_mkcert():
 
 @wizard_app.post("/api/ssl/manual")
 async def ssl_manual(body: ManualCertRequest):
+    """
+    Принимает пути к существующим сертификатам (пользователь загрузил свои).
+    Копирует их в рабочую директорию.
+    """
     if not Path(body.cert_path).exists():
         raise HTTPException(400, f"Файл не найден: {body.cert_path}")
     if not Path(body.key_path).exists():
@@ -158,6 +209,10 @@ async def ssl_manual(body: ManualCertRequest):
 
 @wizard_app.get("/api/ssl/status")
 async def ssl_status():
+    """
+    Проверяет наличие сертификата и его срок действия.
+    Возвращает информацию для отображения в интерфейсе.
+    """
     cert_path = CERT_DIR / "vortex.crt"
     if not cert_path.exists():
         return {"exists": False}
@@ -173,6 +228,10 @@ async def ssl_skip():
 
 @wizard_app.post("/api/config/save")
 async def save_config(body: NodeConfig):
+    """
+    Сохраняет основную конфигурацию узла в .env файл.
+    Генерирует секреты JWT и CSRF, если их ещё нет.
+    """
     if not body.device_name.strip():
         raise HTTPException(400, "Укажите имя устройства")
     if not (1024 <= body.port <= 65535):
@@ -181,9 +240,16 @@ async def save_config(body: NodeConfig):
     _write_env(body)
     return {"ok": True, "message": "Конфигурация сохранена"}
 
+
 @wizard_app.post("/api/setup/complete")
 async def complete_setup():
-    env   = _read_env_dict()
+    """
+    Завершает настройку:
+    - Добавляет NODE_INITIALIZED=true в .env
+    - Запускает фоновый поток для остановки сервера мастера
+    - Возвращает URL, по которому будет доступен основной узел
+    """
+    env = _read_env_dict()
     lines = Path(".env").read_text(encoding="utf-8") if Path(".env").exists() else ""
 
     if "NODE_INITIALIZED=true" not in lines:
@@ -191,24 +257,27 @@ async def complete_setup():
             f.write("\nNODE_INITIALIZED=true\n")
     threading.Thread(target=_shutdown_wizard, daemon=True).start()
 
-    port  = int(env.get("PORT", "8000"))
-    ssl   = (CERT_DIR / "vortex.crt").exists()
+    port = int(env.get("PORT", "8000"))
+    ssl = (CERT_DIR / "vortex.crt").exists()
     proto = "https" if ssl else "http"
 
     return {
-        "ok":      True,
+        "ok": True,
         "message": "Настройка завершена! Запускаем узел...",
-        "url":     f"{proto}://localhost:{port}",
+        "url": f"{proto}://localhost:{port}",
     }
 
 
 def _shutdown_wizard():
+    """Функция, вызываемая после завершения настройки: через 1.5 сек останавливает сервер."""
     time.sleep(1.5)
     _setup_done.set()
     if _server_instance:
         _server_instance.should_exit = True
 
+
 def _read_env_dict() -> dict[str, str]:
+    """Читает текущий .env файл и возвращает словарь переменных."""
     if not ENV_FILE.exists():
         return {}
     result = {}
@@ -221,6 +290,10 @@ def _read_env_dict() -> dict[str, str]:
 
 
 def _write_env(cfg: NodeConfig) -> None:
+    """
+    Записывает (или перезаписывает) .env файл с параметрами узла.
+    Генерирует новые секреты, если их нет в существующем файле.
+    """
     existing = _read_env_dict()
 
     jwt_secret  = existing.get("JWT_SECRET")  or secrets.token_hex(32)
@@ -262,7 +335,12 @@ def _write_env(cfg: NodeConfig) -> None:
     ]
     ENV_FILE.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
+
 def run_wizard(host: str = "127.0.0.1", port: int = 7979) -> None:
+    """
+    Запускает сервер мастера на указанном хосте и порту.
+    Функция блокируется до тех пор, пока не будет вызвано _setup_done.
+    """
     global _server_instance
 
     config = uvicorn.Config(
@@ -278,7 +356,7 @@ def run_wizard(host: str = "127.0.0.1", port: int = 7979) -> None:
     thread.start()
 
     try:
-        _setup_done.wait()
+        _setup_done.wait()  # ждём сигнала завершения
     except KeyboardInterrupt:
         pass
     finally:

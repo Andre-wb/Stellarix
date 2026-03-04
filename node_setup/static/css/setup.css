@@ -1,31 +1,38 @@
+/* node_setup/static/css/setup.css */
+/* =============================================================================
+ * Стили для страницы мастера настройки узла Vortex.
+ * Используют тёмную тему, сетчатый фон, анимации и адаптивность.
+ * ============================================================================= */
+
+/* Импорт шрифтов Google Fonts */
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;700;800&display=swap');
 
-/* ── Переменные ── */
+/* ── Переменные цветов и размеров ── */
 :root {
-    --bg0:     #07070f;
-    --bg1:     #0d0d1a;
-    --bg2:     #12121f;
-    --bg3:     #1a1a2e;
-    --border:  rgba(78,205,196,.15);
-    --teal:    #4ecdc4;
-    --teal2:   #2eb8af;
-    --purple:  #a855f7;
-    --green:   #22c55e;
-    --red:     #ef4444;
-    --yellow:  #f59e0b;
-    --text1:   #e2e8f0;
-    --text2:   #94a3b8;
-    --text3:   #475569;
-    --mono:    'JetBrains Mono', monospace;
-    --display: 'Syne', sans-serif;
-    --radius:  12px;
+    --bg0:     #07070f;      /* самый тёмный фон */
+    --bg1:     #0d0d1a;      /* фон body */
+    --bg2:     #12121f;      /* фон карточек */
+    --bg3:     #1a1a2e;      /* фон элементов внутри карточек */
+    --border:  rgba(78,205,196,.15); /* полупрозрачная граница (teal) */
+    --teal:    #4ecdc4;      /* основной акцентный цвет (бирюзовый) */
+    --teal2:   #2eb8af;      /* более тёмный оттенок для hover */
+    --purple:  #a855f7;      /* фиолетовый (для бейджей) */
+    --green:   #22c55e;      /* зелёный (успех) */
+    --red:     #ef4444;      /* красный (ошибка) */
+    --yellow:  #f59e0b;      /* жёлтый (предупреждение) */
+    --text1:   #e2e8f0;      /* основной текст (светлый) */
+    --text2:   #94a3b8;      /* второстепенный текст */
+    --text3:   #475569;      /* очень бледный текст (метки) */
+    --mono:    'JetBrains Mono', monospace;   /* моноширинный шрифт */
+    --display: 'Syne', sans-serif;             /* шрифт для заголовков */
+    --radius:  12px;          /* радиус скругления */
 }
 
-/* ── Reset ── */
+/* ── Сброс отступов и box-sizing ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 
-/* ── Body ── */
+/* ── Основной фон и выравнивание ── */
 body {
     background: var(--bg0);
     color: var(--text1);
@@ -37,7 +44,7 @@ body {
     overflow-x: hidden;
 }
 
-/* ── Фоновая сетка ── */
+/* ── Фоновая сетка (через псевдоэлемент) ── */
 body::before {
     content: '';
     position: fixed;
@@ -50,6 +57,7 @@ body::before {
     z-index: 0;
 }
 
+/* ── Радиальное свечение ── */
 body::after {
     content: '';
     position: fixed;
@@ -62,7 +70,7 @@ body::after {
     z-index: 0;
 }
 
-/* ── Header ── */
+/* ── Шапка с ASCII-логотипом ── */
 .header {
     position: relative;
     z-index: 1;
@@ -71,6 +79,7 @@ body::after {
     width: 100%;
 }
 
+/* ASCII-логотип (моноширинный, мелкий) */
 .logo-ascii {
     font-family: var(--mono);
     font-size: clamp(6px, 1.2vw, 11px);
@@ -82,6 +91,7 @@ body::after {
     animation: fadeIn .8s ease;
 }
 
+/* Подзаголовок под логотипом */
 .header-sub {
     font-family: var(--display);
     font-size: 13px;
@@ -93,7 +103,7 @@ body::after {
     animation: fadeIn 1s ease .2s both;
 }
 
-/* ── Step bar ── */
+/* ── Панель шагов (stepbar) ── */
 .stepbar {
     position: relative;
     z-index: 1;
@@ -107,6 +117,7 @@ body::after {
     animation: fadeIn .6s ease .4s both;
 }
 
+/* Кружок шага */
 .step-dot {
     display: flex;
     flex-direction: column;
@@ -117,6 +128,7 @@ body::after {
     cursor: pointer;
 }
 
+/* Псевдоэлемент для номера или галочки */
 .step-dot::before {
     content: attr(data-n);
     width: 32px;
@@ -137,6 +149,7 @@ body::after {
     padding-top: 1px;
 }
 
+/* Активный шаг */
 .step-dot.active::before {
     border-color: var(--teal);
     background: var(--teal);
@@ -144,6 +157,7 @@ body::after {
     box-shadow: 0 0 16px rgba(78,205,196,.5);
 }
 
+/* Завершённый шаг (галочка) */
 .step-dot.done::before {
     content: '✓';
     border-color: var(--green);
@@ -151,6 +165,7 @@ body::after {
     color: var(--bg0);
 }
 
+/* Подпись под кружком */
 .step-dot .step-label {
     font-size: 10px;
     color: var(--text3);
@@ -159,9 +174,11 @@ body::after {
     transition: color .3s;
 }
 
+/* Цвет подписи в зависимости от состояния */
 .step-dot.active .step-label { color: var(--teal); }
 .step-dot.done  .step-label  { color: var(--green); }
 
+/* Линия между кружками */
 .step-line {
     flex: 1;
     height: 2px;
@@ -174,7 +191,7 @@ body::after {
 
 .step-line.done { background: var(--green); }
 
-/* ── Card ── */
+/* ── Карточка с содержимым шага ── */
 .card {
     position: relative;
     z-index: 1;
@@ -189,17 +206,18 @@ body::after {
     animation: slideUp .5s ease .5s both;
 }
 
+/* Адаптив для мобильных */
 @media (max-width: 640px) {
     .card   { margin: 16px; padding: 24px 20px; }
     .header { padding: 24px 16px 0; }
     .logo-ascii { font-size: 5px; }
 }
 
-/* ── Step content ── */
+/* ── Контейнер шага (переключение через display) ── */
 .step { display: none; }
 .step.active { display: block; animation: stepIn .35s ease; }
 
-/* ── Typography ── */
+/* ── Типография ── */
 .step-title {
     font-family: var(--display);
     font-size: 22px;
@@ -217,7 +235,7 @@ body::after {
     margin-bottom: 28px;
 }
 
-/* ── Form ── */
+/* ── Элементы форм ── */
 .form-group { margin-bottom: 20px; }
 
 .form-label {
@@ -260,13 +278,14 @@ body::after {
 .form-hint.error { color: var(--red); }
 .form-hint.ok    { color: var(--green); }
 
+/* Сетка для двух колонок */
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
 @media (max-width: 480px) {
     .form-row { grid-template-columns: 1fr; }
 }
 
-/* ── SSL option cards ── */
+/* ── Карточки выбора SSL ── */
 .ssl-options {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -314,6 +333,7 @@ body::after {
 .ssl-title { font-size: 13px; font-weight: 700; color: var(--text1); margin-bottom: 3px; }
 .ssl-desc  { font-size: 11px; color: var(--text2); line-height: 1.4; }
 
+/* Бейджи (рекомендованный, интернет, продвинутый) */
 .ssl-badge {
     display: inline-block;
     font-size: 9px;
@@ -329,11 +349,11 @@ body::after {
 .badge-internet    { background: rgba(168,85,247,.15);  color: var(--purple); }
 .badge-advanced    { background: rgba(245,158,11,.15);  color: var(--yellow); }
 
-/* ── SSL detail panels ── */
+/* ── Детальные панели для каждого типа SSL (скрыты по умолчанию) ── */
 .ssl-detail { display: none; }
 .ssl-detail.active { display: block; animation: stepIn .25s ease; }
 
-/* ── Code block ── */
+/* ── Блок с кодом (для команд) ── */
 .code-block {
     background: var(--bg0);
     border: 1px solid var(--border);
@@ -346,6 +366,7 @@ body::after {
     position: relative;
 }
 
+/* Кнопка копирования внутри code-block */
 .code-copy {
     position: absolute;
     top: 8px; right: 8px;
@@ -362,7 +383,7 @@ body::after {
 
 .code-copy:hover { color: var(--teal); border-color: var(--teal); }
 
-/* ── Buttons ── */
+/* ── Кнопки ── */
 .btn {
     display: inline-flex;
     align-items: center;
@@ -404,6 +425,7 @@ body::after {
 .btn-ghost { background: transparent; color: var(--text3); padding: 8px 12px; }
 .btn-ghost:hover { color: var(--text2); }
 
+/* Ряд с кнопками */
 .btn-row {
     display: flex;
     align-items: center;
@@ -414,7 +436,7 @@ body::after {
 
 .btn-row .spacer { flex: 1; }
 
-/* ── Status badge ── */
+/* ── Строка статуса (IP, с точкой) ── */
 .status-row {
     display: flex;
     align-items: center;
@@ -436,7 +458,7 @@ body::after {
 .dot-yellow { background: var(--yellow); }
 .dot-red    { background: var(--red); }
 
-/* ── Info list ── */
+/* ── Список сводки (шаг 3) ── */
 .info-list { list-style: none; }
 
 .info-list li {
@@ -461,7 +483,7 @@ body::after {
 
 .info-list .value { color: var(--text1); word-break: break-all; }
 
-/* ── Spinner ── */
+/* ── Спиннер для индикации загрузки ── */
 .spinner {
     display: inline-block;
     width: 14px; height: 14px;
@@ -472,7 +494,7 @@ body::after {
     vertical-align: middle;
 }
 
-/* ── Success screen ── */
+/* ── Экран успеха (шаг 4) ── */
 .success-icon {
     font-size: 64px;
     text-align: center;
@@ -496,7 +518,7 @@ body::after {
 
 .success-url:hover { background: rgba(78,205,196,.06); }
 
-/* ── Terminal output ── */
+/* ── Терминальный вывод (для логов генерации SSL) ── */
 .terminal {
     background: var(--bg0);
     border: 1px solid var(--border);
@@ -515,7 +537,7 @@ body::after {
 .terminal .line-info { color: var(--teal); }
 .terminal .line-dim  { color: var(--text3); }
 
-/* ── Alert ── */
+/* ── Уведомления (алерты) ── */
 .alert {
     padding: 12px 16px;
     border-radius: var(--radius);
@@ -530,7 +552,7 @@ body::after {
 .alert-success { background: rgba(34,197,94,.08);  border: 1px solid rgba(34,197,94,.3);  color: #86efac; }
 .alert-info    { background: rgba(78,205,196,.08); border: 1px solid var(--border);       color: var(--teal); }
 
-/* ── Progress bar ── */
+/* ── Полоса прогресса (обратный отсчёт) ── */
 .progress-wrap {
     background: var(--bg3);
     border-radius: 4px;
@@ -546,7 +568,7 @@ body::after {
     transition: width .3s ease;
 }
 
-/* ── Divider ── */
+/* ── Разделитель с текстом ── */
 .divider {
     display: flex;
     align-items: center;
@@ -564,7 +586,7 @@ body::after {
     background: var(--border);
 }
 
-/* ── Toggle switch ── */
+/* ── Переключатель (toggle switch) ── */
 .toggle-row {
     display: flex;
     align-items: center;
@@ -601,10 +623,11 @@ body::after {
     transition: all .2s;
 }
 
+/* Состояние включено (checked) */
 .toggle input:checked ~ .toggle-track { background: rgba(78,205,196,.2); border-color: var(--teal); }
 .toggle input:checked ~ .toggle-thumb { transform: translateX(20px); background: var(--teal); }
 
-/* ── Keyframes ── */
+/* ── Анимации ── */
 @keyframes fadeIn {
     from { opacity: 0; }
     to   { opacity: 1; }

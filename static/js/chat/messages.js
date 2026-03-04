@@ -1,18 +1,38 @@
+// static/js/chat/messages.js
+// =============================================================================
+// Модуль рендеринга сообщений в чате.
+// Отвечает за отображение текстовых сообщений, файлов, изображений, голосовых,
+// контекстные меню, анимацию удаления, обновление текста при редактировании,
+// а также интеграцию с liquid-glass для стеклянного эффекта.
+// =============================================================================
+
 import { esc, fmtTime, fmtDate, fmtSize } from '../utils.js';
 import { initLiquidGlass, createReplyQuote } from './liquid-glass.js';
 
+// Иконки для кнопки воспроизведения голоса
 const _SVG_PLAY  = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><path d="M15.5 12L10 15.5V8.5L15.5 12Z" fill="currentColor"/></svg>`;
 const _SVG_PAUSE = `<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="8" width="2.2" height="8" rx="1" fill="currentColor"/><rect x="12.8" y="8" width="2.2" height="8" rx="1" fill="currentColor"/></svg>`;
 
+// Пути к иконкам для контекстного меню
 const _ICON_REPLY  = '/static/elements/reply-svgrepo-com.svg';
 const _ICON_EDIT   = '/static/elements/edit-svgrepo-com.svg';
 const _ICON_DELETE = '/static/elements/delete-2-svgrepo-com.svg';
 
+// Переменные для группировки сообщений по дате и автору
 let _lastDate     = null;
 let _lastSenderId = null;
 
+// Карта для быстрого доступа к DOM-элементам сообщений по их msg_id
 const _msgElements = new Map();
 
+// =============================================================================
+// Вспомогательные функции для контекстного меню
+// =============================================================================
+
+/**
+ * Гарантирует, что стили для контекстного меню присутствуют в head.
+ * Также инициализирует liquid-glass (если ещё не).
+ */
 function _ensureContextMenuStyles() {
     if (document.getElementById('ctx-menu-style')) return;
     initLiquidGlass();
@@ -102,6 +122,13 @@ function _ensureContextMenuStyles() {
     document.head.appendChild(s);
 }
 
+/**
+ * Отображает контекстное меню для сообщения.
+ *
+ * @param {Event} e - событие, вызвавшее меню
+ * @param {Object} msg - данные сообщения
+ * @param {boolean} isOwn - является ли сообщение отправленным текущим пользователем
+ */
 function _showContextMenu(e, msg, isOwn) {
     e.stopPropagation();
 
@@ -177,11 +204,27 @@ function _showContextMenu(e, msg, isOwn) {
     document.body.insertBefore(backdrop, menu);
 }
 
+/**
+ * Закрывает контекстное меню (удаляет backdrop и все меню).
+ */
 function _closeContextMenu() {
     document.getElementById('ctx-backdrop')?.remove();
     document.querySelectorAll('.ctx-menu').forEach(m => m.remove());
 }
 
+// =============================================================================
+// Вспомогательная функция для создания блока цитаты (reply)
+// =============================================================================
+
+/**
+ * Создаёт элемент-цитату с помощью liquid-glass.
+ *
+ * @param {string} replyToId - ID цитируемого сообщения
+ * @param {string} replyToText - текст цитируемого сообщения
+ * @param {string} replyToSender - отправитель цитаты
+ * @param {boolean} isOwn - флаг «своё» сообщение (для цвета)
+ * @returns {HTMLElement} - элемент цитаты
+ */
 function _buildReplyQuote(replyToId, replyToText, replyToSender, isOwn = false) {
     const quote = createReplyQuote(
         replyToSender || '?',
@@ -192,15 +235,29 @@ function _buildReplyQuote(replyToId, replyToText, replyToSender, isOwn = false) 
     return quote;
 }
 
+// =============================================================================
+// Публичные функции для управления сообщениями
+// =============================================================================
+
+/**
+ * Сбрасывает состояние группировки (дата, автор) и очищает карту элементов.
+ */
 export function resetMessageState() {
     _lastDate     = null;
     _lastSenderId = null;
     _msgElements.clear();
 }
 
+/**
+ * Добавляет текстовое сообщение в контейнер.
+ * Если сообщение имеет тип 'file'/'image'/'voice', перенаправляет в appendFileMessage.
+ *
+ * @param {Object} msg - объект сообщения от сервера
+ */
 export function appendMessage(msg) {
     _ensureContextMenuStyles();
 
+    // Если это файл (включая изображения и голос), обрабатываем отдельно
     if (msg.msg_type === 'file' || msg.msg_type === 'image' || msg.msg_type === 'voice') {
         return appendFileMessage({
             sender_id:    msg.sender_id,
@@ -227,6 +284,7 @@ export function appendMessage(msg) {
     const container = document.getElementById('messages-container');
     const isOwn     = msg.sender_id === S.user?.user_id;
 
+    // Разделитель по дате
     const date = fmtDate(msg.created_at || new Date().toISOString());
     if (date !== _lastDate) {
         _lastDate = date;
@@ -298,6 +356,11 @@ export function appendMessage(msg) {
     if (msg.msg_id) _msgElements.set(msg.msg_id, group);
 }
 
+/**
+ * Добавляет файловое сообщение (изображение, видео, аудио, документ) в контейнер.
+ *
+ * @param {Object} msg - объект файлового сообщения
+ */
 export function appendFileMessage(msg) {
     _ensureContextMenuStyles();
 
@@ -331,7 +394,7 @@ export function appendFileMessage(msg) {
         const vb = _buildVoiceBubble(msg, isOwn);
         div.appendChild(vb);
     } else if (isImage && msg.download_url) {
-        /* ── Картинка через liquid glass ── */
+        // Изображение с эффектом стекла
         const bubble = document.createElement('div');
         bubble.className = `msg-bubble msg-bubble-img lg${isOwn ? ' lg-own own' : ''}`;
 
@@ -407,6 +470,11 @@ export function appendFileMessage(msg) {
     }
 }
 
+/**
+ * Добавляет системное сообщение (например, «пользователь вошёл»).
+ *
+ * @param {string} text
+ */
 export function appendSystemMessage(text) {
     const div = document.createElement('div');
     div.innerHTML = `<div class="msg-bubble system">${esc(text)}</div>`;
@@ -414,6 +482,11 @@ export function appendSystemMessage(text) {
     _lastSenderId = null;
 }
 
+/**
+ * Анимирует удаление сообщения (рассыпающиеся буквы, схлопывание).
+ *
+ * @param {string} msgId
+ */
 export function deleteMessageAnim(msgId) {
     const el = _msgElements.get(msgId);
     if (!el) return;
@@ -466,6 +539,13 @@ export function deleteMessageAnim(msgId) {
     }, 650);
 }
 
+/**
+ * Обновляет текст сообщения при редактировании и подсвечивает его.
+ *
+ * @param {string} msgId
+ * @param {string} newText
+ * @param {boolean} isEdited
+ */
 export function updateMessageText(msgId, newText, isEdited) {
     const el = _msgElements.get(msgId);
     if (!el) return;
@@ -486,7 +566,13 @@ export function updateMessageText(msgId, newText, isEdited) {
     }
 }
 
+// =============================================================================
+// Голосовые сообщения (визуализация и управление)
+// =============================================================================
 
+/**
+ * Вставляет стили для голосового плеера, если ещё не.
+ */
 function _ensureVoiceStyles() {
     if (document.getElementById('vb-style')) return;
     const s = document.createElement('style');
@@ -544,6 +630,14 @@ function _ensureVoiceStyles() {
     document.head.appendChild(s);
 }
 
+/**
+ * Нормализует массив пиков громкости (0..1) для отображения в виде столбиков.
+ * Если peaks нет, генерирует случайные значения.
+ *
+ * @param {number[]|null} peaks - исходные пики
+ * @param {number} N - желаемое количество столбиков
+ * @returns {number[]} - нормализованные значения (0..1)
+ */
 function _normPeaks(peaks, N) {
     if (!peaks?.length) {
         return Array.from({ length: N }, (_, i) => 0.2 + (((i * 7 + 3) % 17) / 17) * 0.65);
@@ -560,6 +654,13 @@ function _normPeaks(peaks, N) {
     return out.map(v => v / max);
 }
 
+/**
+ * Создаёт DOM-элемент голосового сообщения (пузырёк с кнопкой, столбиками и временем).
+ *
+ * @param {Object} msg - данные сообщения
+ * @param {boolean} isOwn - своё/чужое
+ * @returns {HTMLElement} - обёртка .vb-wrap
+ */
 function _buildVoiceBubble(msg, isOwn) {
     _ensureVoiceStyles();
 
@@ -624,6 +725,11 @@ function _buildVoiceBubble(msg, isOwn) {
     return wrap;
 }
 
+/**
+ * Инициализирует голосовой плеер: подключает Audio, обработчики событий.
+ *
+ * @param {HTMLElement} el - элемент .vb-wrap
+ */
 function _initVoiceBubble(el) {
     if (!el?.dataset?.src) return;
     const audio    = new Audio(el.dataset.src);
@@ -665,6 +771,7 @@ function _initVoiceBubble(el) {
     if (el._playBtn) {
         el._playBtn.onclick = () => {
             if (audio.paused) {
+                // Останавливаем другие плееры
                 document.querySelectorAll('.vb-wrap').forEach(b => {
                     if (b !== el && b._audio && !b._audio.paused) {
                         b._audio.pause();
@@ -686,8 +793,18 @@ function _initVoiceBubble(el) {
     }
 }
 
+// Заглушка для глобальной функции (не используется)
 window.toggleVoicePlay = () => {};
 
+// =============================================================================
+// Вспомогательные функции
+// =============================================================================
+
+/**
+ * Плавно прокручивает к сообщению по ID и подсвечивает его.
+ *
+ * @param {string} msgId
+ */
 function _scrollToMsg(msgId) {
     const el = _msgElements.get(msgId);
     if (!el) return;
@@ -695,22 +812,34 @@ function _scrollToMsg(msgId) {
     el.classList.add('msg-highlight');
     setTimeout(() => el.classList.remove('msg-highlight'), 1500);
 }
-window._scrollToMsg = _scrollToMsg;
+window._scrollToMsg = _scrollToMsg; // делаем доступной глобально для обработчиков
 
+/**
+ * Усечение строки.
+ */
 function _truncate(str, n) { return str?.length > n ? str.slice(0, n) + '…' : str || ''; }
 
+/**
+ * Форматирование длительности (секунды → MM:SS).
+ */
 function _fmtDur(s) {
     if (!isFinite(s) || s < 0) return '0:00';
     const m = Math.floor(s / 60), sec = Math.floor(s % 60);
     return `${m}:${String(sec).padStart(2, '0')}`;
 }
 
+/**
+ * Извлекает download_url из текста сообщения (если файл был вложен в текстовое сообщение).
+ */
 function _extractDownloadUrl(text) {
     if (!text) return null;
     const m = text.match(/\[file:(\d+):/);
     return m ? `/api/files/download/${m[1]}` : null;
 }
 
+/**
+ * Угадывает MIME-тип по расширению имени файла.
+ */
 function _guessMimeFromName(name) {
     if (!name) return null;
     const ext = name.split('.').pop().toLowerCase();
@@ -723,6 +852,9 @@ function _guessMimeFromName(name) {
     }[ext] || null;
 }
 
+/**
+ * Угадывает MIME-тип из текста сообщения (если там ссылка на файл).
+ */
 function _guessMimeFromText(text) {
     if (!text) return null;
     const m = text.match(/\[file:\d+:(.+?)\]/);

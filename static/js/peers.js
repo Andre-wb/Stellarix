@@ -1,14 +1,27 @@
+// static/js/peers.js
+// ============================================================================
+// Модуль для обнаружения устройств в локальной сети (LAN peers).
+// Периодически опрашивает API /api/peers и отображает список найденных пиров.
+// ============================================================================
+
 import { $, api, esc } from './utils.js';
 
 // ============================================================================
 // PEERS (LAN discovery)
 // ============================================================================
 
+/**
+ * Запускает периодический опрос пиров.
+ * Вызывается после успешной аутентификации в main.js.
+ */
 export function startPeerPolling() {
     loadPeers();
     window.AppState.peersInterval = setInterval(loadPeers, 5000);
 }
 
+/**
+ * Загружает список пиров с сервера и обновляет интерфейс.
+ */
 export async function loadPeers() {
     try {
         const data = await api('GET', '/api/peers');
@@ -18,6 +31,9 @@ export async function loadPeers() {
     } catch { }
 }
 
+/**
+ * Отрисовывает список пиров в панели.
+ */
 function renderPeers() {
     const el = $('peers-list');
     const peers = window.AppState.peers;
@@ -34,6 +50,9 @@ function renderPeers() {
   </div>`;
 }
 
+/**
+ * Обновляет статус сети в боковой панели (количество пиров, цвет индикатора).
+ */
 function updateNetStatus() {
     const n = window.AppState.peers.length;
     const dot = $('net-dot');
@@ -42,6 +61,9 @@ function updateNetStatus() {
     dot.className = 'net-dot ' + (n > 0 ? 'online' : 'offline');
 }
 
+/**
+ * Переключает видимость панели пиров.
+ */
 export function togglePeersPanel() {
     $('peers-panel').classList.toggle('show');
 }

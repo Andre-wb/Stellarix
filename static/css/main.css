@@ -1,60 +1,95 @@
+/* static/css/main.css */
+/* ============================================================================
+ * Основной файл стилей приложения Vortex.
+ * Содержит глобальные переменные, стили для всех основных компонентов:
+ *   - сайдбар, навигация, список комнат
+ *   - экраны аутентификации, чата, приветственный экран
+ *   - сообщения, индикатор набора, поле ввода
+ *   - модальные окна, панель пиров, оверлей звонка
+ *   - предпросмотр файлов, просмотр изображений, голосовые сообщения
+ *   - анимации, адаптив под мобильные
+ * ============================================================================
+ */
+
+/* ----------------------------------------------------------------------------
+ * Импорт шрифтов Google Fonts и локального шрифта Nata Sans (если доступен).
+ * ------------------------------------------------------------------------- */
 @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;700;800&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Nata+Sans:wght@100..900&display=swap');
 
+/* ----------------------------------------------------------------------------
+ * CSS-переменные (кастомные свойства) для цветовой схемы, размеров и шрифтов.
+ * Используются во всём приложении для быстрой смены темы и единообразия.
+ * ------------------------------------------------------------------------- */
 :root {
-    --bg:       #09090b;
-    --bg2:      #111115;
-    --bg3:      #18181d;
-    --border: #202027;
-    --accent:   #7c3aed;
-    --accent2:  #a855f7;
-    --green:    #22c55e;
-    --red:      #ef4444;
-    --yellow:   #eab308;
-    --text:     #e4e4e7;
-    --text2:    #71717a;
-    --text3:    #52525b;
-    --radius:   6px;
-    --mono:     'Space Mono', monospace;
-    --sans:     'Syne', sans-serif;
-    --sub:      'Nata sans', sans-serif;
+    --bg:       #09090b;      /* основной фон */
+    --bg2:      #111115;      /* второй фон (сайдбар, заголовки) */
+    --bg3:      #18181d;      /* третий фон (элементы, кнопки) */
+    --border:   #202027;      /* цвет границ */
+    --accent:   #7c3aed;      /* акцентный фиолетовый */
+    --accent2:  #a855f7;      /* более светлый акцент */
+    --green:    #22c55e;      /* зелёный (онлайн, успех) */
+    --red:      #ef4444;      /* красный (ошибки, опасные действия) */
+    --yellow:   #eab308;      /* жёлтый (предупреждения) */
+    --text:     #e4e4e7;      /* основной текст */
+    --text2:    #71717a;      /* второстепенный текст */
+    --text3:    #52525b;      /* очень бледный текст (метки, разделители) */
+    --radius:   6px;          /* стандартный радиус скругления */
+    --mono:     'Space Mono', monospace;   /* моноширинный шрифт */
+    --sans:     'Syne', sans-serif;         /* основной гротеск */
+    --sub:      'Nata sans', sans-serif;    /* дополнительный шрифт */
 }
 
+/* ----------------------------------------------------------------------------
+ * Сброс box-sizing и отступов для всех элементов.
+ * ------------------------------------------------------------------------- */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ----------------------------------------------------------------------------
+ * Базовые стили для html и body.
+ * ------------------------------------------------------------------------- */
 html, body {
     height: 100%; background: var(--bg); color: var(--text);
     font-family: var(--sub); overflow: hidden; font-size: 14px;
 }
 
-/* SCROLLBAR */
+/* ----------------------------------------------------------------------------
+ * Стилизация полосы прокрутки (тонкая, полупрозрачная).
+ * ------------------------------------------------------------------------- */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-/* LAYOUT */
+/* ----------------------------------------------------------------------------
+ * Основной контейнер приложения (#app) – flex-контейнер на всю высоту экрана.
+ * ------------------------------------------------------------------------- */
 #app { display: flex; height: 100vh; }
 
-/* SIDEBAR */
+/* ============================================================================
+ * SIDEBAR (левая боковая панель)
+ * ========================================================================== */
 #sidebar {
     width: 260px; min-width: 260px;
     background: var(--bg2);
     border-right: 1px solid var(--border);
     display: flex; flex-direction: column;
-    transition: transform 0.25s ease;
+    transition: transform 0.25s ease; /* для мобильной версии (выезжает) */
 }
 
+/* Шапка сайдбара с логотипом и блоком пользователя */
 .sidebar-header {
     padding: 20px 16px 14px;
     border-bottom: 1px solid var(--border);
 }
 
+/* Логотип (текст + иконка) */
 .logo {
     font-family: var(--sans); font-weight: 800; font-size: 22px;
     letter-spacing: -0.5px; color: var(--text);
     display: flex; align-items: center; gap: 8px;
 }
 
+/* Иконка логотипа с градиентом */
 .logo-icon {
     width: 32px; height: 32px;
     background: linear-gradient(135deg, var(--accent), var(--accent2));
@@ -63,6 +98,7 @@ html, body {
     font-size: 16px; flex-shrink: 0;
 }
 
+/* Блок с информацией о пользователе (аватар, имя, телефон) */
 .user-badge {
     margin-top: 12px;
     background: var(--bg3); border: 1px solid var(--border);
@@ -74,17 +110,21 @@ html, body {
 }
 .user-badge:hover { border-color: var(--accent); }
 
+/* Аватар (эмодзи) */
 .avatar {
     width: 32px; height: 32px; border-radius: 8px;
     background: var(--bg); display: flex; align-items: center;
     justify-content: center; font-size: 18px; flex-shrink: 0;
 }
 
+/* Текстовая информация о пользователе */
 .user-info { flex: 1; min-width: 0; }
 .user-name { font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .user-phone { font-size: 11px; color: var(--text2); font-family: var(--mono); }
 
-/* NAV */
+/* ----------------------------------------------------------------------------
+ * Навигация в сайдбаре (пункты: Welcome, Профиль, Пиры и т.д.)
+ * ------------------------------------------------------------------------- */
 .nav-section { padding: 12px 8px 4px; }
 .nav-label {
     font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
@@ -110,9 +150,12 @@ html, body {
     padding: 1px 5px; border-radius: 20px; min-width: 18px; text-align: center;
 }
 
-/* ROOMS LIST */
-.rooms-list { flex: 1; overflow-y: auto; padding: 4px 0 }
+/* ----------------------------------------------------------------------------
+ * Список комнат в сайдбаре
+ * ------------------------------------------------------------------------- */
+.rooms-list { flex: 1; overflow-y: auto; padding: 4px 0; }
 
+/* Элемент комнаты */
 .room-item {
     display: flex; align-items: center; gap: 10px;
     padding: 9px 10px;
@@ -125,6 +168,7 @@ html, body {
 }
 .room-item:hover { background: var(--border); }
 .room-item.active { background: var(--border); }
+/* Активная комната получает фиолетовую полоску слева */
 .room-item.active::before {
     content: '';
     position: absolute; left: 0; top: 50%; transform: translateY(-50%);
@@ -132,6 +176,7 @@ html, body {
     border-radius: 0 2px 2px 0;
 }
 
+/* Иконка комнаты (замочек для приватной, 💬 для публичной) */
 .room-icon {
     width: 34px; height: 34px; border-radius: 8px;
     background: var(--bg); border: 1px solid var(--border);
@@ -140,13 +185,16 @@ html, body {
 }
 .room-name { font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .room-meta { font-size: 11px; color: var(--text2); font-family: var(--mono); }
+/* Зелёная точка, показывающая наличие онлайн-участников */
 .online-dot {
     width: 7px; height: 7px; border-radius: 50%;
     background: var(--green); margin-left: auto; flex-shrink: 0;
     box-shadow: 0 0 6px var(--green);
 }
 
-/* SIDEBAR FOOTER */
+/* ----------------------------------------------------------------------------
+ * Подвал сайдбара (кнопки действий)
+ * ------------------------------------------------------------------------- */
 .sidebar-footer {
     padding: 12px 8px;
     border-top: 1px solid var(--border);
@@ -163,22 +211,30 @@ html, body {
 .footer-btn:hover { background: var(--bg); color: var(--text); border-color: var(--accent); }
 .footer-btn.danger:hover { border-color: var(--red); color: var(--red); }
 
-/* MAIN */
+/* ============================================================================
+ * ОСНОВНАЯ ОБЛАСТЬ (#main)
+ * ========================================================================== */
 #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
-/* SCREENS */
+/* ----------------------------------------------------------------------------
+ * Экраны (приветственный, чат) – переключаются через класс active
+ * ------------------------------------------------------------------------- */
 .screen { display: none; flex: 1; flex-direction: column; height: 100%; }
 .screen.active { display: flex; }
 
-/* AUTH */
+/* ============================================================================
+ * ЭКРАН АУТЕНТИФИКАЦИИ
+ * ========================================================================== */
 #auth-screen {
     align-items: center; justify-content: center;
     background: var(--bg);
+    /* Радиальные градиенты для фонового свечения */
     background-image:
             radial-gradient(circle at 20% 50%, rgba(124,58,237,0.08) 0%, transparent 50%),
             radial-gradient(circle at 80% 20%, rgba(168,85,247,0.06) 0%, transparent 40%);
 }
 
+/* Карточка входа/регистрации */
 .auth-card {
     width: 400px; padding: 40px;
     background: var(--bg2);
@@ -187,11 +243,13 @@ html, body {
     animation: fadeUp 0.4s ease;
 }
 
+/* Анимация появления карточки */
 @keyframes fadeUp {
     from { opacity: 0; transform: translateY(20px); }
     to   { opacity: 1; transform: translateY(0); }
 }
 
+/* Логотип на карточке */
 .auth-logo {
     text-align: center; margin-bottom: 32px;
 }
@@ -204,6 +262,7 @@ html, body {
 .auth-logo h1 { font-size: 28px; font-weight: 800; letter-spacing: -1px; }
 .auth-logo p { color: var(--text2); font-size: 13px; margin-top: 4px; font-family: var(--mono); }
 
+/* Табы переключения «Вход / Регистрация» */
 .auth-tabs {
     display: flex; gap: 4px; margin-bottom: 24px;
     background: var(--bg3); padding: 4px; border-radius: 8px;
@@ -216,7 +275,9 @@ html, body {
 }
 .auth-tab.active { background: var(--bg2); color: var(--text); }
 
-/* FORM ELEMENTS */
+/* ============================================================================
+ * ОБЩИЕ ЭЛЕМЕНТЫ ФОРМ
+ * ========================================================================== */
 .form-group { margin-bottom: 14px; }
 .form-label {
     display: block; margin-bottom: 6px;
@@ -236,6 +297,7 @@ html, body {
 
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
+/* Кнопки */
 .btn {
     width: 100%; padding: 11px 16px;
     border: none; border-radius: var(--radius);
@@ -252,6 +314,7 @@ html, body {
 .btn-danger:hover { background: rgba(239,68,68,0.1); border-color: var(--red); }
 .btn-sm { padding: 6px 12px; font-size: 12px; width: auto; }
 
+/* Уведомления (алерты) */
 .alert {
     padding: 10px 12px; border-radius: var(--radius);
     font-size: 13px; margin-bottom: 14px; font-family: var(--mono);
@@ -261,7 +324,9 @@ html, body {
 .alert-error { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: var(--red); }
 .alert-success { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); color: var(--green); }
 
-/* CHAT HEADER */
+/* ============================================================================
+ * ШАПКА ЧАТА
+ * ========================================================================== */
 #chat-header {
     padding: 0 20px;
     height: 56px;
@@ -283,14 +348,18 @@ html, body {
 }
 .header-btn:hover { color: var(--text); border-color: var(--accent); }
 
-/* MESSAGES */
+/* ============================================================================
+ * ОБЛАСТЬ СООБЩЕНИЙ
+ * ========================================================================== */
 #messages-container {
     flex: 1; overflow-y: auto; padding: 16px 20px;
     display: flex; flex-direction: column; gap: 2px;
 }
 
+/* Группа сообщений (автор + пузырьки) */
 .msg-group { margin-bottom: 12px; }
 
+/* Блок с информацией об авторе (аватар, имя, время) */
 .msg-author {
     display: flex; align-items: center; gap: 8px;
     margin-bottom: 4px;
@@ -303,6 +372,7 @@ html, body {
 }
 .msg-name { font-weight: 700; font-size: 13px; }
 .msg-time { font-size: 11px; color: var(--text3); font-family: var(--mono); }
+/* Бейдж P2P для сообщений, отправленных напрямую */
 .msg-peer-badge {
     font-size: 10px; font-family: var(--mono); font-weight: 700;
     background: rgba(124,58,237,0.15); color: var(--accent2);
@@ -310,8 +380,9 @@ html, body {
     padding: 1px 6px; border-radius: 20px;
 }
 
+/* Пузырёк сообщения */
 .msg-bubble {
-    margin-left: 36px;
+    margin-left: 36px; /* отступ от аватара */
     background: var(--bg3);
     padding: 8px 12px;
     border: none;
@@ -319,18 +390,21 @@ html, body {
     font-size: 14px; line-height: 1.5;
     position: relative;
 }
+/* Своё сообщение (от текущего пользователя) */
 .msg-bubble.own {
     margin-left: auto; margin-right: 0;
     background: rgba(124,58,237,0.12);
     border: none;
-    border-radius: 10px 0 10px 10px;
+    border-radius: 10px 0 10px 10px; /* скругление только с левой стороны */
 }
+/* Системное сообщение (информационное) */
 .msg-bubble.system {
     margin: 4px auto; text-align: center;
     background: transparent; border: none;
     color: var(--text3); font-size: 12px; font-family: var(--mono);
     max-width: 100%;
 }
+/* Файловое сообщение (иконка + имя + размер) */
 .msg-bubble.file-msg { display: flex; align-items: center; gap: 10px; }
 .file-icon { font-size: 24px; }
 .file-info { flex: 1; }
@@ -342,13 +416,16 @@ html, body {
 }
 .file-download:hover { color: var(--text); }
 
-/* TYPING INDICATOR */
+/* ============================================================================
+ * ИНДИКАТОР ПЕЧАТИ / ОТПРАВКИ ФАЙЛОВ
+ * ========================================================================== */
 .typing-indicator {
     display: none; align-items: center; gap: 8px;
     padding: 6px 16px; color: var(--text2); font-size: 12px;
     font-family: var(--mono);
 }
 .typing-indicator.visible { display: flex; }
+/* Анимированные точки */
 .typing-dots span {
     display: inline-block; width: 5px; height: 5px;
     background: var(--text3); border-radius: 50%;
@@ -361,7 +438,9 @@ html, body {
     40%            { opacity: 1;   transform: scale(1.1); }
 }
 
-/* INPUT */
+/* ============================================================================
+ * ОБЛАСТЬ ВВОДА СООБЩЕНИЯ
+ * ========================================================================== */
 #input-area {
     padding: 12px 16px;
     border-top: 1px solid var(--border);
@@ -369,8 +448,10 @@ html, body {
     flex-shrink: 0;
 }
 
+/* Ряд с полем ввода и кнопками */
 .input-row { display: flex; gap: 8px; align-items: flex-end; }
 
+/* Текстовое поле (авторасширяемое) */
 #msg-input {
     flex: 1; padding: 10px 14px;
     background: var(--bg); border: 1px solid var(--border);
@@ -384,6 +465,7 @@ html, body {
 #msg-input:focus { border-color: var(--accent); }
 #msg-input::placeholder { color: var(--text3); }
 
+/* Кнопки ввода (эмодзи, вложение, голос, отправка) */
 .input-btn {
     width: 40px; height: 40px; border-radius: 10px;
     background: var(--bg3); border: 1px solid var(--border);
@@ -392,10 +474,13 @@ html, body {
     transition: all 0.12s; flex-shrink: 0;
 }
 .input-btn:hover { border-color: var(--accent); color: var(--accent2); }
+/* Кнопка отправки – фиолетовая */
 .input-btn.send { background: var(--accent); border-color: var(--accent); color: white; }
 .input-btn.send:hover { background: var(--accent2); }
 
-/* WELCOME SCREEN */
+/* ============================================================================
+ * ПРИВЕТСТВЕННЫЙ ЭКРАН (когда нет выбранной комнаты)
+ * ========================================================================== */
 #welcome-screen {
     align-items: center; justify-content: center;
     flex-direction: column; gap: 16px; text-align: center;
@@ -412,7 +497,9 @@ html, body {
 .welcome-title { font-size: 28px; font-weight: 800; letter-spacing: -1px; }
 .welcome-sub { color: var(--text2); font-size: 14px; font-family: var(--mono); max-width: 320px; }
 
-/* MODAL */
+/* ============================================================================
+ * МОДАЛЬНЫЕ ОКНА
+ * ========================================================================== */
 .modal-overlay {
     position: fixed; inset: 0;
     background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
@@ -433,7 +520,9 @@ html, body {
 .modal-actions { display: flex; gap: 8px; margin-top: 20px; }
 .modal-actions .btn { flex: 1; }
 
-/* PEERS PANEL */
+/* ============================================================================
+ * ПАНЕЛЬ ПИРОВ (LAN-устройства)
+ * ========================================================================== */
 #peers-panel {
     width: 220px; border-left: 1px solid var(--border);
     background: var(--bg2); display: none; flex-direction: column;
@@ -464,7 +553,9 @@ html, body {
 .peer-name { font-weight: 700; flex: 1; }
 .peer-ip { font-family: var(--mono); font-size: 11px; color: var(--text2); }
 
-/* CALL OVERLAY */
+/* ============================================================================
+ * ОВЕРЛЕЙ ЗВОНКА (WebRTC)
+ * ========================================================================== */
 #call-overlay {
     position: fixed; inset: 0; z-index: 200;
     background: rgba(0,0,0,0.95);
@@ -474,6 +565,7 @@ html, body {
 }
 #call-overlay.show { display: flex; }
 
+/* Аватар звонящего с анимацией пульсации */
 .call-avatar {
     width: 96px; height: 96px; border-radius: 24px;
     background: var(--bg3); border: 2px solid var(--accent);
@@ -488,6 +580,7 @@ html, body {
 .call-status { font-size: 16px; color: var(--text2); font-family: var(--mono); }
 .call-name   { font-size: 28px; font-weight: 800; }
 
+/* Кнопки управления вызовом */
 .call-controls { display: flex; gap: 16px; margin-top: 12px; }
 .call-btn {
     width: 60px; height: 60px; border-radius: 50%;
@@ -500,6 +593,7 @@ html, body {
 .call-btn.hangup { background: var(--red); color: white; }
 .call-btn.hangup:hover { background: #dc2626; transform: scale(1.05); }
 
+/* Видео-элементы */
 video {
     border-radius: 10px; background: #000;
     position: absolute; border: 1px solid var(--border);
@@ -507,18 +601,23 @@ video {
 #remote-video { width: 100%; max-height: 60vh; object-fit: contain; position: relative; }
 #local-video  { width: 160px; bottom: 100px; right: 20px; }
 
-/* DATE DIVIDER */
+/* ============================================================================
+ * РАЗДЕЛИТЕЛЬ ДАТЫ (в ленте сообщений)
+ * ========================================================================== */
 .date-divider {
     text-align: center; color: var(--text3);
     font-size: 11px; font-family: var(--mono);
     padding: 12px 0 4px;
     display: flex; align-items: center; gap: 10px;
 }
+/* Линии слева и справа от текста даты */
 .date-divider::before, .date-divider::after {
     content: ''; flex: 1; height: 1px; background: var(--border);
 }
 
-/* EMOJI PICKER */
+/* ============================================================================
+ * ВЫБОР ЭМОДЗИ (при регистрации)
+ * ========================================================================== */
 .emoji-grid {
     display: grid; grid-template-columns: repeat(8, 1fr);
     gap: 4px; max-height: 180px; overflow-y: auto;
@@ -531,7 +630,9 @@ video {
 .emoji-btn:hover { background: var(--bg3); }
 .emoji-selected { border: 2px solid var(--accent) !important; }
 
-/* NETWORK STATUS */
+/* ============================================================================
+ * СТАТУС СЕТИ (в сайдбаре)
+ * ========================================================================== */
 .net-status {
     display: flex; align-items: center; gap: 6px;
     font-size: 11px; font-family: var(--mono); color: var(--text2);
@@ -541,17 +642,24 @@ video {
 .net-dot.online  { background: var(--green); box-shadow: 0 0 5px var(--green); }
 .net-dot.offline { background: var(--red);   box-shadow: 0 0 5px var(--red); }
 
-/* ANIMATIONS */
+/* ============================================================================
+ * АНИМАЦИИ
+ * ========================================================================== */
 .fade-in { animation: fadeIn 0.2s ease; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-/* MOBILE */
+/* ============================================================================
+ * АДАПТИВ ПОД МОБИЛЬНЫЕ УСТРОЙСТВА
+ * ========================================================================== */
 @media (max-width: 640px) {
     #sidebar { position: absolute; left: 0; top: 0; bottom: 0; z-index: 50; transform: translateX(-100%); }
     #sidebar.open { transform: translateX(0); }
     .auth-card { width: calc(100vw - 32px); padding: 24px; }
 }
 
+/* ============================================================================
+ * СПЕЦИФИЧЕСКИЕ СТИЛИ ДЛЯ ИЗОБРАЖЕНИЙ В ЧАТЕ
+ * ========================================================================== */
 .msg-bubble-img {
     cursor: pointer;
     padding: 4px !important;
@@ -569,7 +677,7 @@ video {
     object-fit: contain;
     border-radius: 6px;
     display: block;
-    /* Никакого filter: brightness — картинка полная яркость */
+    /* Без дополнительных фильтров — оригинальная яркость */
 }
 .chat-image-meta {
     font-size: 11px; color: var(--text3);
@@ -578,10 +686,9 @@ video {
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-/* ══════════════════════════════════════════════════════════
-   FILE PREVIEW OVERLAY
-   ══════════════════════════════════════════════════════════ */
-
+/* ============================================================================
+ * ОВЕРЛЕЙ ПРЕДПРОСМОТРА ФАЙЛА (перед отправкой)
+ * ========================================================================== */
 #file-preview-overlay {
     position: fixed; inset: 0; z-index: 300;
     background: var(--bg);
@@ -591,6 +698,7 @@ video {
 }
 #file-preview-overlay.show { display: flex; }
 
+/* Верхняя панель предпросмотра */
 .fpo-topbar {
     height: 56px;
     padding: 0 16px;
@@ -614,6 +722,7 @@ video {
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
+/* Меню с точками (три точки) */
 .fpo-dots-wrap { position: relative; flex-shrink: 0; }
 .fpo-dots-btn {
     width: 34px; height: 34px; border-radius: var(--radius);
@@ -649,6 +758,7 @@ video {
 .fpo-dot-item:hover { background: var(--bg3); }
 .fpo-dot-item span { font-size: 16px; color: var(--text2); }
 
+/* Область предпросмотра (изображение или карточка файла) */
 .fpo-preview {
     flex: 1;
     display: flex; align-items: center; justify-content: center;
@@ -665,6 +775,7 @@ video {
     border: none !important;
 }
 
+/* Карточка файла (для не-изображений) */
 .fpo-file-card {
     display: flex; align-items: center; gap: 20px;
     background: var(--bg2); border: 1px solid var(--border);
@@ -680,7 +791,7 @@ video {
     font-family: var(--mono); margin-top: 4px;
 }
 
-/* COMPRESSION SECTION */
+/* Секция сжатия изображения (слайдер) */
 #compress-section {
     padding: 0 24px 16px;
     flex-shrink: 0;
@@ -704,6 +815,7 @@ video {
 
 .compress-track { width: 100%; }
 
+/* Стилизация слайдера */
 #compress-slider {
     width: 100%;
     -webkit-appearance: none; appearance: none;
@@ -740,6 +852,7 @@ video {
     margin-top: 6px;
 }
 
+/* Нижняя панель предпросмотра (метаданные и кнопки) */
 .fpo-bottom-bar {
     padding: 14px 20px;
     background: var(--bg2); border-top: 1px solid var(--border);
@@ -779,10 +892,9 @@ video {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ══════════════════════════════════════════════════════════
-   IMAGE VIEWER
-   ══════════════════════════════════════════════════════════ */
-
+/* ============================================================================
+ * ПРОСМОТРЩИК ИЗОБРАЖЕНИЙ (полноэкранный)
+ * ========================================================================== */
 #image-viewer-overlay {
     position: fixed; inset: 0; z-index: 400;
     background: rgba(0,0,0,0.96);
@@ -792,6 +904,7 @@ video {
 }
 #image-viewer-overlay.show { display: flex; }
 
+/* Кнопка закрытия (крестик) */
 .iv-close {
     position: absolute; top: 20px; right: 20px;
     width: 40px; height: 40px; border-radius: 50%;
@@ -802,6 +915,7 @@ video {
 }
 .iv-close:hover { background: rgba(255,255,255,0.18); }
 
+/* Имя файла (вверху по центру) */
 .iv-name {
     position: absolute; top: 22px; left: 50%; transform: translateX(-50%);
     color: rgba(255,255,255,0.6); font-size: 13px; font-family: var(--mono);
@@ -810,6 +924,7 @@ video {
 
 .iv-content { max-width: 94vw; max-height: 88vh; cursor: default; }
 
+/* Само изображение */
 #image-viewer-img {
     max-width: 100%; max-height: 88vh;
     object-fit: contain; border-radius: 6px;
@@ -820,6 +935,7 @@ video {
     box-shadow: 0 8px 60px rgba(0,0,0,0.7);
 }
 
+/* Ссылка для скачивания */
 .iv-download {
     position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
     display: flex;
@@ -833,10 +949,14 @@ video {
 }
 .iv-download:hover { color: var(--accent2); }
 
+/* ============================================================================
+ * ЭЛЕМЕНТЫ ДЛЯ ВРЕМЕННЫХ СООБЩЕНИЙ ПРИ ЗАГРУЗКЕ (pending upload)
+ * ========================================================================== */
 .pending-upload-wrap {
     margin-bottom: 4px;
     animation: fadeIn 0.18s ease;
 }
+/* Пузырь с изображением в процессе загрузки */
 .pending-img-bubble {
     position: relative;
     margin-left: auto;
@@ -855,6 +975,7 @@ video {
             0 0 10px 2px rgba(34,197,94,0.30);
 }
 
+/* Анимация свечения для загружаемого файла */
 @keyframes pending-glow {
     0%, 100% {
         box-shadow:
@@ -870,6 +991,7 @@ video {
     }
 }
 
+/* Затемнение снизу для лучшей читаемости текста */
 .pending-img-bubble::after {
     content: '';
     position: absolute;
@@ -882,6 +1004,7 @@ video {
     pointer-events: none;
 }
 
+/* Метаданные изображения (имя, размер) */
 .pending-img-meta {
     position: absolute;
     bottom: 36px;
@@ -897,6 +1020,7 @@ video {
     text-shadow: 0 1px 4px rgba(0,0,0,0.9);
 }
 
+/* Бейдж с круговым прогрессом */
 .upload-corner-badge {
     position: absolute;
     bottom: 8px;
@@ -948,6 +1072,7 @@ video {
     text-shadow: 0 1px 3px rgba(0,0,0,0.9);
 }
 
+/* Пузырь файла при загрузке (не изображение) */
 .pending-file-bubble {
     position: relative;
     border: 1px solid var(--green) !important;
@@ -967,11 +1092,13 @@ video {
     }
 }
 
+/* Состояние ошибки загрузки */
 .pending-file-bubble.upload-fail {
     border-color: var(--red) !important;
     animation: none;
 }
 
+/* Полоса прогресса (для файлов) */
 .upload-bar-wrap {
     width: 100%;
     height: 3px;
@@ -996,6 +1123,7 @@ video {
     transition: color 0.3s;
 }
 
+/* Сообщение об ошибке */
 .upload-error-label {
     margin-left: 36px;
     margin-top: 4px;
@@ -1020,9 +1148,13 @@ video {
 }
 .upload-retry-btn:hover { border-color: var(--accent2); }
 
+/* Вспомогательный класс для иконок SVG */
 .size-6 { width: 24px; height: 24px; display: block; }
 .file-icon svg { width: 24px; height: 24px; display: block; }
 
+/* ============================================================================
+ * ПАНЕЛЬ ОТВЕТА / РЕДАКТИРОВАНИЯ
+ * ========================================================================== */
 #reply-bar {
     display: none;
     align-items: center;
@@ -1043,6 +1175,7 @@ video {
 }
 #reply-bar-close:hover { color: var(--text); }
 
+/* Цитата внутри сообщения (reply) */
 .msg-reply-quote {
     background: var(--bg3);
     border-left: 3px solid var(--accent2);
@@ -1061,6 +1194,7 @@ video {
 .msg-reply-quote.own .msg-reply-sender { color: var(--accent); }
 .msg-reply-text { color: var(--text2); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* Кнопки действий над сообщением (появляются при наведении) */
 .msg-group { position: relative; }
 .msg-group:hover .msg-actions { opacity: 1; pointer-events: auto; }
 
@@ -1089,6 +1223,7 @@ video {
 .msg-action-btn:hover { background: var(--bg3); color: var(--text); }
 .msg-action-btn.danger:hover { background: rgba(239,68,68,.15); color: #ef4444; }
 
+/* Пометка «ред.» и анимация при редактировании */
 .msg-edited-mark { font-size: 10px; color: var(--text3); margin-left: 4px; }
 .msg-edited-flash { animation: editedFlash .6s ease; }
 @keyframes editedFlash {
@@ -1096,6 +1231,7 @@ video {
     30%      { background: rgba(124,58,237,.25); }
 }
 
+/* Подсветка сообщения при прокрутке к нему */
 .msg-highlight .msg-bubble {
     animation: highlightPulse 1.5s ease;
 }
@@ -1104,6 +1240,9 @@ video {
     25%      { box-shadow: 0 0 0 3px var(--accent2); }
 }
 
+/* ============================================================================
+ * ГОЛОСОВЫЕ СООБЩЕНИЯ
+ * ========================================================================== */
 .voice-msg {
     display: flex; align-items: center; gap: 10px;
     min-width: 200px; max-width: 280px;
@@ -1126,6 +1265,7 @@ video {
 }
 .voice-duration { font-size: 11px; color: var(--text3); flex-shrink: 0; font-family: var(--mono); }
 
+/* Модальное окно записи голоса */
 .voice-record-modal {
     position: fixed; inset: auto 16px 80px auto;
     background: var(--bg2); border-radius: 16px;
@@ -1168,6 +1308,7 @@ video {
 .voice-preview-audio { width: 100%; }
 .voice-preview-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
+/* Кнопка записи голоса в поле ввода */
 #voice-record-btn {
     background: none; border: none; cursor: pointer;
     color: var(--text2); font-size: 20px; padding: 6px;
@@ -1176,6 +1317,9 @@ video {
 #voice-record-btn:hover    { color: var(--accent2); background: var(--bg3); }
 #voice-record-btn.recording { color: #ef4444; animation: recBlink 1s infinite; }
 
+/* ============================================================================
+ * РЕДАКТОР ФОТО
+ * ========================================================================== */
 .photo-editor-modal {
     position: fixed; inset: 0; background: rgba(0,0,0,.75);
     z-index: 900; display: flex; align-items: center; justify-content: center;
@@ -1244,6 +1388,7 @@ video {
     display: flex; justify-content: flex-end; gap: 10px;
 }
 
+/* Анимация появления панели ответа */
 @keyframes slideDown {
     from { transform: translateY(-8px); opacity: 0; }
     to   { transform: translateY(0);    opacity: 1; }

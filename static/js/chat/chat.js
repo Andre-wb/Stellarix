@@ -1,3 +1,10 @@
+// static/js/chat/chat.js
+// =============================================================================
+// Модуль управления WebSocket-соединением чата.
+// Обрабатывает входящие сообщения, управляет состоянием набора текста,
+// отправкой файлов, ответами на сообщения, редактированием/удалением.
+// =============================================================================
+
 import { scrollToBottom } from '../utils.js';
 import { renderRoomsList, updateRoomMeta } from '../rooms.js';
 import { showWelcome } from '../ui.js';
@@ -10,10 +17,26 @@ import {
     updateMessageText,
 } from './messages.js';
 
+// Хранилище текущих печатающих пользователей и отправителей файлов
 const _typers       = {};
-let   _typingActive = false;
+let   _typingActive = false; // флаг, что текущий пользователь печатает (для предотвращения спама)
 const _fileSenders  = {}; // username → filename
 
+// Текущие цели для ответа и редактирования
+let _replyTo   = null;
+let _editingId = null;
+
+// =============================================================================
+// Управление WebSocket
+// =============================================================================
+
+/**
+ * Устанавливает WebSocket-соединение для указанной комнаты.
+ * Настраивает обработчики onopen, onmessage, onclose.
+ * Запускает периодический ping для поддержания соединения.
+ *
+ * @param {string} roomId - ID комнаты
+ */
 export function connectWS(roomId) {
     const S     = window.AppState;
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
@@ -27,18 +50,25 @@ export function connectWS(roomId) {
     };
 
     S.ws.onclose = e => {
-        if (e.code === 4401) { window.doLogout(); return; }
+        if (e.code === 4401) { window.doLogout(); return; }           // неавторизован
         if (e.code === 4403) { alert('Нет доступа к комнате'); return; }
         if (S.currentRoom?.id === roomId)
-            setTimeout(() => connectWS(roomId), 3000);
+            setTimeout(() => connectWS(roomId), 3000); // попытка переподключения
     };
 
+    // Пинг каждые 25 секунд, чтобы держать соединение открытым
     S.ws._ping = setInterval(() => {
         if (S.ws?.readyState === WebSocket.OPEN)
             S.ws.send(JSON.stringify({ action: 'ping' }));
     }, 25000);
 }
 
+/**
+ * Обрабатывает входящее сообщение WebSocket (JSON).
+ * В зависимости от типа вызывает соответствующие функции обновления UI.
+ *
+ * @param {Object} msg - распарсенный объект сообщения
+ */
 function handleWsMessage(msg) {
     const S = window.AppState;
     switch (msg.type) {
@@ -117,10 +147,16 @@ function handleWsMessage(msg) {
             break;
 
         case 'pong':
+            // игнорируем
             break;
     }
 }
 
+/**
+ * Обновляет счётчик участников и онлайн в шапке комнаты.
+ *
+ * @param {Array} users - список онлайн-пользователей
+ */
 function _updateOnlineList(users) {
     const S = window.AppState;
     if (!S.currentRoom) return;
@@ -130,9 +166,15 @@ function _updateOnlineList(users) {
     }
 }
 
-let _replyTo   = null;
-let _editingId = null;
+// =============================================================================
+// Управление ответами и редактированием (глобальные функции, вызываемые из messages.js)
+// =============================================================================
 
+/**
+ * Устанавливает режим «ответить» на указанное сообщение.
+ * Показывает панель reply-bar с именем и текстом исходного сообщения.
+ * @param {Object} msg - сообщение, на которое отвечаем
+ */
 window.setReplyTo = (msg) => {
     _replyTo   = msg;
     _editingId = null;
@@ -147,6 +189,9 @@ window.setReplyTo = (msg) => {
     document.getElementById('msg-input')?.focus();
 };
 
+/**
+ * Отменяет режим ответа или редактирования (скрывает панель, сбрасывает цели).
+ */
 window.cancelReply = () => {
     _replyTo   = null;
     _editingId = null;
@@ -159,6 +204,11 @@ window.cancelReply = () => {
     if (input) { input.placeholder = 'Сообщение…'; input.value = ''; }
 };
 
+/**
+ * Устанавливает режим «редактировать» для указанного сообщения.
+ * Заполняет поле ввода текстом сообщения, меняет заголовок панели.
+ * @param {Object} msg - сообщение для редактирования
+ */
 window.startEditMessage = (msg) => {
     _editingId = msg.msg_id;
     _replyTo   = null;
@@ -178,14 +228,29 @@ window.startEditMessage = (msg) => {
     }
 };
 
+/**
+ * Отправляет запрос на удаление сообщения.
+ * @param {string} msgId - идентификатор сообщения
+ */
 window.deleteMessage = (msgId) => {
     const S = window.AppState;
     if (!msgId || !S.ws || S.ws.readyState !== WebSocket.OPEN) return;
     S.ws.send(JSON.stringify({ action: 'delete_message', msg_id: msgId }));
 };
 
+/**
+ * Усекает строку до n символов, добавляя многоточие.
+ */
 function _truncate(str, n) { return str?.length > n ? str.slice(0, n) + '…' : str || ''; }
 
+// =============================================================================
+// Отправка сообщений
+// =============================================================================
+
+/**
+ * Отправляет сообщение (или редактирование) через WebSocket.
+ * Считывает текст из поля ввода, учитывает режимы reply/edit.
+ */
 export function sendMessage() {
     const input = document.getElementById('msg-input');
     const text  = input.value.trim();
@@ -210,6 +275,12 @@ export function sendMessage() {
     input.style.height = 'auto';
 }
 
+/**
+ * Обработчик нажатия клавиш в поле ввода.
+ * Enter (без Shift) отправляет сообщение.
+ *
+ * @param {KeyboardEvent} e
+ */
 export function handleKey(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -217,8 +288,13 @@ export function handleKey(e) {
     }
 }
 
+/**
+ * Обработчик ввода текста (отслеживание набора).
+ * Автоматически изменяет высоту textarea, отправляет статус typing на сервер.
+ */
 export function handleTyping() {
     const input = document.getElementById('msg-input');
+    // Автоподстройка высоты под контент (до 120px)
     input.style.height = 'auto';
     input.style.height = Math.min(input.scrollHeight, 120) + 'px';
 
@@ -228,12 +304,21 @@ export function handleTyping() {
         S.ws.send(JSON.stringify({ action: 'typing', is_typing: true }));
     }
     clearTimeout(S.typingTimeout);
+    // Через 2 секунды бездействия снимаем статус печати
     S.typingTimeout = setTimeout(() => {
         _typingActive = false;
         S.ws?.send(JSON.stringify({ action: 'typing', is_typing: false }));
     }, 2000);
 }
 
+// =============================================================================
+// Модальное окно со списком файлов комнаты
+// =============================================================================
+
+/**
+ * Открывает модальное окно со списком всех файлов текущей комнаты.
+ * Загружает данные через API и рендерит их.
+ */
 export async function showRoomFilesModal() {
     const S = window.AppState;
     if (!S.currentRoom) return;
@@ -265,21 +350,41 @@ export async function showRoomFilesModal() {
                 </div>`;
             }).join('')
             : '<div style="padding:24px;text-align:center;color:var(--text2);">Файлов нет</div>';
-    } catch { }
+    } catch { /* ошибка загрузки — ничего не делаем, остаётся заглушка */ }
 }
 
+// =============================================================================
+// Отображение статусов печати и отправки файлов
+// =============================================================================
+
+/**
+ * Обновляет словарь печатающих пользователей и вызывает перерисовку индикатора.
+ *
+ * @param {string} username
+ * @param {boolean} isTyping
+ */
 function _showTyping(username, isTyping) {
     if (isTyping) _typers[username] = true;
     else delete _typers[username];
     _renderTypingBar();
 }
 
+/**
+ * Обновляет словарь отправляющих файлы пользователей и вызывает перерисовку.
+ *
+ * @param {string} username
+ * @param {string|null} filename - null означает, что отправка завершена
+ */
 function _showFileSending(username, filename) {
     if (filename) _fileSenders[username] = filename;
     else          delete _fileSenders[username];
     _renderTypingBar();
 }
 
+/**
+ * Рендерит нижнюю панель с индикацией печатающих и отправляющих файлы.
+ * Собирает информацию из _typers и _fileSenders и формирует текст.
+ */
 function _renderTypingBar() {
     const typers  = Object.keys(_typers);
     const filers  = Object.entries(_fileSenders);

@@ -1,8 +1,18 @@
+// static/js/ui.js
+// ============================================================================
+// Модуль управления интерфейсом: переключение между экранами,
+// открытие комнаты, отображение профиля.
+// ============================================================================
+
 import { $ } from './utils.js';
 import { renderRoomsList } from './rooms.js';
-import { connectWS } from './chat/chat.js';      // ← ИСПРАВЛЕНО: было './chat.js'
+import { connectWS } from './chat/chat.js';
 import { connectSignal } from './webrtc.js';
 
+/**
+ * Показывает приветственный экран (выбор комнаты).
+ * Скрывает чат, сбрасывает currentRoom, перерисовывает список комнат.
+ */
 export function showWelcome() {
     $('welcome-screen').classList.add('active');
     $('chat-screen').classList.remove('active');
@@ -13,6 +23,10 @@ export function showWelcome() {
     $('nav-welcome').classList.add('active');
 }
 
+/**
+ * Показывает экран чата.
+ * Скрывает приветственный экран, активирует соответствующую кнопку навигации.
+ */
 export function showChatScreen() {
     $('welcome-screen').style.display = 'none';
     $('chat-screen').style.display = 'flex';
@@ -21,14 +35,20 @@ export function showChatScreen() {
     $('nav-welcome').classList.remove('active');
 }
 
+/**
+ * Открывает комнату с заданным ID.
+ * Устанавливает currentRoom, закрывает предыдущее WebSocket-соединение,
+ * очищает сообщения, подключает новые WebSocket (чат и сигнализация).
+ * @param {number} id - ID комнаты
+ */
 export function openRoom(id) {
     const S = window.AppState;
     const room = S.rooms.find(r => r.id === id);
     if (!room) return;
     S.currentRoom = room;
     if (S.ws) {
-        S.ws.onclose = null;                        // не триггерим авто-реконнект
-        if (S.ws._ping) clearInterval(S.ws._ping);  // убиваем утёкший интервал
+        S.ws.onclose = null;
+        if (S.ws._ping) clearInterval(S.ws._ping);
         S.ws.close();
         S.ws = null;
     }
@@ -41,6 +61,10 @@ export function openRoom(id) {
     connectSignal(id);
 }
 
+/**
+ * Открывает модальное окно профиля текущего пользователя.
+ * Заполняет данные из AppState.user.
+ */
 export function showProfileModal() {
     const S = window.AppState;
     if (!S.user) return;

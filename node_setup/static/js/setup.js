@@ -1,23 +1,34 @@
-// ── State ─────────────────────────────────────────────────────────────────────
+// node_setup/static/js/setup.js
+// =============================================================================
+// Клиентский JavaScript для мастера начальной настройки узла Vortex.
+// Управляет шагами мастера, валидацией ввода, генерацией SSL-сертификатов
+// через API, отображением сводки и финальным запуском узла.
+// =============================================================================
+
+// ── Состояние приложения ─────────────────────────────────────────────────────
 const state = {
-    step:       1,
-    sslMode:    'self',
-    sslDone:    false,
-    sslSkipped: false,
-    caCmd:      '',
-    nodeUrl:    '',
-    sysInfo:    null,
-    config:     null,
+    step:       1,          // текущий шаг (1–4)
+    sslMode:    'self',     // выбранный способ SSL: 'self', 'mkcert', 'le', 'skip'
+    sslDone:    false,      // был ли SSL успешно сгенерирован (или пропущен)
+    sslSkipped: false,      // true, если выбран пропуск SSL
+    caCmd:      '',         // команда для ручной установки CA (если нужно)
+    nodeUrl:    '',         // итоговый URL узла (http://... или https://...)
+    sysInfo:    null,       // данные о системе с сервера (из /api/info)
+    config:     null,       // объект с конфигурацией узла (имя, порты и т.д.)
 };
 
-// ── Init ──────────────────────────────────────────────────────────────────────
+// ── Инициализация при загрузке страницы ──────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
-    await loadSysInfo();
-    prefillDeviceName();
-    checkMkcert();
-    bindPortValidation();
+    await loadSysInfo();            // загружаем информацию о системе
+    prefillDeviceName();            // заполняем поле имени устройства hostname'ом
+    checkMkcert();                  // проверяем доступность mkcert и помечаем опцию
+    bindPortValidation();           // привязываем валидацию порта при вводе
 });
 
+/**
+ * Загружает системную информацию с сервера (GET /api/info).
+ * Обновляет state.sysInfo, отображает локальный IP и статус.
+ */
 async function loadSysInfo() {
     try {
         const r    = await fetch('/api/info');
@@ -31,12 +42,19 @@ async function loadSysInfo() {
     }
 }
 
+/**
+ * Заполняет поле имени устройства (device-name) значением hostname из sysInfo.
+ */
 function prefillDeviceName() {
     if (state.sysInfo?.hostname) {
         document.getElementById('device-name').value = state.sysInfo.hostname;
     }
 }
 
+/**
+ * Проверяет, доступен ли mkcert (из sysInfo.ssl_methods.mkcert).
+ * Если недоступен, делает опцию mkcert неактивной (unavailable) и обновляет бейдж.
+ */
 function checkMkcert() {
     const avail = state.sysInfo?.ssl_methods?.mkcert;
     const opt   = document.getElementById('opt-mkcert');
@@ -51,16 +69,26 @@ function checkMkcert() {
     }
 }
 
-// ── Navigation ────────────────────────────────────────────────────────────────
+// ── Навигация по шагам ───────────────────────────────────────────────────────
+
+/**
+ * Переключает на указанный шаг (только если n <= текущий шаг).
+ * @param {number} n - номер шага (1–4)
+ */
 function goStep(n) {
     if (n > state.step) return;
     _setStep(n);
 }
 
+/**
+ * Внутренняя функция: активирует шаг с номером n, обновляет индикаторы шагов.
+ * @param {number} n
+ */
 function _setStep(n) {
     document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
     document.getElementById('step-' + n).classList.add('active');
 
+    // Обновляем кружки и линии в шапке (stepbar)
     for (let i = 1; i <= 4; i++) {
         const dot  = document.getElementById('sdot-' + i);
         const line = document.getElementById('sline-' + i);
@@ -74,7 +102,12 @@ function _setStep(n) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// ── Step 1: Node config ───────────────────────────────────────────────────────
+// ── Шаг 1: Конфигурация узла ─────────────────────────────────────────────────
+
+/**
+ * Обработчик кнопки "Продолжить" на шаге 1.
+ * Проверяет поля, валидирует порт через API, сохраняет конфиг в state и переходит на шаг 2.
+ */
 async function step1Next() {
     const name = document.getElementById('device-name').value.trim();
     const port = parseInt(document.getElementById('node-port').value);
@@ -108,10 +141,16 @@ async function step1Next() {
     _setStep(2);
 }
 
-// ── Step 2: SSL ───────────────────────────────────────────────────────────────
+// ── Шаг 2: Выбор и генерация SSL ─────────────────────────────────────────────
+
+/**
+ * Выбирает режим SSL (self, mkcert, le, skip) и обновляет интерфейс.
+ * @param {string} mode
+ */
 function selectSSL(mode) {
     state.sslMode = mode;
 
+    // Убираем выделение со всех опций и детальных панелей
     ['self', 'mkcert', 'le', 'skip'].forEach(m => {
         document.getElementById('opt-' + m)?.classList.remove('selected');
         document.getElementById('detail-' + m)?.classList.remove('active');
@@ -124,6 +163,10 @@ function selectSSL(mode) {
         mode === 'skip' ? 'Пропустить SSL →' : '🔒 Сгенерировать →';
 }
 
+/**
+ * Генерирует SSL-сертификаты, вызывая соответствующий API-эндпоинт.
+ * Отображает процесс в терминальном блоке.
+ */
 async function generateSSL() {
     const btn      = document.getElementById('btn-ssl-gen');
     const block    = document.getElementById('ssl-gen-block');
@@ -134,6 +177,7 @@ async function generateSSL() {
     block.style.display = 'block';
     terminal.innerHTML  = '';
 
+    // Вспомогательная функция для добавления строки в терминал
     const log = (text, cls = 'line-dim') => {
         terminal.innerHTML += `<div class="${cls}">${text}</div>`;
         terminal.scrollTop  = 99999;
@@ -225,7 +269,12 @@ async function generateSSL() {
     }
 }
 
-// ── Step 3: Summary ───────────────────────────────────────────────────────────
+// ── Шаг 3: Сводка конфигурации ───────────────────────────────────────────────
+
+/**
+ * Строит сводную информацию для шага 3: отображает введённые данные,
+ * URL узла, статус SSL и, если нужно, команду для установки CA.
+ */
 async function buildSummary() {
     const cfg   = state.config;
     const proto = state.sslSkipped ? 'http' : 'https';
@@ -270,7 +319,12 @@ async function buildSummary() {
     }
 }
 
-// ── Step 4: Launch ────────────────────────────────────────────────────────────
+// ── Шаг 4: Запуск узла ───────────────────────────────────────────────────────
+
+/**
+ * Отправляет конфигурацию на сервер (POST /api/config/save),
+ * завершает настройку (POST /api/setup/complete) и переходит к шагу 4 (запуск).
+ */
 async function launchNode() {
     const btn = document.getElementById('btn-launch');
     btn.disabled  = true;
@@ -305,6 +359,9 @@ async function launchNode() {
     }
 }
 
+/**
+ * Запускает обратный отсчёт 5 секунд и перенаправляет на главную страницу узла.
+ */
 function startRedirectCountdown() {
     let secs     = 5;
     const bar    = document.getElementById('redirect-bar');
@@ -320,12 +377,21 @@ function startRedirectCountdown() {
     }, 1000);
 }
 
+/**
+ * Открывает URL узла в новой вкладке (по клику на кнопку).
+ */
 function openNodeUrl() {
-    // Кнопка — прямой клик пользователя, window.open здесь допустим
     if (state.nodeUrl) window.open(state.nodeUrl, '_blank');
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Вспомогательные функции ───────────────────────────────────────────────────
+
+/**
+ * Показывает сообщение об ошибке/успехе в указанном alert-блоке.
+ * @param {string} sid - суффикс id (например 's1' → alert-s1)
+ * @param {string} msg - текст сообщения
+ * @param {string} type - тип ('error', 'success', 'info')
+ */
 function showAlert(sid, msg, type = 'error') {
     const el = document.getElementById('alert-' + sid);
     if (!el) return;
@@ -333,10 +399,19 @@ function showAlert(sid, msg, type = 'error') {
     el.className   = `alert show alert-${type}`;
 }
 
+/**
+ * Скрывает alert-блок.
+ * @param {string} sid
+ */
 function hideAlert(sid) {
     document.getElementById('alert-' + sid)?.classList.remove('show');
 }
 
+/**
+ * Экранирует HTML-спецсимволы для безопасного вывода.
+ * @param {string} s
+ * @returns {string}
+ */
 function esc(s) {
     return String(s || '')
         .replace(/&/g, '&amp;')
@@ -344,6 +419,10 @@ function esc(s) {
         .replace(/>/g, '&gt;');
 }
 
+/**
+ * Копирует текст из указанного элемента (внутри .code-block) в буфер обмена.
+ * @param {string} id - id элемента (обычно code-block)
+ */
 function copyCode(id) {
     const el   = document.getElementById(id);
     const text = el.querySelector('span')?.textContent || el.textContent;
@@ -353,7 +432,11 @@ function copyCode(id) {
     });
 }
 
-// ── Port validation ───────────────────────────────────────────────────────────
+// ── Валидация порта в реальном времени ───────────────────────────────────────
+
+/**
+ * Привязывает обработчик input к полю node-port для валидации порта через API.
+ */
 function bindPortValidation() {
     document.getElementById('node-port')?.addEventListener('input', debounce(async function () {
         const port = parseInt(this.value);
@@ -365,10 +448,16 @@ function bindPortValidation() {
             hint.textContent = d.message;
             hint.className   = 'form-hint ' + (d.ok ? 'ok' : 'error');
             this.className   = 'form-input ' + (d.ok ? 'ok' : 'error');
-        } catch { /* игнорируем */ }
+        } catch { /* игнорируем ошибки сети */ }
     }, 500));
 }
 
+/**
+ * Функция debounce для ограничения частоты вызова.
+ * @param {Function} fn - функция
+ * @param {number} ms - задержка в мс
+ * @returns {Function}
+ */
 function debounce(fn, ms) {
     let t;
     return function (...args) {
