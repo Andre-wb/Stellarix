@@ -246,18 +246,12 @@ const _CSS = `
     background:       rgba(255, 255, 255, 0.035);
     backdrop-filter:         blur(20px) saturate(160%) brightness(1.08);
     -webkit-backdrop-filter: blur(20px) saturate(160%) brightness(1.08);
-    border-top:    1px solid rgba(255, 255, 255, 0.42);
-    border-left:   1px solid rgba(255, 255, 255, 0.22);
-    border-right:  1px solid rgba(255, 255, 255, 0.08);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    border: none;
     box-shadow:
-        inset 0  1.5px 0  rgba(255, 255, 255, 0.30),
-        inset 1px 0    0  rgba(255, 255, 255, 0.10),
-        inset 0 -1px   0  rgba(0, 0, 0, 0.12),
-        0  4px 16px -2px  rgba(0, 0, 0, 0.30),
-        0 12px 40px -8px  rgba(0, 0, 0, 0.20),
-        0  1px  3px       rgba(0, 0, 0, 0.18),
-        0  0   36px -14px rgba(180, 160, 255, 0.18);
+    0  4px 16px -2px  rgba(0, 0, 0, 0.30),
+    0 12px 40px -8px  rgba(0, 0, 0, 0.20),
+    0  1px  3px       rgba(0, 0, 0, 0.18),
+    0  0   36px -14px rgba(180, 160, 255, 0.18);
     transition:
         transform    0.20s cubic-bezier(0.34, 1.56, 0.64, 1),
         box-shadow   0.20s ease,
@@ -322,8 +316,8 @@ const _CSS = `
 .lg.lg-interactive { cursor: pointer; }
 .lg.lg-interactive:hover {
     background: rgba(255, 255, 255, 0.055);
-    border-top-color:  rgba(255, 255, 255, 0.52);
-    border-left-color: rgba(255, 255, 255, 0.28);
+    border-top-color:  rgba(255, 255, 255, 0.18);
+    border-left-color: rgba(255, 255, 255, 0.10);
     box-shadow:
         inset 0  1.5px 0  rgba(255, 255, 255, 0.38),
         inset 1px 0    0  rgba(255, 255, 255, 0.14),
@@ -366,8 +360,6 @@ const _CSS = `
 
 .lg.lg-own {
     background: rgba(120, 80, 210, 0.05);
-    border-top-color:  rgba(210,175,255,0.30);
-    border-left-color: rgba(210,175,255,0.16);
     box-shadow:
         inset 0  1.5px 0  rgba(225,195,255,0.22),
         inset 1px 0    0  rgba(200,170,255,0.10),
@@ -652,7 +644,7 @@ export function createGrainLayer() {
  * @param {(() => void)|null} [onClick=null] - Optional click handler.
  * @returns {HTMLDivElement}
  */
-export function createReplyQuote(sender, text, isOwn = false, onClick = null) {
+export function createReplyQuote(spender, text, isOwn = false, onClick = null) {
     const el = document.createElement('div');
     el.className = `lg lg-reply lg-interactive${isOwn ? ' lg-own' : ''}`;
     el.appendChild(createGrainLayer());
