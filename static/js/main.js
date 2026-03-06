@@ -125,3 +125,8 @@ document.addEventListener('keydown', e => {
 
 // При загрузке страницы проверяем, есть ли активная сессия
 window.addEventListener('DOMContentLoaded', checkSession);
+
+window.addEventListener('DOMContentLoaded', async () => {
+    await loadCsrfToken();
+    checkSession();
+});

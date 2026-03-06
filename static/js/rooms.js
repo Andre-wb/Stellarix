@@ -6,7 +6,8 @@
 
 import { $, api, esc, fmtSize, openModal, closeModal, showAlert } from './utils.js';
 import { showWelcome, showChatScreen } from './ui.js';
-import { connectWS } from './chat/chat.js';      // ← ИСПРАВЛЕНО: было './chat.js'
+import { connectWS } from './chat/chat.js';
+import { eciesEncrypt, eciesDecrypt, getRoomKey, setRoomKey } from './crypto.js';
 
 // ============================================================================
 // ROOMS
@@ -53,11 +54,23 @@ export function renderRoomsList() {
  */
 export async function createRoom() {
     try {
+        const myPubkey = window.AppState.user?.x25519_pubkey;
+        if (!myPubkey) throw new Error('Нет X25519 публичного ключа. Перезайдите в аккаунт.');
+
+        // Генерируем ключ комнаты локально и шифруем ECIES своим публичным ключом
+        const roomKeyBytes = crypto.getRandomValues(new Uint8Array(32));
+        const encryptedKey = await eciesEncrypt(roomKeyBytes, myPubkey);
+
         const data = await api('POST', '/api/rooms', {
             name: $('cr-name').value.trim(),
             description: $('cr-desc').value.trim(),
             is_private: $('cr-private').checked,
+            encrypted_room_key: encryptedKey,  // ← сервер хранит только зашифрованную копию
         });
+
+        // Сохраняем ключ комнаты локально в памяти
+        setRoomKey(data.id, roomKeyBytes);
+
         window.AppState.rooms.unshift(data);
         renderRoomsList();
         closeModal('create-room-modal');

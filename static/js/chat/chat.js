@@ -1,12 +1,13 @@
 // static/js/chat/chat.js
 // =============================================================================
 // Модуль управления WebSocket-соединением чата.
-// Обрабатывает входящие сообщения, управляет состоянием набора текста,
-// отправкой файлов, ответами на сообщения, редактированием/удалением.
+// E2E шифрование: сообщения шифруются AES-256-GCM ключом комнаты на клиенте.
+// Сервер хранит и ретранслирует только ciphertext — не видит открытый текст.
 // =============================================================================
 
 import { scrollToBottom } from '../utils.js';
 import { renderRoomsList, updateRoomMeta } from '../rooms.js';
+import { eciesDecrypt, getRoomKey, setRoomKey } from '../crypto.js';
 import { showWelcome } from '../ui.js';
 import {
     appendMessage,
@@ -17,61 +18,129 @@ import {
     updateMessageText,
 } from './messages.js';
 
-// Хранилище текущих печатающих пользователей и отправителей файлов
 const _typers       = {};
-let   _typingActive = false; // флаг, что текущий пользователь печатает (для предотвращения спама)
-const _fileSenders  = {}; // username → filename
+let   _typingActive = false;
+const _fileSenders  = {};
 
-// Текущие цели для ответа и редактирования
 let _replyTo   = null;
 let _editingId = null;
 
 // =============================================================================
-// Управление WebSocket
+// E2E AES-256-GCM шифрование сообщений ключом комнаты
 // =============================================================================
 
+const toHex   = b => Array.from(new Uint8Array(b)).map(x => x.toString(16).padStart(2,'0')).join('');
+const fromHex = h => Uint8Array.from(h.match(/.{2}/g).map(b => parseInt(b, 16)));
+
 /**
- * Устанавливает WebSocket-соединение для указанной комнаты.
- * Настраивает обработчики onopen, onmessage, onclose.
- * Запускает периодический ping для поддержания соединения.
- *
- * @param {string} roomId - ID комнаты
+ * Шифрует текст AES-256-GCM ключом комнаты.
+ * @returns {string} hex(nonce(12) + ciphertext + tag(16))
  */
+async function encryptText(text, roomKeyBytes) {
+    const key = await crypto.subtle.importKey(
+        'raw', roomKeyBytes, { name: 'AES-GCM' }, false, ['encrypt']
+    );
+    const nonce = crypto.getRandomValues(new Uint8Array(12));
+    const ct    = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv: nonce },
+        key,
+        new TextEncoder().encode(text)
+    );
+    return toHex(nonce) + toHex(ct);
+}
+
+/**
+ * Расшифровывает ciphertext hex AES-256-GCM ключом комнаты.
+ * @returns {string} открытый текст
+ */
+async function decryptText(ciphertextHex, roomKeyBytes) {
+    const raw   = fromHex(ciphertextHex);
+    const nonce = raw.slice(0, 12);
+    const ct    = raw.slice(12);
+    const key   = await crypto.subtle.importKey(
+        'raw', roomKeyBytes, { name: 'AES-GCM' }, false, ['decrypt']
+    );
+    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, key, ct);
+    return new TextDecoder().decode(plain);
+}
+
+// =============================================================================
+// WebSocket
+// =============================================================================
+
+let _msgQueue = Promise.resolve();
+
 export function connectWS(roomId) {
     const S     = window.AppState;
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     S.ws        = new WebSocket(`${proto}://${location.host}/ws/${roomId}`);
+    _msgQueue   = Promise.resolve();
 
     S.ws.onopen = () => console.log('WS connected, room', roomId);
 
     S.ws.onmessage = e => {
-        try { handleWsMessage(JSON.parse(e.data)); }
-        catch (err) { console.error('WS parse error:', err); }
+        const data = JSON.parse(e.data);
+        _msgQueue = _msgQueue
+            .then(() => handleWsMessage(data))
+            .catch(err => console.error('WS msg error:', err));
     };
 
     S.ws.onclose = e => {
-        if (e.code === 4401) { window.doLogout(); return; }           // неавторизован
+        if (e.code === 4401) { window.doLogout(); return; }
         if (e.code === 4403) { alert('Нет доступа к комнате'); return; }
         if (S.currentRoom?.id === roomId)
-            setTimeout(() => connectWS(roomId), 3000); // попытка переподключения
+            setTimeout(() => connectWS(roomId), 3000);
     };
 
-    // Пинг каждые 25 секунд, чтобы держать соединение открытым
     S.ws._ping = setInterval(() => {
         if (S.ws?.readyState === WebSocket.OPEN)
             S.ws.send(JSON.stringify({ action: 'ping' }));
     }, 25000);
 }
 
-/**
- * Обрабатывает входящее сообщение WebSocket (JSON).
- * В зависимости от типа вызывает соответствующие функции обновления UI.
- *
- * @param {Object} msg - распарсенный объект сообщения
- */
-function handleWsMessage(msg) {
+async function handleWsMessage(msg) {
     const S = window.AppState;
     switch (msg.type) {
+
+        // ── E2E: сервер доставляет зашифрованный ключ комнаты ─────────────
+        case 'room_key': {
+            const privKey = S.x25519PrivateKey;
+            const roomId  = msg.room_id ?? S.currentRoom?.id;  // ← взять room_id из самого сообщения
+            if (!privKey || !roomId) { console.warn('room_key: нет privKey или roomId'); break; }
+            try {
+                const keyBytes = await eciesDecrypt(msg.ephemeral_pub, msg.ciphertext, privKey);
+                setRoomKey(roomId, keyBytes);
+            } catch (e) {
+                console.error('Ошибка расшифровки ключа комнаты:', e);
+            }
+            break;
+        }
+
+        // ── E2E: нужно помочь другому участнику — re-encrypt ключ ─────────
+        case 'key_request': {
+            const roomId  = S.currentRoom?.id;
+            const roomKey = getRoomKey(roomId);
+            if (!roomKey) break;
+            try {
+                const { eciesEncrypt } = await import('../crypto.js');
+                const enc = await eciesEncrypt(roomKey, msg.for_pubkey);
+                S.ws.send(JSON.stringify({
+                    action:        'key_response',
+                    for_user_id:   msg.for_user_id,
+                    ephemeral_pub: enc.ephemeral_pub,
+                    ciphertext:    enc.ciphertext,
+                }));
+                console.info(`🔑 Re-encrypted key for user ${msg.for_user_id}`);
+            } catch (e) {
+                console.error('Ошибка re-encryption:', e);
+            }
+            break;
+        }
+
+        case 'waiting_for_key':
+            appendSystemMessage('⏳ Ожидание ключа комнаты от другого участника...');
+            break;
+
         case 'node_pubkey':
             S.nodePublicKey = msg.pubkey_hex;
             break;
@@ -79,13 +148,16 @@ function handleWsMessage(msg) {
         case 'history':
             resetMessageState();
             document.getElementById('messages-container').innerHTML = '';
-            msg.messages.forEach(m => appendMessage(m));
+            // Расшифровываем все сообщения истории
+            for (const m of msg.messages) {
+                await _decryptAndAppend(m);
+            }
             scrollToBottom();
             break;
 
         case 'message':
         case 'peer_message':
-            appendMessage(msg);
+            await _decryptAndAppend(msg);
             scrollToBottom(true);
             break;
 
@@ -143,38 +215,62 @@ function handleWsMessage(msg) {
             break;
 
         case 'message_edited':
-            updateMessageText(msg.msg_id, msg.text, msg.is_edited);
+            // msg.ciphertext — новый зашифрованный текст
+            await _decryptAndUpdateMessage(msg);
             break;
 
         case 'pong':
-            // игнорируем
             break;
     }
 }
 
 /**
- * Обновляет счётчик участников и онлайн в шапке комнаты.
- *
- * @param {Array} users - список онлайн-пользователей
+ * Расшифровывает ciphertext в сообщении и передаёт в appendMessage.
+ * Если ключа нет — показывает заглушку [зашифровано].
  */
+async function _decryptAndAppend(msg) {
+    const S       = window.AppState;
+    const roomKey = getRoomKey(S.currentRoom?.id);
+
+    if (msg.ciphertext) {
+        if (roomKey) {
+            try {
+                msg.text = await decryptText(msg.ciphertext, roomKey);
+            } catch {
+                msg.text = '[ошибка расшифровки]';
+            }
+        } else {
+            msg.text = '[🔒 зашифровано — ключ не получен]';
+        }
+    }
+    appendMessage(msg);
+}
+
+/**
+ * Расшифровывает новый ciphertext отредактированного сообщения.
+ */
+async function _decryptAndUpdateMessage(msg) {
+    const S       = window.AppState;
+    const roomKey = getRoomKey(S.currentRoom?.id);
+    let   text    = '[ошибка расшифровки]';
+    if (roomKey && msg.ciphertext) {
+        try { text = await decryptText(msg.ciphertext, roomKey); } catch {}
+    }
+    updateMessageText(msg.msg_id, text, msg.is_edited);
+}
+
 function _updateOnlineList(users) {
-    const S = window.AppState;
-    if (!S.currentRoom) return;
+    const S  = window.AppState;
     const el = document.getElementById('chat-room-meta');
-    if (el) {
+    if (el && S.currentRoom) {
         el.textContent = `${S.currentRoom.member_count} участников · ${users.length} онлайн`;
     }
 }
 
 // =============================================================================
-// Управление ответами и редактированием (глобальные функции, вызываемые из messages.js)
+// Ответы и редактирование
 // =============================================================================
 
-/**
- * Устанавливает режим «ответить» на указанное сообщение.
- * Показывает панель reply-bar с именем и текстом исходного сообщения.
- * @param {Object} msg - сообщение, на которое отвечаем
- */
 window.setReplyTo = (msg) => {
     _replyTo   = msg;
     _editingId = null;
@@ -189,83 +285,89 @@ window.setReplyTo = (msg) => {
     document.getElementById('msg-input')?.focus();
 };
 
-/**
- * Отменяет режим ответа или редактирования (скрывает панель, сбрасывает цели).
- */
 window.cancelReply = () => {
     _replyTo   = null;
     _editingId = null;
     const bar = document.getElementById('reply-bar');
-    if (bar) {
-        bar.classList.remove('visible');
-        delete bar.dataset.mode;
-    }
+    if (bar) { bar.classList.remove('visible'); delete bar.dataset.mode; }
     const input = document.getElementById('msg-input');
     if (input) { input.placeholder = 'Сообщение…'; input.value = ''; }
 };
 
-/**
- * Устанавливает режим «редактировать» для указанного сообщения.
- * Заполняет поле ввода текстом сообщения, меняет заголовок панели.
- * @param {Object} msg - сообщение для редактирования
- */
 window.startEditMessage = (msg) => {
     _editingId = msg.msg_id;
     _replyTo   = null;
-    const bar      = document.getElementById('reply-bar');
-    const nameEl   = document.getElementById('reply-bar-name');
-    const textEl   = document.getElementById('reply-bar-text');
+    const bar    = document.getElementById('reply-bar');
+    const nameEl = document.getElementById('reply-bar-name');
+    const textEl = document.getElementById('reply-bar-text');
     if (bar) {
         bar.dataset.mode = 'edit';
         bar.classList.add('visible');
-        if (nameEl) nameEl.innerHTML = '<svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24" > <path d="M19.67 2.61c-.81-.81-2.14-.81-2.95 0L3.38 15.95c-.13.13-.22.29-.26.46l-1.09 4.34c-.08.34.01.7.26.95.19.19.45.29.71.29.08 0 .16 0 .24-.03l4.34-1.09c.18-.04.34-.13.46-.26L21.38 7.27c.81-.81.81-2.14 0-2.95L19.66 2.6ZM6.83 19.01l-2.46.61.61-2.46 9.96-9.94 1.84 1.84zM19.98 5.86 18.2 7.64 16.36 5.8l1.78-1.78s.09-.03.12 0l1.72 1.72s.03.09 0 .12"></path></svg> Редактирование';
+        if (nameEl) nameEl.textContent = '✏️ Редактирование';
         if (textEl) textEl.textContent = _truncate(msg.text || '', 60);
     }
     const input = document.getElementById('msg-input');
-    if (input) {
-        input.value = msg.text || '';
-        input.focus();
-    }
+    if (input) { input.value = msg.text || ''; input.focus(); }
 };
 
-/**
- * Отправляет запрос на удаление сообщения.
- * @param {string} msgId - идентификатор сообщения
- */
 window.deleteMessage = (msgId) => {
     const S = window.AppState;
     if (!msgId || !S.ws || S.ws.readyState !== WebSocket.OPEN) return;
     S.ws.send(JSON.stringify({ action: 'delete_message', msg_id: msgId }));
 };
 
-/**
- * Усекает строку до n символов, добавляя многоточие.
- */
 function _truncate(str, n) { return str?.length > n ? str.slice(0, n) + '…' : str || ''; }
 
 // =============================================================================
-// Отправка сообщений
+// Отправка сообщений (E2E: шифруем перед отправкой)
 // =============================================================================
 
-/**
- * Отправляет сообщение (или редактирование) через WebSocket.
- * Считывает текст из поля ввода, учитывает режимы reply/edit.
- */
-export function sendMessage() {
-    const input = document.getElementById('msg-input');
-    const text  = input.value.trim();
-    const S     = window.AppState;
+export async function sendMessage() {
+    const input   = document.getElementById('msg-input');
+    const text    = input.value.trim();
+    const S       = window.AppState;
     if (!text || !S.ws || S.ws.readyState !== WebSocket.OPEN) return;
 
+    const roomKey = getRoomKey(S.currentRoom?.id);
+
     if (_editingId) {
-        S.ws.send(JSON.stringify({ action: 'edit_message', msg_id: _editingId, text }));
+        if (roomKey) {
+            const ciphertext = await encryptText(text, roomKey);
+            S.ws.send(JSON.stringify({ action: 'edit_message', msg_id: _editingId, ciphertext }));
+        } else {
+            // Fallback: нет ключа — не отправляем
+            appendSystemMessage('⚠️ Нет ключа комнаты — сообщение не отправлено');
+            return;
+        }
         _editingId = null;
         const bar = document.getElementById('reply-bar');
         if (bar) { bar.classList.remove('visible'); delete bar.dataset.mode; }
     } else {
-        const payload = { action: 'message', text };
+        if (!roomKey) {
+            appendSystemMessage('⚠️ Ключ комнаты не получен. Дождитесь подключения другого участника.');
+            return;
+        }
+        const ciphertext = await encryptText(text, roomKey);
+        const payload    = { action: 'message', ciphertext };
         if (_replyTo?.msg_id) payload.reply_to_id = _replyTo.msg_id;
         S.ws.send(JSON.stringify(payload));
+
+        // Показываем своё сообщение сразу (оптимистично)
+        appendMessage({
+            msg_id:       null,
+            sender_id:    S.user?.user_id,
+            sender:       S.user?.username,
+            display_name: S.user?.display_name || S.user?.username,
+            avatar_emoji: S.user?.avatar_emoji,
+            text,
+            msg_type:     'text',
+            created_at:   new Date().toISOString(),
+            reply_to_id:  _replyTo?.msg_id,
+            reply_to_text: _replyTo?.text,
+            reply_to_sender: _replyTo?.display_name,
+        });
+        scrollToBottom(true);
+
         _replyTo = null;
         const bar2 = document.getElementById('reply-bar');
         if (bar2) { bar2.classList.remove('visible'); delete bar2.dataset.mode; }
@@ -275,12 +377,6 @@ export function sendMessage() {
     input.style.height = 'auto';
 }
 
-/**
- * Обработчик нажатия клавиш в поле ввода.
- * Enter (без Shift) отправляет сообщение.
- *
- * @param {KeyboardEvent} e
- */
 export function handleKey(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
@@ -288,13 +384,8 @@ export function handleKey(e) {
     }
 }
 
-/**
- * Обработчик ввода текста (отслеживание набора).
- * Автоматически изменяет высоту textarea, отправляет статус typing на сервер.
- */
 export function handleTyping() {
     const input = document.getElementById('msg-input');
-    // Автоподстройка высоты под контент (до 120px)
     input.style.height = 'auto';
     input.style.height = Math.min(input.scrollHeight, 120) + 'px';
 
@@ -304,7 +395,6 @@ export function handleTyping() {
         S.ws.send(JSON.stringify({ action: 'typing', is_typing: true }));
     }
     clearTimeout(S.typingTimeout);
-    // Через 2 секунды бездействия снимаем статус печати
     S.typingTimeout = setTimeout(() => {
         _typingActive = false;
         S.ws?.send(JSON.stringify({ action: 'typing', is_typing: false }));
@@ -312,23 +402,16 @@ export function handleTyping() {
 }
 
 // =============================================================================
-// Модальное окно со списком файлов комнаты
+// Файлы
 // =============================================================================
 
-/**
- * Открывает модальное окно со списком всех файлов текущей комнаты.
- * Загружает данные через API и рендерит их.
- */
 export async function showRoomFilesModal() {
     const S = window.AppState;
     if (!S.currentRoom) return;
-
     const { openModal, api, esc, fmtSize: _fmtSize } = await import('../utils.js');
     openModal('files-modal');
-
     const el = document.getElementById('files-list');
     el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text2);">Загрузка...</div>';
-
     try {
         const data = await api('GET', `/api/files/room/${S.currentRoom.id}`);
         el.innerHTML = data.files.length
@@ -350,57 +433,37 @@ export async function showRoomFilesModal() {
                 </div>`;
             }).join('')
             : '<div style="padding:24px;text-align:center;color:var(--text2);">Файлов нет</div>';
-    } catch { /* ошибка загрузки — ничего не делаем, остаётся заглушка */ }
+    } catch {}
 }
 
 // =============================================================================
-// Отображение статусов печати и отправки файлов
+// Typing / file sending indicators
 // =============================================================================
 
-/**
- * Обновляет словарь печатающих пользователей и вызывает перерисовку индикатора.
- *
- * @param {string} username
- * @param {boolean} isTyping
- */
 function _showTyping(username, isTyping) {
     if (isTyping) _typers[username] = true;
     else delete _typers[username];
     _renderTypingBar();
 }
 
-/**
- * Обновляет словарь отправляющих файлы пользователей и вызывает перерисовку.
- *
- * @param {string} username
- * @param {string|null} filename - null означает, что отправка завершена
- */
 function _showFileSending(username, filename) {
     if (filename) _fileSenders[username] = filename;
     else          delete _fileSenders[username];
     _renderTypingBar();
 }
 
-/**
- * Рендерит нижнюю панель с индикацией печатающих и отправляющих файлы.
- * Собирает информацию из _typers и _fileSenders и формирует текст.
- */
 function _renderTypingBar() {
-    const typers  = Object.keys(_typers);
-    const filers  = Object.entries(_fileSenders);
-    const el      = document.getElementById('typing-indicator');
-    const textEl  = document.getElementById('typing-text');
-
-    const parts = [];
+    const typers = Object.keys(_typers);
+    const filers = Object.entries(_fileSenders);
+    const el     = document.getElementById('typing-indicator');
+    const textEl = document.getElementById('typing-text');
+    const parts  = [];
     if (typers.length)
         parts.push(typers.join(', ') + (typers.length === 1 ? ' печатает' : ' печатают'));
-    if (filers.length) {
-        filers.forEach(([name, fname]) => {
-            const short = fname.length > 24 ? fname.slice(0, 22) + '…' : fname;
-            parts.push(`${name} отправляет файл «${short}»`);
-        });
-    }
-
+    filers.forEach(([name, fname]) => {
+        const short = fname.length > 24 ? fname.slice(0, 22) + '…' : fname;
+        parts.push(`${name} отправляет файл «${short}»`);
+    });
     if (parts.length) {
         el.classList.add('visible');
         textEl.textContent = parts.join(' · ');

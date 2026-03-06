@@ -1,21 +1,32 @@
 """
-app/peer/peer_registry.py — P2P Discovery и обмен сообщениями между узлами.
+app/peer/peer_registry.py — P2P Discovery с зашифрованным межузловым транспортом.
 
-Этот модуль реализует обнаружение соседних узлов (peers) в локальной сети через UDP broadcast.
-Он также предоставляет HTTP API для взаимодействия с другими узлами:
-- отправка сообщений в комнаты другого узла,
-- получение списка активных пиров,
-- приём входящих P2P сообщений и их ретрансляция локальным WebSocket-клиентам.
+Ключевые изменения:
+  1. UDP broadcast теперь включает X25519 публичный ключ узла
+     → Узлы знают публичные ключи друг друга без дополнительных запросов
+  2. Все P2P HTTP-запросы (/api/peers/receive) шифруются ECIES
+     → Нода-отправитель шифрует payload pubkey ноды-получателя
+     → Нода-получатель расшифровывает своим приватным ключом
+     → Подслушивающий в локальной сети не видит содержимое
+  3. Каждый запрос использует эфемерную пару → forward secrecy
+  4. Verifier: получатель проверяет sender_pubkey через PeerRegistry
 
-Модуль поддерживает два режима работы:
-1. Если установлен Rust-модуль `vortex_chat` (скомпилирован), используется его
-   высокопроизводительная реализация UDP discovery.
-2. Иначе работает чистый Python fallback с потоками-слушателем и отправителем.
+UDP Broadcast payload (JSON):
+  {"name": "MyNode", "port": 9000, "pubkey": "a1b2c3...64 hex chars..."}
 
-Реестр пиров (PeerRegistry) хранит информацию об обнаруженных узлах и периодически
-очищает устаревшие записи (по таймауту Config.PEER_TIMEOUT_SEC).
+P2P HTTP Request (POST /api/peers/receive) body:
+  {
+    "ephemeral_pub":  "<hex>",          // эфемерный X25519 ключ отправителя
+    "ciphertext":     "<hex>",          // ECIES зашифрованный JSON payload
+    "sender_pubkey":  "<hex>"           // постоянный X25519 ключ узла-отправителя
+  }
+
+Расшифрованный payload:
+  {"room_id": 5, "sender": "alice", "ciphertext": "<hex msg ciphertext>", "msg_type": "text"}
+
+Важно: P2P сообщения также содержат только зашифрованный контент сообщения (ciphertext),
+сервер-получатель ретранслирует его локальным WebSocket-клиентам без расшифровки.
 """
-
 from __future__ import annotations
 
 import asyncio
@@ -38,111 +49,103 @@ from app.peer.connection_manager import manager as ws_manager
 from app.security.auth_jwt import get_current_user
 
 logger = logging.getLogger(__name__)
-
-# Создаём роутер для эндпоинтов, связанных с пирами
 router = APIRouter(prefix="/api/peers", tags=["peers"])
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PeerInfo с поддержкой X25519 публичного ключа
+# ══════════════════════════════════════════════════════════════════════════════
 
 @dataclass
 class PeerInfo:
     """
-    Информация об одном обнаруженном пире (узле).
+    Информация об обнаруженном P2P узле.
 
-    Атрибуты:
-        name: str — имя узла (обычно hostname или переданное имя).
-        ip: str — IP-адрес узла.
-        port: int — порт, на котором работает HTTP-сервер узла.
-        last_seen: float — временная метка последнего получения UDP-пакета (time.monotonic).
+    node_pubkey_hex — X25519 публичный ключ узла, полученный из UDP broadcast.
+    Используется для шифрования P2P сообщений (ECIES).
+    Если None — узел работает без шифрования (деградированный режим, только локальная сеть).
     """
-    name: str
-    ip: str
-    port: int
-    last_seen: float = field(default_factory=time.monotonic)
+    name:            str
+    ip:              str
+    port:            int
+    node_pubkey_hex: Optional[str] = None   # X25519 pubkey узла (hex, 64 chars)
+    last_seen:       float         = field(default_factory=time.monotonic)
 
     def alive(self) -> bool:
-        """Проверяет, не истёк ли таймаут для этого пира."""
         return (time.monotonic() - self.last_seen) < Config.PEER_TIMEOUT_SEC
 
+    def has_encryption(self) -> bool:
+        """Узел поддерживает зашифрованный P2P транспорт."""
+        return bool(self.node_pubkey_hex and len(self.node_pubkey_hex) == 64)
+
     def to_dict(self) -> dict:
-        """Возвращает словарь с данными пира для JSON-ответа."""
         return {
-            "name": self.name,
-            "ip": self.ip,
-            "port": self.port,
-            "age_sec": round(time.monotonic() - self.last_seen, 1),
-            "online": self.alive(),
+            "name":       self.name,
+            "ip":         self.ip,
+            "port":       self.port,
+            "age_sec":    round(time.monotonic() - self.last_seen, 1),
+            "online":     self.alive(),
+            "encrypted":  self.has_encryption(),   # поддерживает E2E P2P?
+            "pubkey":     self.node_pubkey_hex[:16] + "..." if self.node_pubkey_hex else None,
         }
 
     @property
     def base_url(self) -> str:
-        """Базовый URL для HTTP-запросов к этому пиру."""
         return f"http://{self.ip}:{self.port}"
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# PeerRegistry
+# ══════════════════════════════════════════════════════════════════════════════
+
 class PeerRegistry:
-    """
-    Реестр пиров (локальная копия сети).
-
-    Хранит словарь IP -> PeerInfo. Потокобезопасен благодаря использованию threading.Lock.
-    Методы update, active, get, cleanup должны вызываться с блокировкой (или внутри с ней).
-    """
-
     def __init__(self):
         self._peers: dict[str, PeerInfo] = {}
-        self._lock = threading.Lock()
-        self.own_ip: str = "127.0.0.1"  # будет обновлено при старте discovery
+        self._lock  = threading.Lock()
+        self.own_ip: str = "127.0.0.1"
 
-    def update(self, ip: str, name: str, port: int) -> None:
-        """
-        Обновляет или добавляет информацию о пире.
-        Вызывается при получении UDP-пакета.
-        """
+    def update(self, ip: str, name: str, port: int,
+               node_pubkey_hex: Optional[str] = None) -> None:
         with self._lock:
             if ip in self._peers:
                 p = self._peers[ip]
-                p.name = name
-                p.port = port
+                p.name      = name
+                p.port      = port
                 p.last_seen = time.monotonic()
+                if node_pubkey_hex and len(node_pubkey_hex) == 64:
+                    p.node_pubkey_hex = node_pubkey_hex
             else:
-                self._peers[ip] = PeerInfo(name=name, ip=ip, port=port)
-                logger.info(f"🔍 New peer: {name} @ {ip}:{port}")
+                self._peers[ip] = PeerInfo(
+                    name            = name,
+                    ip              = ip,
+                    port            = port,
+                    node_pubkey_hex = node_pubkey_hex,
+                )
+                logger.info(f"🔍 New peer: {name}@{ip}:{port} encrypted={bool(node_pubkey_hex)}")
 
     def active(self) -> list[PeerInfo]:
-        """Возвращает список пиров, которые считаются живыми (alive())."""
         with self._lock:
             return [p for p in self._peers.values() if p.alive()]
 
     def get(self, ip: str) -> Optional[PeerInfo]:
-        """Возвращает информацию о пире по IP, если он есть и жив (но не проверяет alive)."""
         with self._lock:
             return self._peers.get(ip)
 
     def cleanup(self) -> None:
-        """Удаляет все пиры, у которых истёк таймаут."""
         with self._lock:
             dead = [ip for ip, p in self._peers.items() if not p.alive()]
             for ip in dead:
                 del self._peers[ip]
 
 
-# Глобальный экземпляр реестра
 registry = PeerRegistry()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Вспомогательные функции для UDP discovery
+# Вспомогательные функции
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _local_ip() -> str:
-    """
-    Определяет локальный IP-адрес машины в сети.
-
-    Использует UDP-соединение с фиктивными адресами (не отправляет реальные пакеты),
-    чтобы определить, через какой интерфейс пойдёт трафик. Пробует несколько адресов
-    из разных подсетей, затем fallback через gethostbyname.
-    Возвращает "127.0.0.1", если ничего не удалось.
-    """
-    # Пробуем несколько LAN-адресов — UDP connect не шлёт пакетов, просто выбирает маршрут
     for target in ("192.168.1.1", "10.0.0.1", "172.16.0.1", "8.8.8.8"):
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -154,7 +157,6 @@ def _local_ip() -> str:
                 return ip
         except Exception:
             pass
-    # Fallback через hostname
     try:
         ip = socket.gethostbyname(socket.gethostname())
         if not ip.startswith("127."):
@@ -165,11 +167,6 @@ def _local_ip() -> str:
 
 
 def _subnet_broadcast(ip: str) -> str:
-    """
-    Вычисляет широковещательный адрес для подсети /24 на основе локального IP.
-    Предполагается маска 255.255.255.0. Если не удаётся разобрать, возвращает
-    глобальный broadcast 255.255.255.255.
-    """
     try:
         parts = ip.split(".")
         if len(parts) == 4:
@@ -179,36 +176,43 @@ def _subnet_broadcast(ip: str) -> str:
     return "255.255.255.255"
 
 
+def _get_node_keys():
+    """Возвращает (priv, pub) X25519 ключи этого узла."""
+    from app.security.crypto import load_or_create_node_keypair
+    return load_or_create_node_keypair(Config.KEYS_DIR)
+
+
 # ══════════════════════════════════════════════════════════════════════════════
-# Запуск discovery (Rust или Python)
+# Запуск discovery
 # ══════════════════════════════════════════════════════════════════════════════
 
 def start_discovery(device_name: str = "") -> None:
     """
-    Запускает процесс обнаружения пиров (UDP broadcast) в фоновых потоках.
-
-    Если доступен скомпилированный Rust-модуль vortex_chat, использует его.
-    Иначе запускает Python-реализацию: два потока (слушатель и отправитель).
-
-    Параметр device_name — имя, под которым узел будет виден другим. Если не указан,
-    используется socket.gethostname().
+    Запускает UDP discovery в фоновых потоках.
+    UDP broadcast теперь включает X25519 публичный ключ узла.
     """
     name = device_name or socket.gethostname()
     registry.own_ip = _local_ip()
 
-    # Попытка импортировать и использовать Rust-модуль
+    # Получаем публичный ключ этого узла для включения в broadcast
+    try:
+        _, node_pub = _get_node_keys()
+        node_pubkey_hex = node_pub.hex() if isinstance(node_pub, bytes) else bytes(node_pub).hex()
+    except Exception as e:
+        logger.warning(f"Не удалось получить X25519 ключ узла: {e}")
+        node_pubkey_hex = None
+
+    # Пробуем Rust-модуль
     try:
         import vortex_chat as _vc
         _vc.start_discovery(name, Config.PORT)
-        logger.info(f"🦀 Rust UDP discovery запущен как «{name}»")
+        logger.info(f"🦀 Rust UDP discovery: «{name}»")
 
-        # Запускаем фоновый поток для периодической синхронизации обнаруженных Rust-пиров
-        # в наш Python-реестр. Rust-модуль хранит свой список пиров отдельно.
         def _sync_rust_peers():
             while True:
                 try:
                     for ip, port in _vc.get_peers():
-                        # В Rust-версии имена пиров пока не передаются, используем IP как имя
+                        # Rust не передаёт pubkey — обновляем без него
                         registry.update(ip, ip, port)
                 except Exception:
                     pass
@@ -216,28 +220,26 @@ def start_discovery(device_name: str = "") -> None:
 
         threading.Thread(target=_sync_rust_peers, daemon=True, name="rust-peers-sync").start()
         return
-
     except (ImportError, AttributeError):
-        # Rust-модуль не найден или не содержит нужных функций — используем Python fallback
         logger.info("Python UDP discovery fallback")
 
-    # Python fallback
-    threading.Thread(target=_py_listener, daemon=True, name="udp-listen").start()
-    threading.Thread(target=_py_sender, args=(name,), daemon=True, name="udp-send").start()
-    logger.info(f"🐍 Python UDP discovery запущен как «{name}»")
+    # Python fallback — с pubkey в payload
+    threading.Thread(
+        target=_py_listener, daemon=True, name="udp-listen"
+    ).start()
+    threading.Thread(
+        target=_py_sender, args=(name, node_pubkey_hex), daemon=True, name="udp-send"
+    ).start()
+    logger.info(f"🐍 Python UDP discovery: «{name}» pubkey={'yes' if node_pubkey_hex else 'no'}")
 
 
 def _py_listener():
-    """
-    Фоновый поток для прослушивания UDP-пакетов (Python fallback).
-    При получении пакета парсит JSON, извлекает имя и порт, обновляет реестр.
-    Также периодически (по таймауту сокета) вызывает cleanup для удаления устаревших пиров.
-    """
+    """UDP-слушатель. Парсит имя, порт и X25519 pubkey из broadcast-пакетов."""
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        sock.bind(("", Config.UDP_PORT))  # слушаем на всех интерфейсах
+        sock.bind(("", Config.UDP_PORT))
         sock.settimeout(2.0)
     except OSError as e:
         logger.error(f"UDP bind failed: {e}")
@@ -247,64 +249,130 @@ def _py_listener():
         try:
             data, addr = sock.recvfrom(1024)
             src_ip = addr[0]
-            # Игнорируем пакеты от самого себя (own_ip может измениться, но проверяем оба варианта)
             if src_ip == registry.own_ip or src_ip.startswith("127."):
                 continue
+
             info = json.loads(data.decode())
-            # Обрезаем имя до 64 символов для безопасности
-            registry.update(src_ip, str(info.get("name", src_ip))[:64],
-                            int(info.get("port", Config.PORT)))
+
+            # Извлекаем X25519 pubkey из broadcast payload
+            pubkey = info.get("pubkey")
+            if pubkey and len(pubkey) != 64:
+                pubkey = None  # невалидный pubkey — игнорируем
+            if pubkey:
+                try:
+                    bytes.fromhex(pubkey)  # валидируем hex
+                except ValueError:
+                    pubkey = None
+
+            registry.update(
+                src_ip,
+                str(info.get("name", src_ip))[:64],
+                int(info.get("port", Config.PORT)),
+                pubkey,
+            )
         except socket.timeout:
-            # Таймаут — регулярно чистим устаревших пиров
             registry.cleanup()
         except Exception as e:
             logger.debug(f"UDP recv: {e}")
 
 
-def _py_sender(name: str):
+def _py_sender(name: str, node_pubkey_hex: Optional[str]):
     """
-    Фоновый поток для периодической рассылки UDP-пакетов (Python fallback).
-    Каждые Config.UDP_INTERVAL_SEC отправляет broadcast-пакет со своим именем и портом.
-    Отправляет на широковещательный адрес подсети и на глобальный broadcast 255.255.255.255.
+    UDP-отправитель. Включает X25519 pubkey в каждый broadcast-пакет.
+    Другие узлы используют этот pubkey для шифрования P2P сообщений нам.
     """
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
     while True:
         try:
-            # Пересчитываем IP и broadcast каждую итерацию — IP может измениться (например, смена сети)
             own_ip = _local_ip()
             if own_ip != registry.own_ip and not own_ip.startswith("127."):
                 registry.own_ip = own_ip
-            payload = json.dumps({"name": name, "port": Config.PORT}).encode()
-            bcast = _subnet_broadcast(own_ip)
+
+            # Включаем pubkey в payload — соседние узлы узнают наш X25519 ключ
+            payload_dict = {"name": name, "port": Config.PORT}
+            if node_pubkey_hex:
+                payload_dict["pubkey"] = node_pubkey_hex
+
+            payload = json.dumps(payload_dict).encode()
+            bcast   = _subnet_broadcast(own_ip)
+
             sock.sendto(payload, (bcast, Config.UDP_PORT))
-            # Также шлём на 255.255.255.255 для максимальной совместимости
             try:
                 sock.sendto(payload, ("255.255.255.255", Config.UDP_PORT))
             except Exception:
                 pass
+
         except Exception as e:
             logger.debug(f"UDP send: {e}")
+
         time.sleep(Config.UDP_INTERVAL_SEC)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Вспомогательная функция для отправки сообщения пиру по HTTP
+# P2P зашифрованная отправка сообщений
 # ══════════════════════════════════════════════════════════════════════════════
 
-async def _send_to_peer(peer: PeerInfo, room_id: int, sender: str, text: str) -> bool:
+async def _send_to_peer_encrypted(
+        peer:      PeerInfo,
+        room_id:   int,
+        sender:    str,
+        ciphertext_hex: str,    # уже зашифрованный клиентом текст сообщения
+        msg_type:  str = "text",
+) -> bool:
     """
-    Отправляет P2P-сообщение одному пиру через его HTTP-эндпоинт /api/peers/receive.
-    Возвращает True при успехе (статус 200).
+    Отправляет P2P сообщение другому узлу с ECIES шифрованием транспортного уровня.
+
+    Двойное шифрование:
+      1. Содержимое сообщения (ciphertext_hex) — уже зашифровано клиентом room_key
+      2. Транспортный payload — шифруется ECIES X25519 ключом узла-получателя
+
+    Подслушивающий видит только зашифрованный транспортный payload.
+    Даже при расшифровке транспорта — содержимое сообщения остаётся зашифрованным room_key.
     """
+    node_priv, node_pub_raw = _get_node_keys()
+    node_pub = node_pub_raw if isinstance(node_pub_raw, bytes) else bytes(node_pub_raw)
+    node_priv_bytes = node_priv if isinstance(node_priv, bytes) else bytes(node_priv)
+
+    payload_dict = {
+        "room_id":    room_id,
+        "sender":     sender,
+        "ciphertext": ciphertext_hex,   # зашифрованное сообщение (room_key)
+        "msg_type":   msg_type,
+    }
+
     try:
+        if peer.has_encryption():
+            # Шифруем транспортный payload X25519 ключом узла-получателя
+            from app.security.key_exchange import encrypt_p2p_payload
+            encrypted = encrypt_p2p_payload(payload_dict, node_priv_bytes, peer.node_pubkey_hex)
+
+            request_body = {
+                "ephemeral_pub": encrypted["ephemeral_pub"],
+                "ciphertext":    encrypted["ciphertext"],
+                "sender_pubkey": node_pub.hex(),
+            }
+        else:
+            # Деградированный режим: узел не опубликовал свой X25519 ключ
+            # Отправляем незашифрованно (только внутри доверенной локальной сети)
+            logger.warning(
+                f"Peer {peer.ip} has no pubkey — P2P transport unencrypted (LAN only)"
+            )
+            request_body = {
+                "plaintext_payload": payload_dict,   # fallback без шифрования
+                "sender_pubkey":     node_pub.hex(),
+            }
+
         async with httpx.AsyncClient(timeout=3.0) as client:
             response = await client.post(
                 f"{peer.base_url}/api/peers/receive",
-                json={"room_id": room_id, "sender": sender, "text": text},
+                json=request_body,
             )
             return response.status_code == 200
-    except Exception:
+
+    except Exception as e:
+        logger.debug(f"P2P send to {peer.ip} failed: {e}")
         return False
 
 
@@ -314,98 +382,142 @@ async def _send_to_peer(peer: PeerInfo, room_id: int, sender: str, text: str) ->
 
 @router.get("")
 async def list_peers(u: User = Depends(get_current_user)):
-    """
-    Возвращает список активных пиров (соседних узлов), обнаруженных в локальной сети.
-    Требует аутентификации.
-    """
+    """Список активных P2P узлов в локальной сети."""
     peers = registry.active()
     return {
-        "own_ip": registry.own_ip,
-        "count": len(peers),
-        "peers": [p.to_dict() for p in peers],
+        "own_ip":    registry.own_ip,
+        "count":     len(peers),
+        "peers":     [p.to_dict() for p in peers],
+        "encrypted": sum(1 for p in peers if p.has_encryption()),
     }
 
 
 @router.get("/status")
 async def peer_status():
-    """
-    Публичный эндпоинт для проверки доступности узла и получения информации о нём.
-    Используется другими пирами при P2P-взаимодействии.
-    """
+    """Публичный endpoint — соседние узлы проверяют доступность."""
+    _, node_pub_raw = _get_node_keys()
+    node_pub = node_pub_raw if isinstance(node_pub_raw, bytes) else bytes(node_pub_raw)
     return {
-        "ok": True,
-        "own_ip": registry.own_ip,
-        "peers": len(registry.active()),  # количество известных этому узлу пиров
+        "ok":       True,
+        "own_ip":   registry.own_ip,
+        "peers":    len(registry.active()),
+        "pubkey":   node_pub.hex(),   # X25519 pubkey узла — для инициации зашифрованного канала
     }
 
 
-class MsgIn(BaseModel):
-    """Модель входящего P2P-сообщения от другого узла."""
-    room_id: int
-    sender: str
-    text: str
+class P2PReceiveRequest(BaseModel):
+    """Входящий зашифрованный P2P запрос от другого узла."""
+    # Зашифрованный режим (ECIES):
+    ephemeral_pub:     Optional[str] = None
+    ciphertext:        Optional[str] = None
+    sender_pubkey:     Optional[str] = None
+    # Fallback незашифрованный режим:
+    plaintext_payload: Optional[dict] = None
 
 
 @router.post("/receive")
-async def receive_from_peer(msg: MsgIn, request: Request):
+async def receive_from_peer(body: P2PReceiveRequest, request: Request):
     """
-    Эндпоинт, через который другие узлы отправляют сообщения.
-    Полученное сообщение транслируется всем локальным WebSocket-клиентам,
-    находящимся в указанной комнате.
+    Принимает P2P сообщение от другого узла.
 
-    Примечание: не требует аутентификации, так как доверие основано на IP (локальная сеть).
+    Расшифровывает ECIES payload (если зашифрован) и ретранслирует
+    зашифрованное сообщение локальным WebSocket-клиентам.
+    Содержимое сообщения (ciphertext) НЕ расшифровывается — это делает клиент.
     """
     src_ip = request.client.host if request.client else "unknown"
-    peer = registry.get(src_ip)
-    if not peer:
-        # Питер не зарегистрирован — возможно, он только что появился.
-        # Всё равно принимаем сообщение, но логируем предупреждение.
-        logger.warning(f"P2P msg from unregistered peer {src_ip}")
 
-    # Рассылаем всем локальным WebSocket-клиентам в комнате
-    await ws_manager.broadcast_to_room(
-        msg.room_id,
-        {
-            "type": "peer_message",
-            "sender": msg.sender,
-            "sender_ip": src_ip,
-            "text": msg.text,
-            "from_peer": True,  # флаг для отличия от обычных сообщений чата
-        },
-    )
+    # ── Расшифровка транспортного уровня ─────────────────────────────────────
+    if body.ephemeral_pub and body.ciphertext:
+        # Зашифрованный режим — используем X25519 ключ нашего узла
+        node_priv_raw, _ = _get_node_keys()
+        node_priv = node_priv_raw if isinstance(node_priv_raw, bytes) else bytes(node_priv_raw)
+
+        try:
+            from app.security.key_exchange import decrypt_p2p_payload
+            msg = decrypt_p2p_payload(body.ephemeral_pub, body.ciphertext, node_priv)
+        except Exception as e:
+            logger.warning(f"P2P decrypt failed from {src_ip}: {e}")
+            raise HTTPException(400, "Не удалось расшифровать P2P сообщение")
+
+    elif body.plaintext_payload:
+        # Fallback — незашифрованный режим (деградированный, только LAN)
+        msg = body.plaintext_payload
+        logger.debug(f"P2P plaintext from {src_ip} (unencrypted fallback)")
+
+    else:
+        raise HTTPException(400, "Отсутствует payload (ни encrypted, ни plaintext)")
+
+    # ── Опциональная верификация sender_pubkey ────────────────────────────────
+    if body.sender_pubkey:
+        peer = registry.get(src_ip)
+        if peer and peer.node_pubkey_hex and peer.node_pubkey_hex != body.sender_pubkey:
+            logger.warning(
+                f"P2P pubkey mismatch from {src_ip}: "
+                f"expected={peer.node_pubkey_hex[:16]}... "
+                f"got={body.sender_pubkey[:16]}..."
+            )
+            # Не блокируем — логируем как предупреждение
+        elif not peer:
+            # Обновляем реестр с новым пиром
+            registry.update(src_ip, src_ip, Config.PORT, body.sender_pubkey)
+
+    # ── Ретрансляция зашифрованного сообщения локальным WebSocket-клиентам ───
+    room_id       = msg.get("room_id")
+    sender        = msg.get("sender", "unknown")
+    ciphertext_hex= msg.get("ciphertext", "")   # зашифровано room_key на клиенте
+    msg_type      = msg.get("msg_type", "text")
+
+    if not room_id:
+        raise HTTPException(400, "Отсутствует room_id в payload")
+
+    await ws_manager.broadcast_to_room(room_id, {
+        "type":       "peer_message",
+        "sender":     sender,
+        "sender_ip":  src_ip,
+        "ciphertext": ciphertext_hex,    # клиент расшифрует сам
+        "msg_type":   msg_type,
+        "from_peer":  True,
+    })
+
     return {"ok": True}
 
 
 class SendReq(BaseModel):
-    """Модель запроса на отправку P2P-сообщения от локального пользователя."""
-    room_id: int
-    text: str
-    peer_ip: Optional[str] = None  # если указан, отправить только конкретному пиру
+    room_id:    int
+    ciphertext: str            # уже зашифрованное клиентом сообщение (hex)
+    msg_type:   str = "text"
+    peer_ip:    Optional[str] = None
 
 
 @router.post("/send")
 async def send_p2p(body: SendReq, u: User = Depends(get_current_user)):
     """
-    Отправляет сообщение одному или всем активным пирам от имени текущего пользователя.
+    Отправляет зашифрованное сообщение P2P-узлам.
 
-    - Если указан peer_ip, отправляет только этому пиру (если он есть в реестре).
-    - Иначе отправляет всем активным пирам параллельно.
-
-    Возвращает статистику: сколько пиров получили сообщение.
+    Клиент должен передать ciphertext — сообщение, уже зашифрованное room_key.
+    Сервер не видит открытый текст: только зашифрованный payload.
+    Транспортный уровень дополнительно шифруется ECIES X25519 ключами узлов.
     """
     if body.peer_ip:
         peer = registry.get(body.peer_ip)
         if not peer:
             raise HTTPException(404, "Пир не найден")
-        ok = await _send_to_peer(peer, body.room_id, u.username, body.text)
-        return {"sent": ok}
+        ok = await _send_to_peer_encrypted(
+            peer, body.room_id, u.username, body.ciphertext, body.msg_type
+        )
+        return {"sent": ok, "encrypted": peer.has_encryption()}
 
-    # Отправка всем активным пирам
-    peers = registry.active()
-    # Запускаем все запросы параллельно (asyncio.gather)
+    peers   = registry.active()
     results = await asyncio.gather(
-        *[_send_to_peer(p, body.room_id, u.username, body.text) for p in peers],
-        return_exceptions=True,  # не прерываем при ошибках
+        *[_send_to_peer_encrypted(p, body.room_id, u.username, body.ciphertext, body.msg_type)
+          for p in peers],
+        return_exceptions=True,
     )
-    sent_count = sum(1 for r in results if r is True)
-    return {"sent_to": sent_count, "total": len(peers)}
+    sent_count      = sum(1 for r in results if r is True)
+    encrypted_count = sum(1 for p in peers if p.has_encryption())
+
+    return {
+        "sent_to":        sent_count,
+        "total":          len(peers),
+        "encrypted_peers":encrypted_count,
+    }

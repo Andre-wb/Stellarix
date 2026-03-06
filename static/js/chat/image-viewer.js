@@ -13,7 +13,7 @@
  */
 export function openImageViewer(url, name) {
     document.getElementById('image-viewer-img').src = url;
-    document.getElementById('viewer-image-name').textContent = name; // исправлено: в коде используется 'image-viewer-name', но в исходном файле было 'image-viewer-name', оставляем как есть
+    document.getElementById('image-viewer-name').textContent = name;
     document.getElementById('image-viewer-overlay').classList.add('show');
 }
 
@@ -50,6 +50,6 @@ export function initImageViewer() {
         if (document.getElementById('image-viewer-overlay').classList.contains('show'))
             closeImageViewer();
         if (document.getElementById('file-preview-overlay').classList.contains('show'))
-            window.cancelFilePreview(); // функция из file-upload.js
+            window.cancelFilePreview();
     });
 }

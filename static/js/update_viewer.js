@@ -10,15 +10,6 @@
 const _ivImg = document.getElementById('image-viewer-img');
 const _ivDl  = document.getElementById('image-viewer-download');
 
-// Создаём наблюдатель за изменениями атрибута 'src' у изображения
-new MutationObserver(() => {
-    // Если у изображения появился src, обновляем href ссылки и имя файла для скачивания
-    if (_ivImg.src) {
-        _ivDl.href = _ivImg.src;
-        _ivDl.download = document.getElementById('image-viewer-name').textContent;
-    }
-}).observe(_ivImg, { attributes: true, attributeFilter: ['src'] });
-
 // Глобальный обработчик нажатия клавиш
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {

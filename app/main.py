@@ -1,5 +1,5 @@
 """
-Vortex Chat v2 — децентрализованный мессенджер.
+Vortex Chat — децентрализованный мессенджер.
 X25519+AES-256-GCM, Argon2, WAF, CSRF, security headers.
 """
 from __future__ import annotations
@@ -15,12 +15,11 @@ from app.database import init_db
 from app.peer.peer_registry import start_discovery, registry
 from app.peer.connection_manager import manager
 from app.security.crypto import load_or_create_node_keypair, rust_available
-
 from app.authentication.auth  import router as auth_router
 from app.chats.rooms import router as rooms_router
 from app.chats.chat  import router as chat_router
 from app.peer.peer_registry import router as peers_router
-
+from app.keys.keys import router as keys_router
 from app.security.waf import WAFMiddleware, waf_router, init_waf_engine
 from app.security.middleware import (
     SecurityHeadersMiddleware,
@@ -78,7 +77,7 @@ app.add_middleware(TokenRefreshMiddleware)
 app.add_middleware(CSRFMiddleware)
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
-
+app.include_router(keys_router)
 app.include_router(auth_router)
 app.include_router(rooms_router)
 app.include_router(chat_router)
