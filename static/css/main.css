@@ -652,7 +652,8 @@ video {
  * АДАПТИВ ПОД МОБИЛЬНЫЕ УСТРОЙСТВА
  * ========================================================================== */
 @media (max-width: 640px) {
-    #sidebar { position: absolute; left: 0; top: 0; bottom: 0; z-index: 50; transform: translateX(-100%); }
+    #sidebar { position: absolute; left: 0; top: 0; bottom: 0; z-index: 50; transform: translateX(-100%);
+        width: 100vw; }
     #sidebar.open { transform: translateX(0); }
     .auth-card { width: calc(100vw - 32px); padding: 24px; }
 }
