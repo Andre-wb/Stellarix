@@ -27,4 +27,8 @@ __pycache__/
 .vortex.db-shm
 .vortex.db-wal
 uploads
-certs
+certs__pycache__/
+*.pyc
+vortex.db
+vortex.db-*
+uploads/
