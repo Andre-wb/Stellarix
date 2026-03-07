@@ -58,7 +58,8 @@ export function openRoom(id) {
     $('chat-room-meta').textContent = `${room.member_count} участников · ${room.online_count} онлайн`;
     renderRoomsList();
     connectWS(id);
-    connectSignal(id);
+    const signalId = room.is_federated ? -1 : id;
+    connectSignal(signalId);
 }
 
 /**
