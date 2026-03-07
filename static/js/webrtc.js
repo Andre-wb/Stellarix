@@ -73,6 +73,8 @@ export function connectSignal(roomId) {
         S.signalWs = null;
     }
 
+    S._signalRoomId = roomId;  // запоминаем правильный ID
+
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
     S.signalWs  = new WebSocket(`${proto}://${location.host}/ws/signal/${roomId}`);
 
@@ -86,9 +88,11 @@ export function connectSignal(roomId) {
     S.signalWs.onclose = e => {
         console.log('Signal WS закрыт, code=', e.code);
         S.signalWs = null;
-        if (S.currentRoom?.id === roomId && e.code !== 1000) {
+        if (e.code !== 1000) {
             setTimeout(() => {
-                if (S.currentRoom?.id === roomId && !S.signalWs) connectSignal(roomId);
+                if (S._signalRoomId === roomId && !S.signalWs) {
+                    connectSignal(roomId);
+                }
             }, 3000);
         }
     };

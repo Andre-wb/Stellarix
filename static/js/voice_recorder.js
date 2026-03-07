@@ -287,21 +287,31 @@ function _swapInputTo(mode, data) {
     }
 }
 
+// ✅ Получаем свежий CSRF токен перед каждым запросом
+async function _freshCsrf() {
+    try {
+        const r = await fetch('/api/authentication/csrf-token', { credentials: 'include' });
+        if (r.ok) {
+            const data = await r.json();
+            // обновляем meta-тег на будущее
+            const meta = document.querySelector('meta[name="csrf-token"]');
+            if (meta && data.csrf_token) meta.content = data.csrf_token;
+            return data.csrf_token || '';
+        }
+    } catch {}
+    // fallback на cookie/meta
+    return document.querySelector('meta[name="csrf-token"]')?.content ||
+        document.cookie.split('; ').find(r => r.startsWith('csrf_token='))?.split('=')[1] || '';
+}
+
 async function _upload(blob, name, mime) {
     const S = window.AppState;
     if (!S?.currentRoom) throw new Error('Нет активной комнаты');
 
-    // ✅ Берём токен из мета-тега (надёжнее cookie)
-    const csrf =
-        document.querySelector('meta[name="csrf-token"]')?.content ||
-        document.cookie.split('; ')
-            .find(r => r.startsWith('csrf_token='))?.split('=')[1] ||
-        '';
+    const csrf = await _freshCsrf();   // ✅ всегда свежий токен
 
-    // ✅ Проверяем подключение WS перед отправкой уведомления
-    if (S.ws?.readyState === WebSocket.OPEN) {
+    if (S.ws?.readyState === WebSocket.OPEN)
         S.ws.send(JSON.stringify({ action: 'file_sending', filename: name }));
-    }
 
     const fd = new FormData();
     fd.append('file', new File([blob], name, { type: mime }));
@@ -309,14 +319,9 @@ async function _upload(blob, name, mime) {
     try {
         const res = await fetch(`/api/files/upload/${S.currentRoom.id}`, {
             method: 'POST',
-            headers: {
-                'X-CSRF-Token': csrf,
-                // ✅ Явно указываем что это XHR, а не form submit
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            body: fd,
-            // ✅ Включаем cookies для cross-origin если сервер на другом порту
+            headers: { 'X-CSRF-Token': csrf },
             credentials: 'include',
+            body: fd,
         });
         if (!res.ok) {
             const text = await res.text();
