@@ -27,7 +27,6 @@ import ssl
 import time
 from dataclasses import dataclass, field
 from typing import Optional
-
 import httpx
 import websockets
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
