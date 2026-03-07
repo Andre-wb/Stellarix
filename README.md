@@ -281,7 +281,8 @@ pip install -r requirements.txt
 
 # 4. Скомпилировать Rust криптоядро
 cd rust_utils
-maturin develop --release
+export RUSTFLAGS="-L /opt/homebrew/opt/python@3.13/Frameworks/Python.framework/Versions/3.13/lib -lpython3.13"
+maturin build
 cd ..
 ```
 
