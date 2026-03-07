@@ -17,9 +17,11 @@ import { $ } from './utils.js';
 
 // STUN-серверы для ICE
 const ICE_SERVERS = [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun.cloudflare.com:3478' },
+    { urls: 'stun:stun.relay.metered.ca:80' },
+    { urls: 'turn:global.relay.metered.ca:80',                username: '89d094ff4761a3765d7ab286', credential: 'bnMneF4zVHEBd3TG' },
+    { urls: 'turn:global.relay.metered.ca:80?transport=tcp',  username: '89d094ff4761a3765d7ab286', credential: 'bnMneF4zVHEBd3TG' },
+    { urls: 'turn:global.relay.metered.ca:443',               username: '89d094ff4761a3765d7ab286', credential: 'bnMneF4zVHEBd3TG' },
+    { urls: 'turns:global.relay.metered.ca:443?transport=tcp',username: '89d094ff4761a3765d7ab286', credential: 'bnMneF4zVHEBd3TG' },
 ];
 
 let _isHangingUp      = false;
