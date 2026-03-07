@@ -131,6 +131,10 @@ export async function startVoiceCall() {
     const S = window.AppState;
     if (!S.currentRoom) return;
 
+    console.log('currentRoom:', JSON.stringify(S.currentRoom));
+    console.log('signalRoomId:', S.currentRoom.signalRoomId);
+    console.log('id:', S.currentRoom.id);
+    console.log('_signalRoomId:', S._signalRoomId);
     if (!S.signalWs || S.signalWs.readyState === WebSocket.CLOSED) {
         const signalId = S.currentRoom.signalRoomId ?? S.currentRoom.id;
         connectSignal(signalId);
