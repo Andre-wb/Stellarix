@@ -1,0 +1,98 @@
+/* static/css/menu.css */
+/* ============================================================================
+ * Стили для контекстного меню (появляется при клике на сообщение).
+ * Интегрируется с liquid-glass для стеклянного эффекта.
+ * ========================================================================== */
+
+/* Затемнённый фон позади меню (прозрачный, только для перехвата кликов) */
+.ctx-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 9990;
+    background: transparent;
+}
+
+/* Само контекстное меню */
+.ctx-menu {
+    position: fixed;
+    z-index: 9999;
+    min-width: 180px;
+    border-radius: 14px;
+    padding: 6px !important; /* внутренние отступы, важно для точного позиционирования */
+    overflow: hidden;
+    animation: ctxFadeIn .14s ease; /* плавное появление */
+}
+
+/* Анимация появления меню (масштабирование + лёгкое смещение) */
+@keyframes ctxFadeIn {
+    from { opacity: 0; transform: scale(.92) translateY(-6px); }
+    to   { opacity: 1; transform: scale(1)  translateY(0); }
+}
+
+/* Элемент меню (пункт) */
+.ctx-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 16px;
+    cursor: pointer;
+    transition: background .12s;
+    position: relative;
+    z-index: 3; /* выше слоя зернистости */
+    user-select: none;
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.88);
+    letter-spacing: 0.01em;
+    border-radius: 14px; /* скругление для эффекта при наведении */
+}
+.ctx-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+.ctx-item:active {
+    background: rgba(255, 255, 255, 0.14);
+}
+/* Опасный пункт (например, удалить) – красный текст */
+.ctx-item.danger {
+    color: rgba(255, 90, 90, 0.90);
+}
+/* Иконки в пунктах меню */
+.ctx-item img {
+    width: 18px;
+    height: 18px;
+    opacity: 0.78;
+    filter: invert(1) brightness(1.2); /* делаем иконки белыми */
+    flex-shrink: 0;
+}
+/* Для опасных пунктов иконка становится красной */
+.ctx-item.danger img {
+    filter: invert(35%) sepia(90%) saturate(500%) hue-rotate(320deg) brightness(1.1);
+}
+
+/* Разделитель между пунктами (временно скрыт, но оставлен для возможного использования) */
+.ctx-divider {
+    height: 1px;
+    margin: 4px 12px;
+    background: rgba(255, 255, 255, 0.10);
+    position: relative;
+    z-index: 3;
+    display: none;
+}
+
+/* Базовые стили для пузырька сообщения (дублируются из main.css, но здесь они для контекста) */
+.msg-bubble {
+    user-select: text;
+    border-radius: 14px;
+    padding: 10px 14px;
+    max-width: 480px;
+    width: fit-content;
+    cursor: pointer;
+}
+.msg-bubble.own {
+    margin-left: auto;
+}
+
+/* Цитата внутри сообщения (стили из liquid-glass дополняются) */
+.msg-bubble .lg-reply {
+    margin-bottom: 6px;
+}

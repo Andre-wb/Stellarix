@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚡ VORTEX — Настройка узла</title>
+    <link rel="stylesheet" href="/setup/css/setup.css">
+</head>
+<body>
+
+<div class="header">
+    <div class="logo-ascii">
+        ██╗   ██╗ ██████╗ ██████╗ ████████╗███████╗██╗  ██╗
+        ██║   ██║██╔═══██╗██╔══██╗╚══██╔══╝██╔════╝╚██╗██╔╝
+        ██║   ██║██║   ██║██████╔╝   ██║   █████╗   ╚███╔╝
+        ╚██╗ ██╔╝██║   ██║██╔══██╗   ██║   ██╔══╝   ██╔██╗
+        ╚████╔╝ ╚██████╔╝██║  ██║   ██║   ███████╗██╔╝ ██╗
+        ╚═══╝   ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚══════╝╚═╝  ╚═╝</div>
+    <div class="header-sub">Node Setup Wizard</div>
+</div>
+
+<div class="stepbar">
+    <div class="step-dot active" data-n="1" id="sdot-1" onclick="goStep(1)">
+        <div class="step-label">Узел</div>
+    </div>
+    <div class="step-line" id="sline-1"></div>
+    <div class="step-dot" data-n="2" id="sdot-2" onclick="goStep(2)">
+        <div class="step-label">SSL</div>
+    </div>
+    <div class="step-line" id="sline-2"></div>
+    <div class="step-dot" data-n="3" id="sdot-3" onclick="goStep(3)">
+        <div class="step-label">Итог</div>
+    </div>
+    <div class="step-line" id="sline-3"></div>
+    <div class="step-dot" data-n="4" id="sdot-4" onclick="goStep(4)">
+        <div class="step-label">Готово</div>
+    </div>
+</div>
+
+<div class="card">
+
+    <div class="step active" id="step-1">
+        <div class="step-title">Настройка <span>узла</span></div>
+        <div class="step-desc">Укажите имя устройства и порт. Эти данные будут видны другим участникам локальной сети.</div>
+
+        <div id="alert-s1" class="alert"></div>
+
+        <div class="form-group">
+            <label class="form-label">Имя устройства</label>
+            <input class="form-input" id="device-name" type="text"
+                   placeholder="MacBook-Boris, Server-Home, Pi4..." autocomplete="off">
+            <div class="form-hint">Видно другим узлам в сети.</div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Порт HTTP(S)</label>
+                <input class="form-input" id="node-port" type="number" value="8000" min="1024" max="65535">
+                <div class="form-hint" id="port-hint">Порт для веб-интерфейса</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">UDP порт (P2P)</label>
+                <input class="form-input" id="udp-port" type="number" value="4200" min="1024" max="65535">
+                <div class="form-hint">Обнаружение соседних узлов</div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Макс. размер файла (МБ)</label>
+            <input class="form-input" id="max-file" type="number" value="100" min="1" max="2048">
+            <div class="form-hint">Рекомендуется 100–500 МБ.</div>
+        </div>
+
+        <div class="status-row">
+            <div class="dot dot-yellow" id="ip-dot"></div>
+            <span id="ip-text" style="color:var(--text3);font-size:12px;">Определение IP...</span>
+        </div>
+
+        <div class="btn-row">
+            <div class="spacer"></div>
+            <button class="btn btn-primary" id="btn-s1-next" onclick="step1Next()">
+                Продолжить →
+            </button>
+        </div>
+    </div>
+
+    <div class="step" id="step-2">
+        <div class="step-title">Настройка <span>SSL</span></div>
+        <div class="step-desc">Выберите способ получения HTTPS-сертификата. Рекомендуется для безопасной работы всех функций браузера (микрофон, камера, WebRTC).</div>
+
+        <div id="alert-s2" class="alert"></div>
+
+        <div class="ssl-options">
+            <div class="ssl-option selected" id="opt-self" onclick="selectSSL('self')">
+                <div class="ssl-icon">
+                    <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                          fill="currentColor" viewBox="0 0 24 24" >
+                        <path d="M15.7 2h-.18c-2.19 0-4.26 1.21-5.53 3.25-.81 1.3-1.12 2.62-.93 4.03L2.9 15.37c-.57.56-.89 1.34-.89 2.13V19c0 1.65 1.35 3 3 3H6.6c.8 0 1.55-.31 2.12-.88l.56-.56c.26-.26.46-.58.58-.92.34-.12.65-.32.92-.58l.5-.5c.26-.26.46-.58.58-.92.34-.12.65-.32.92-.58l.5-.5c.29-.29.51-.65.62-1.03.35-.11.66-.31.93-.57.23.03.45.04.68.04 1.14 0 2.25-.35 3.3-1.03 2.13-1.38 3.32-3.56 3.18-5.85-.2-3.38-2.9-6.02-6.29-6.12m2.02 10.29c-.8.52-1.54.71-2.22.71-.49 0-.95-.1-1.39-.24l-.68.76c-.08.09-.19.13-.31.13-.15 0-.31-.06-.48-.19L12 13v1.79c0 .13-.05.26-.15.35l-.5.5a.485.485 0 0 1-.7 0l-.65-.65v1.79c0 .13-.05.26-.15.35l-.5.5a.485.485 0 0 1-.7 0L8 16.98v1.79c0 .13-.05.26-.15.35l-.56.56a1 1 0 0 1-.71.29H4.99c-.55 0-1-.45-1-1v-1.5a1 1 0 0 1 .3-.71l6.95-6.88c-.35-1.06-.43-2.24.43-3.61.85-1.35 2.25-2.31 3.84-2.31h.12c2.33.07 4.22 1.92 4.35 4.23.1 1.66-.88 3.15-2.28 4.05Z"></path><path d="M14 6.69 17.31 10c.92-.92.92-2.4 0-3.31s-2.4-.91-3.31 0"></path>
+                    </svg>
+                </div>
+                <div class="ssl-title">Самоподписанный</div>
+                <div class="ssl-desc">Генерируется автоматически, работает в LAN без интернета</div>
+                <div class="ssl-badge badge-recommended">✓ Рекомендуется</div>
+            </div>
+            <div class="ssl-option" id="opt-mkcert" onclick="selectSSL('mkcert')">
+                <div class="ssl-icon">
+                    <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                          fill="currentColor" viewBox="0 0 24 24" >
+                        <path d="M6 22h12c1.1 0 2-.9 2-2v-9c0-1.1-.9-2-2-2h-1V7c0-2.76-2.24-5-5-5S7 4.24 7 7v2H6c-1.1 0-2 .9-2 2v9c0 1.1.9 2 2 2M9 7c0-1.65 1.35-3 3-3s3 1.35 3 3v2H9zm-3 4h12v9h-5v-2.28c.59-.35 1-.99 1-1.72 0-1.1-.9-2-2-2s-2 .9-2 2a2 2 0 0 0 1 1.72V20H6z"></path>
+                    </svg>
+                </div>
+                <div class="ssl-title">mkcert</div>
+                <div class="ssl-desc">Полностью доверенный, без предупреждений браузера</div>
+                <div class="ssl-badge" id="mkcert-badge">Проверка...</div>
+            </div>
+            <div class="ssl-option" id="opt-le" onclick="selectSSL('le')">
+                <div class="ssl-icon">
+                    <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                          fill="currentColor" viewBox="0 0 24 24" >
+                        <path d="M12 2C6.49 2 2 6.49 2 12s4.49 10 10 10 10-4.49 10-10S17.51 2 12 2m5.66 4.35c-.72.17-1.45.3-2.19.4-.18-.83-.42-1.59-.7-2.25a8.05 8.05 0 0 1 2.89 1.85M12 20c-.31 0-.97-1-1.45-2.94.96-.05 1.93-.05 2.9 0C12.97 19 12.31 20 12 20m-1.81-4.93c-.08-.63-.14-1.32-.17-2.07h3.96c-.03.75-.09 1.44-.17 2.07-1.2-.08-2.42-.08-3.62 0M12 4c.31 0 .97 1 1.45 2.94-.96.05-1.93.05-2.9 0C11.03 5 11.69 4 12 4m0 5c.61 0 1.21-.03 1.81-.06.08.63.14 1.32.17 2.06h-3.96c.03-.75.09-1.43.17-2.06.6.04 1.2.06 1.81.06m-3.98 2H4.07c.13-1.05.47-2.04.97-2.92 1.03.28 2.09.51 3.16.66-.09.74-.15 1.5-.18 2.27Zm0 2c.03.77.09 1.53.18 2.27-1.08.15-2.13.38-3.16.65-.5-.88-.84-1.87-.97-2.93h3.95Zm7.96 0h3.95a8 8 0 0 1-.97 2.93c-1.03-.28-2.09-.5-3.16-.65.09-.74.15-1.51.18-2.27Zm0-2c-.03-.76-.09-1.53-.18-2.27 1.08-.15 2.13-.38 3.16-.66.5.88.83 1.87.97 2.92h-3.95ZM9.24 4.5c-.28.66-.52 1.43-.7 2.25-.74-.1-1.47-.24-2.19-.4.81-.81 1.8-1.44 2.89-1.85M6.35 17.65c.72-.17 1.45-.3 2.19-.4.18.83.42 1.59.7 2.25a8.05 8.05 0 0 1-2.89-1.85m8.42 1.85c.28-.66.52-1.43.7-2.25.74.1 1.47.24 2.19.4-.81.81-1.8 1.44-2.89 1.85"></path>
+                    </svg>
+                </div>
+                <div class="ssl-title">Let's Encrypt</div>
+                <div class="ssl-desc">Бесплатный доверенный сертификат. Нужен домен и порт 80.</div>
+                <div class="ssl-badge badge-internet">Требует домен</div>
+            </div>
+            <div class="ssl-option" id="opt-skip" onclick="selectSSL('skip')">
+                <div class="ssl-icon">
+                    <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                          fill="currentColor" viewBox="0 0 24 24" >
+                        <path d="M11 9h2v6h-2zm0 8h2v2h-2z"></path><path d="M12.87 2.51c-.35-.63-1.4-.63-1.75 0l-9.99 18c-.17.31-.17.69.01.99.18.31.51.49.86.49h20c.35 0 .68-.19.86-.49a1 1 0 0 0 .01-.99zM3.7 20 12 5.06 20.3 20z"></path>
+                    </svg>
+                </div>
+                <div class="ssl-title">Без SSL</div>
+                <div class="ssl-desc">Только HTTP. Некоторые функции браузера могут быть недоступны.</div>
+                <div class="ssl-badge badge-advanced">Не рекомендуется</div>
+            </div>
+        </div>
+
+        <div class="ssl-detail active" id="detail-self">
+            <div class="form-group">
+                <label class="form-label">Название организации (для сертификата)</label>
+                <input class="form-input" id="ssl-org" type="text" value="Vortex Node">
+            </div>
+            <div class="toggle-row">
+                <div>
+                    <div class="toggle-label">Установить CA в системное хранилище</div>
+                    <div class="toggle-sub">Браузер перестанет показывать предупреждение (требует sudo/admin)</div>
+                </div>
+                <label class="toggle">
+                    <input type="checkbox" id="install-ca" checked>
+                    <div class="toggle-track"></div>
+                    <div class="toggle-thumb"></div>
+                </label>
+            </div>
+        </div>
+
+        <div class="ssl-detail" id="detail-mkcert">
+            <div class="alert alert-info show">
+                mkcert создаёт локально доверенные сертификаты без предупреждений браузера.<br>
+                Полностью бесплатно, работает без интернета.
+            </div>
+        </div>
+
+        <div class="ssl-detail" id="detail-le">
+            <div class="form-group">
+                <label class="form-label">Домен</label>
+                <input class="form-input" id="le-domain" type="text" placeholder="node.example.com">
+                <div class="form-hint">Домен должен указывать на IP этого сервера</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Email для уведомлений</label>
+                <input class="form-input" id="le-email" type="email" placeholder="admin@example.com">
+            </div>
+            <div class="toggle-row">
+                <div>
+                    <div class="toggle-label">Тестовый режим (staging)</div>
+                    <div class="toggle-sub">Не использует лимиты LE, сертификат не будет доверенным</div>
+                </div>
+                <label class="toggle">
+                    <input type="checkbox" id="le-staging">
+                    <div class="toggle-track"></div>
+                    <div class="toggle-thumb"></div>
+                </label>
+            </div>
+        </div>
+
+        <div class="ssl-detail" id="detail-skip">
+            <div class="alert alert-error show">
+                ⚠ Без HTTPS недоступны: микрофон/камера для звонков, уведомления, геолокация.
+                Некоторые браузеры блокируют WebSocket без SSL.
+            </div>
+        </div>
+
+        <div id="ssl-gen-block" style="display:none;">
+            <div class="terminal" id="ssl-terminal"></div>
+        </div>
+
+        <div class="btn-row">
+            <button class="btn btn-secondary" onclick="goStep(1)">← Назад</button>
+            <div class="spacer"></div>
+            <button class="btn btn-primary" id="btn-ssl-gen" onclick="generateSSL()">
+
+                <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                      fill="currentColor" viewBox="0 0 24 24" >
+                    <path d="M6 22h12c1.1 0 2-.9 2-2v-9c0-1.1-.9-2-2-2h-1V7c0-2.76-2.24-5-5-5S7 4.24 7 7v2H6c-1.1 0-2 .9-2 2v9c0 1.1.9 2 2 2M9 7c0-1.65 1.35-3 3-3s3 1.35 3 3v2H9zm-3 4h12v9H6z"></path>
+                </svg>
+                Сгенерировать
+            </button>
+        </div>
+    </div>
+
+    <div class="step" id="step-3">
+        <div class="step-title"><span>Проверьте</span> настройки</div>
+        <div class="step-desc">
+            Всё выглядит правильно? После запуска настройки сохранятся в файл <code>.env</code>.
+        </div>
+
+        <div id="alert-s3" class="alert"></div>
+
+        <ul class="info-list" id="summary-list"></ul>
+
+        <div id="ca-install-block" style="display:none;margin-top:16px;">
+            <div class="divider">Установка CA вручную</div>
+            <div class="code-block" id="ca-cmd">
+                <button class="code-copy" onclick="copyCode('ca-cmd')">copy</button>
+                <span id="ca-cmd-text"></span>
+            </div>
+            <div class="form-hint" style="margin-top:8px;">
+                Выполните в терминале и перезапустите браузер
+            </div>
+        </div>
+
+        <div class="btn-row">
+            <button class="btn btn-secondary" onclick="goStep(2)">← Назад</button>
+            <div class="spacer"></div>
+            <button class="btn btn-primary" id="btn-launch" onclick="launchNode()">
+
+                <svg  xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                      fill="currentColor" viewBox="0 0 24 24" >
+                    <path d="M18.01 14.06c.26 0 .51-.1.71-.29l2.48-2.47c.47-.47.73-1.1.73-1.77s-.26-1.3-.73-1.77l-1.77-1.77 2.12-2.12-1.41-1.41-2.12 2.12-1.77-1.77c-.98-.97-2.56-.97-3.54 0l-2.47 2.47a.996.996 0 0 0 0 1.41l7.07 7.07c.2.2.45.29.71.29Zm-3.89-9.84c.13-.13.28-.15.35-.15s.23.02.35.15l4.95 4.95c.13.13.15.28.15.35s-.02.23-.15.35L18 11.64l-5.66-5.66 1.77-1.77Zm-1.06 8.13-2.12 2.12-1.41-1.41 2.12-2.12-1.41-1.41-2.12 2.12-1.41-1.41a.996.996 0 0 0-1.41 0l-2.48 2.47c-.47.47-.73 1.1-.73 1.77s.26 1.3.73 1.77l1.77 1.77-2.12 2.12 1.41 1.41L6 19.43l1.77 1.77c.49.49 1.13.73 1.77.73s1.28-.24 1.77-.73l2.47-2.47a.996.996 0 0 0 0-1.41l-1.41-1.41 2.12-2.12-1.41-1.41Zm-3.18 7.42c-.13.13-.28.15-.35.15s-.23-.02-.35-.15l-4.95-4.95c-.13-.13-.15-.28-.15-.35s.02-.23.15-.35L6 12.35l3.54 3.54 1.41 1.41.71.71-1.77 1.77Z"></path>
+                </svg>
+                Запустить узел
+            </button>
+        </div>
+    </div>
+
+    <div class="step" id="step-4">
+        <div class="success-icon">
+            <svg  xmlns="http://www.w3.org/2000/svg" width="64" height="64"
+                  fill="currentColor" viewBox="0 0 24 24" >
+                <path d="M12 22C6.49 22 2 17.51 2 12S6.49 2 12 2s10 4.49 10 10-4.49 10-10 10m0-18c-4.41 0-8 3.59-8 8s3.59 8 8 8 8-3.59 8-8-3.59-8-8-8"/><path d="M10 16c-.26 0-.51-.1-.71-.29l-3-3L7.7 11.3l2.29 2.29 5.29-5.29 1.41 1.41-6 6c-.2.2-.45.29-.71.29Z"/>
+            </svg>
+        </div>
+        <div class="step-title" style="text-align:center;">Узел <span>запущен!</span></div>
+        <div class="step-desc" style="text-align:center;margin-bottom:20px;">
+            Мастер настройки завершён. Открывается основной интерфейс...
+        </div>
+
+        <div class="success-url" id="node-url" onclick="openNodeUrl()">
+            https://localhost:8000
+        </div>
+
+        <div id="ca-warn-block" style="display:none;">
+            <div class="alert alert-info show">
+                <svg  xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                      fill="currentColor" viewBox="0 0 24 24" >
+                    <path d="M8.19 15.08c.26.36.62 1.38.81 2.05v2.86c0 1.1.9 2 2 2h2c1.1 0 2-.9 2-2v-2.86c.2-.68.56-1.7.82-2.06.35-.5.72-.93 1.08-1.36 1.03-1.21 2.1-2.46 2.1-4.72 0-3.86-3.14-7-7-7s-7 3.14-7 7c0 2.29 1.07 3.53 2.1 4.73.36.42.73.85 1.09 1.35ZM11 20v-2h2.02L13 20zm1-16c2.76 0 5 2.24 5 5 0 1.53-.64 2.28-1.62 3.42-.37.43-.79.93-1.2 1.51-.37.53-.7 1.42-.92 2.07h-2.52c-.21-.65-.55-1.55-.93-2.08-.41-.57-.83-1.06-1.2-1.49C7.64 11.3 6.99 10.55 6.99 9c0-2.76 2.24-5 5-5Z"></path><path d="M12 7V5C9.79 5 8 6.79 8 9h2c0-1.1.9-2 2-2"></path>
+                </svg>
+                При первом открытии браузер покажет предупреждение о сертификате.<br>
+                Нажмите <strong>«Дополнительно» → «Продолжить»</strong> — это нормально для самоподписанного.<br><br>
+                Для полного доверия установите CA:
+            </div>
+            <div class="code-block" style="margin-top:8px;">
+                <button class="code-copy" onclick="copyCode('ca-final')">copy</button>
+                <span id="ca-final"></span>
+            </div>
+        </div>
+
+        <div class="progress-wrap" style="margin-top:24px;">
+            <div class="progress-bar" id="redirect-bar" style="width:0%"></div>
+        </div>
+        <div style="text-align:center;font-size:11px;color:var(--text3);margin-top:8px;"
+             id="redirect-text">Переход через 5 секунд...</div>
+
+        <div class="btn-row" style="justify-content:center;">
+            <button class="btn btn-primary" onclick="openNodeUrl()">Открыть Vortex →</button>
+        </div>
+    </div>
+
+</div>
+
+<script src="/setup/js/setup.js"></script>
+</body>
+</html>

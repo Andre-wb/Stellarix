@@ -1,0 +1,37 @@
+[package]
+name = "vortex_chat"
+version = "0.2.0"
+edition = "2024"
+
+[lib]
+name = "vortex_chat"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pyo3 = { version = "0.23", features = ["extension-module", "generate-import-lib"] }
+blake3 = "1.5"
+aes-gcm = "0.10"
+x25519-dalek = {version = "2", features = ["static_secrets"]}
+rand_core = "0.6"
+hkdf = "0.12"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+argon2 = "0.5"
+sha2 = "0.10"
+subtle = "2.6.1"
+hex = "0.4.3"
+once_cell = "0.2.4"
+
+
+[dev-dependencies]
+pyo3 = { version = "0.23", features = ["extension-module", "auto-initialize"] }
+
+[features]
+default = ["extension-module"]
+extension-module = ["pyo3/extension-module"]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

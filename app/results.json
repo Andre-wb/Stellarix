@@ -1,0 +1,145 @@
+{
+  "timestamp": "2026-03-07T19:56:49.655987",
+  "environment": {
+    "os": "Ubuntu 24.04 LTS",
+    "cpu": "Intel Core i7-1255U @ 3.5GHz",
+    "ram_gb": 16,
+    "python": "3.12.x",
+    "network": "1 Gbps LAN (localhost loopback для in-process тестов)",
+    "runs": "не менее 50 повторов на тест, берётся median"
+  },
+  "results": [
+    {
+      "name": "AES-256-GCM encrypt (256B)",
+      "unit": "ms",
+      "runs": 100,
+      "avg": 0.0059,
+      "median": 0.0016,
+      "p99": 0.4237,
+      "stdev": 0.0422,
+      "min": 0.0015,
+      "max": 0.4237
+    },
+    {
+      "name": "AES-256-GCM roundtrip (encrypt+decrypt)",
+      "unit": "ms",
+      "runs": 100,
+      "avg": 0.0021,
+      "median": 0.0021,
+      "p99": 0.0059,
+      "stdev": 0.0004,
+      "min": 0.002,
+      "max": 0.0059
+    },
+    {
+      "name": "X25519 ECIES full cycle (keygen+enc+dec)",
+      "unit": "ms",
+      "runs": 50,
+      "avg": 0.6019,
+      "median": 0.4549,
+      "p99": 7.9857,
+      "stdev": 1.0657,
+      "min": 0.4228,
+      "max": 7.9857
+    },
+    {
+      "name": "X25519 key generation",
+      "unit": "ms",
+      "runs": 100,
+      "avg": 0.0674,
+      "median": 0.0658,
+      "p99": 0.0983,
+      "stdev": 0.0048,
+      "min": 0.0654,
+      "max": 0.0983
+    },
+    {
+      "name": "SHA-256 throughput  1KB",
+      "unit": "MB/s",
+      "runs": 10,
+      "avg": 330.1093,
+      "median": 330.1093,
+      "p99": 330.1093,
+      "stdev": 0.0,
+      "min": 330.1093,
+      "max": 330.1093
+    },
+    {
+      "name": "SHA-256 throughput  1MB",
+      "unit": "MB/s",
+      "runs": 10,
+      "avg": 3129.4007,
+      "median": 3129.4007,
+      "p99": 3129.4007,
+      "stdev": 0.0,
+      "min": 3129.4007,
+      "max": 3129.4007
+    },
+    {
+      "name": "SHA-256 throughput 10MB",
+      "unit": "MB/s",
+      "runs": 10,
+      "avg": 3062.412,
+      "median": 3062.412,
+      "p99": 3062.412,
+      "stdev": 0.0,
+      "min": 3062.412,
+      "max": 3062.412
+    },
+    {
+      "name": "Message processing (dedup+hash, in-process)",
+      "unit": "ms",
+      "runs": 1000,
+      "avg": 0.003,
+      "median": 0.0029,
+      "p99": 0.004,
+      "stdev": 0.0003,
+      "min": 0.0027,
+      "max": 0.0104
+    },
+    {
+      "name": "Chunk SHA-256 hashing (1MB file, 1MB chunks)",
+      "unit": "ms",
+      "runs": 20,
+      "avg": 0.3275,
+      "median": 0.3208,
+      "p99": 0.3949,
+      "stdev": 0.0229,
+      "min": 0.3085,
+      "max": 0.3949
+    },
+    {
+      "name": "Chunk SHA-256 hashing (5MB file, 1MB chunks)",
+      "unit": "ms",
+      "runs": 20,
+      "avg": 1.6881,
+      "median": 1.679,
+      "p99": 1.7675,
+      "stdev": 0.0402,
+      "min": 1.6181,
+      "max": 1.7675
+    },
+    {
+      "name": "Chunk SHA-256 hashing (10MB file, 1MB chunks)",
+      "unit": "ms",
+      "runs": 20,
+      "avg": 3.4086,
+      "median": 3.4053,
+      "p99": 3.5077,
+      "stdev": 0.0299,
+      "min": 3.3719,
+      "max": 3.5077
+    },
+    {
+      "name": "HTTP API latency (SKIPPED)",
+      "unit": "ms",
+      "runs": 1,
+      "avg": 0.0,
+      "median": 0.0,
+      "p99": 0.0,
+      "stdev": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    }
+  ]
+}

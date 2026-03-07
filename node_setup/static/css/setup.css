@@ -1,0 +1,653 @@
+/* node_setup/static/css/setup.css */
+/* =============================================================================
+ * Стили для страницы мастера настройки узла Vortex.
+ * Используют тёмную тему, сетчатый фон, анимации и адаптивность.
+ * ============================================================================= */
+
+/* Импорт шрифтов Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;700;800&display=swap');
+
+/* ── Переменные цветов и размеров ── */
+/* ── Переменные цветов и размеров ── */
+:root {
+    --bg0:     #09090b;      /* самый тёмный фон */
+    --bg1:     #09090b;      /* фон body */
+    --bg2:     #111115;      /* фон карточек */
+    --bg3:     #18181d;      /* фон элементов внутри карточек */
+    --border:  #202027;      /* полупрозрачная граница (teal) */
+    --teal:    #7c3aed;      /* основной акцентный цвет (бирюзовый) */
+    --teal2:   #a855f7;      /* более тёмный оттенок для hover */
+    --purple:  #a855f7;      /* фиолетовый (для бейджей) */
+    --green:   #22c55e;      /* зелёный (успех) */
+    --red:     #ef4444;      /* красный (ошибка) */
+    --yellow:  #eab308;      /* жёлтый (предупреждение) */
+    --text1:   #e4e4e7;      /* основной текст (светлый) */
+    --text2:   #71717a;      /* второстепенный текст */
+    --text3:   #52525b;      /* очень бледный текст (метки) */
+    --mono:    'Space Mono', monospace;   /* моноширинный шрифт */
+    --display: 'Syne', sans-serif;        /* шрифт для заголовков */
+    --radius:  6px;          /* радиус скругления */
+}
+/* ── Сброс отступов и box-sizing ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+/* ── Основной фон и выравнивание ── */
+body {
+    background: var(--bg0);
+    color: var(--text1);
+    font-family: var(--mono);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+}
+
+/* ── Фоновая сетка (через псевдоэлемент) ── */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+            linear-gradient(var(--border) 1px, transparent 1px),
+            linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* ── Радиальное свечение ── */
+body::after {
+    content: '';
+    position: fixed;
+    top: -40%;
+    left: -20%;
+    width: 80vw;
+    height: 80vw;
+    background: radial-gradient(circle, rgba(78,205,196,.04) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* ── Шапка с ASCII-логотипом ── */
+.header {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    padding: 48px 24px 0;
+    width: 100%;
+}
+
+/* ASCII-логотип (моноширинный, мелкий) */
+.logo-ascii {
+    font-family: var(--mono);
+    font-size: clamp(6px, 1.2vw, 11px);
+    line-height: 1.2;
+    color: var(--teal);
+    white-space: pre;
+    opacity: .7;
+    letter-spacing: 0;
+    animation: fadeIn .8s ease;
+}
+
+/* Подзаголовок под логотипом */
+.header-sub {
+    font-family: var(--display);
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text3);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-top: 12px;
+    animation: fadeIn 1s ease .2s both;
+}
+
+/* ── Панель шагов (stepbar) ── */
+.stepbar {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin: 36px auto 0;
+    padding: 0 24px;
+    width: 100%;
+    max-width: 600px;
+    animation: fadeIn .6s ease .4s both;
+}
+
+/* Кружок шага */
+.step-dot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    position: relative;
+    cursor: pointer;
+}
+
+/* Псевдоэлемент для номера или галочки */
+.step-dot::before {
+    content: attr(data-n);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--text3);
+    background: var(--bg1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text3);
+    transition: all .3s;
+    position: relative;
+    z-index: 1;
+    line-height: 1;
+    padding-top: 1px;
+}
+
+/* Активный шаг */
+.step-dot.active::before {
+    border-color: var(--teal);
+    background: var(--teal);
+    color: var(--bg0);
+    box-shadow: 0 0 16px rgba(78,205,196,.5);
+}
+
+/* Завершённый шаг (галочка) */
+.step-dot.done::before {
+    content: '✓';
+    border-color: var(--green);
+    background: var(--green);
+    color: var(--bg0);
+}
+
+/* Подпись под кружком */
+.step-dot .step-label {
+    font-size: 10px;
+    color: var(--text3);
+    white-space: nowrap;
+    letter-spacing: .5px;
+    transition: color .3s;
+}
+
+/* Цвет подписи в зависимости от состояния */
+.step-dot.active .step-label { color: var(--teal); }
+.step-dot.done  .step-label  { color: var(--green); }
+
+/* Линия между кружками */
+.step-line {
+    flex: 1;
+    height: 2px;
+    background: var(--text3);
+    margin: 0 4px;
+    margin-bottom: 22px;
+    transition: background .3s;
+    max-width: 60px;
+}
+
+.step-line.done { background: var(--green); }
+
+/* ── Карточка с содержимым шага ── */
+.card {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 580px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 36px 40px;
+    margin: 24px auto 48px;
+    box-shadow: 0 24px 80px rgba(0,0,0,.6);
+    animation: slideUp .5s ease .5s both;
+}
+
+/* Адаптив для мобильных */
+@media (max-width: 640px) {
+    .card   { margin: 16px; padding: 24px 20px; }
+    .header { padding: 24px 16px 0; }
+    .logo-ascii { font-size: 5px; }
+}
+
+/* ── Контейнер шага (переключение через display) ── */
+.step { display: none; }
+.step.active { display: block; animation: stepIn .35s ease; }
+
+/* ── Типография ── */
+.step-title {
+    font-family: var(--display);
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text1);
+    margin-bottom: 6px;
+}
+
+.step-title span { color: var(--teal); }
+
+.step-desc {
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.6;
+    margin-bottom: 28px;
+}
+
+/* ── Элементы форм ── */
+.form-group { margin-bottom: 20px; }
+
+.form-label {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text2);
+    margin-bottom: 8px;
+}
+
+.form-input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    color: var(--text1);
+    font-family: var(--mono);
+    font-size: 14px;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+}
+
+.form-input:focus {
+    border-color: var(--teal);
+    box-shadow: 0 0 0 3px rgba(78,205,196,.12);
+}
+
+.form-input.error { border-color: var(--red); }
+.form-input.ok    { border-color: var(--green); }
+
+.form-hint {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 6px;
+    line-height: 1.5;
+}
+
+.form-hint.error { color: var(--red); }
+.form-hint.ok    { color: var(--green); }
+
+/* Сетка для двух колонок */
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+@media (max-width: 480px) {
+    .form-row { grid-template-columns: 1fr; }
+}
+
+/* ── Карточки выбора SSL ── */
+.ssl-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+@media (max-width: 480px) {
+    .ssl-options { grid-template-columns: 1fr; }
+}
+
+.ssl-option {
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all .2s;
+    background: var(--bg3);
+    position: relative;
+    overflow: hidden;
+}
+
+.ssl-option:hover { border-color: rgba(78,205,196,.4); }
+
+.ssl-option.selected {
+    border-color: var(--teal);
+    background: rgba(78,205,196,.06);
+}
+
+.ssl-option.selected::before {
+    content: '✓';
+    position: absolute;
+    top: 8px; right: 10px;
+    font-size: 11px;
+    color: var(--teal);
+}
+
+.ssl-option.unavailable {
+    opacity: .4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.ssl-icon  { font-size: 24px; margin-bottom: 8px; }
+.ssl-title { font-size: 13px; font-weight: 700; color: var(--text1); margin-bottom: 3px; }
+.ssl-desc  { font-size: 11px; color: var(--text2); line-height: 1.4; }
+
+/* Бейджи (рекомендованный, интернет, продвинутый) */
+.ssl-badge {
+    display: inline-block;
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-top: 6px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+}
+
+.badge-recommended { background: rgba(78,205,196,.15);  color: var(--teal); }
+.badge-internet    { background: rgba(168,85,247,.15);  color: var(--purple); }
+.badge-advanced    { background: rgba(245,158,11,.15);  color: var(--yellow); }
+
+/* ── Детальные панели для каждого типа SSL (скрыты по умолчанию) ── */
+.ssl-detail { display: none; }
+.ssl-detail.active { display: block; animation: stepIn .25s ease; }
+
+/* ── Блок с кодом (для команд) ── */
+.code-block {
+    background: var(--bg0);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    font-size: 12px;
+    color: var(--teal);
+    word-break: break-all;
+    line-height: 1.6;
+    position: relative;
+}
+
+/* Кнопка копирования внутри code-block */
+.code-copy {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 10px;
+    color: var(--text2);
+    cursor: pointer;
+    font-family: var(--mono);
+    transition: all .2s;
+}
+
+.code-copy:hover { color: var(--teal); border-color: var(--teal); }
+
+/* ── Кнопки ── */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: var(--radius);
+    border: none;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .2s;
+    letter-spacing: .5px;
+}
+
+.btn-primary { background: var(--teal); color: var(--bg0); }
+
+.btn-primary:hover {
+    background: var(--teal2);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(78,205,196,.3);
+}
+
+.btn-primary:disabled {
+    opacity: .4;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn-secondary {
+    background: transparent;
+    color: var(--text2);
+    border: 1px solid var(--border);
+}
+
+.btn-secondary:hover { color: var(--text1); border-color: var(--text2); }
+
+.btn-ghost { background: transparent; color: var(--text3); padding: 8px 12px; }
+.btn-ghost:hover { color: var(--text2); }
+
+/* Ряд с кнопками */
+.btn-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 28px;
+    flex-wrap: wrap;
+}
+
+.btn-row .spacer { flex: 1; }
+
+/* ── Строка статуса (IP, с точкой) ── */
+.status-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--bg3);
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+    font-size: 12px;
+}
+
+.dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.dot-green  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.dot-yellow { background: var(--yellow); }
+.dot-red    { background: var(--red); }
+
+/* ── Список сводки (шаг 3) ── */
+.info-list { list-style: none; }
+
+.info-list li {
+    display: flex;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    align-items: flex-start;
+}
+
+.info-list li:last-child { border-bottom: none; }
+
+.info-list .label {
+    color: var(--text3);
+    min-width: 140px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding-top: 1px;
+}
+
+.info-list .value { color: var(--text1); word-break: break-all; }
+
+/* ── Спиннер для индикации загрузки ── */
+.spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(78,205,196,.2);
+    border-top-color: var(--teal);
+    border-radius: 50%;
+    animation: spin .6s linear infinite;
+    vertical-align: middle;
+}
+
+/* ── Экран успеха (шаг 4) ── */
+.success-icon {
+    font-size: 64px;
+    text-align: center;
+    margin: 12px 0 20px;
+    animation: pop .4s cubic-bezier(.34,1.56,.64,1);
+}
+
+.success-url {
+    background: var(--bg0);
+    border: 1px solid var(--teal);
+    border-radius: var(--radius);
+    padding: 14px 20px;
+    text-align: center;
+    font-size: 18px;
+    color: var(--teal);
+    margin: 16px 0;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: background .2s;
+}
+
+.success-url:hover { background: rgba(78,205,196,.06); }
+
+/* ── Терминальный вывод (для логов генерации SSL) ── */
+.terminal {
+    background: var(--bg0);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    font-size: 12px;
+    line-height: 1.8;
+    max-height: 200px;
+    overflow-y: auto;
+    margin: 12px 0;
+}
+
+.terminal .line-ok   { color: var(--green); }
+.terminal .line-warn { color: var(--yellow); }
+.terminal .line-err  { color: var(--red); }
+.terminal .line-info { color: var(--teal); }
+.terminal .line-dim  { color: var(--text3); }
+
+/* ── Уведомления (алерты) ── */
+.alert {
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    font-size: 12px;
+    line-height: 1.5;
+    margin: 12px 0;
+    display: none;
+}
+
+.alert.show    { display: block; }
+.alert-error   { background: rgba(239,68,68,.08);  border: 1px solid rgba(239,68,68,.3);  color: #fca5a5; }
+.alert-success { background: rgba(34,197,94,.08);  border: 1px solid rgba(34,197,94,.3);  color: #86efac; }
+.alert-info    { background: rgba(78,205,196,.08); border: 1px solid var(--border);       color: var(--teal); }
+
+/* ── Полоса прогресса (обратный отсчёт) ── */
+.progress-wrap {
+    background: var(--bg3);
+    border-radius: 4px;
+    height: 4px;
+    overflow: hidden;
+    margin: 16px 0;
+}
+
+.progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--teal), var(--purple));
+    border-radius: 4px;
+    transition: width .3s ease;
+}
+
+/* ── Разделитель с текстом ── */
+.divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 20px 0;
+    color: var(--text3);
+    font-size: 11px;
+}
+
+.divider::before,
+.divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+
+/* ── Переключатель (toggle switch) ── */
+.toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+}
+
+.toggle-label { font-size: 13px; color: var(--text1); }
+.toggle-sub   { font-size: 11px; color: var(--text3); }
+
+.toggle {
+    position: relative;
+    width: 44px; height: 24px;
+    cursor: pointer;
+}
+
+.toggle input { display: none; }
+
+.toggle-track {
+    position: absolute;
+    inset: 0;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    transition: all .2s;
+}
+
+.toggle-thumb {
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 16px; height: 16px;
+    background: var(--text3);
+    border-radius: 50%;
+    transition: all .2s;
+}
+
+/* Состояние включено (checked) */
+.toggle input:checked ~ .toggle-track { background: rgba(78,205,196,.2); border-color: var(--teal); }
+.toggle input:checked ~ .toggle-thumb { transform: translateX(20px); background: var(--teal); }
+
+/* ── Анимации ── */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes stepIn {
+    from { opacity: 0; transform: translateX(12px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes pop {
+    from { transform: scale(0); }
+    to   { transform: scale(1); }
+}

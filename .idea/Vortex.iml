@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="EMPTY_MODULE" version="4">
+  <component name="FacetManager">
+    <facet type="Python" name="Python facet">
+      <configuration sdkName="Python 3.13 (Vortex)" />
+    </facet>
+  </component>
+  <component name="NewModuleRootManager">
+    <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/rust_utils/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/rust_utils/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/rust_utils" isTestSource="false" />
+      <excludeFolder url="file://$MODULE_DIR$/venv" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv" />
+      <excludeFolder url="file://$MODULE_DIR$/rust_utils/target" />
+      <excludeFolder url="file://$MODULE_DIR$/vortex_chat/target" />
+      <excludeFolder url="file://$MODULE_DIR$/uploads" />
+    </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="library" name="Python 3.13 (Vortex) interpreter library" level="application" />
+  </component>
+</module>
