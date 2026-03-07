@@ -65,6 +65,8 @@ const QUALITY_UPGRADE_THRESHOLD = 5;
 export function connectSignal(roomId) {
     const S = window.AppState;
 
+    if (S.signalWs?.readyState === WebSocket.OPEN && S._signalRoomId === roomId) return;
+
     if (S.signalWs) {
         S.signalWs.onclose = null;
         S.signalWs.close();
@@ -126,7 +128,8 @@ export async function startVoiceCall() {
     if (!S.currentRoom) return;
 
     if (!S.signalWs || S.signalWs.readyState === WebSocket.CLOSED) {
-        connectSignal(S.currentRoom.id);
+        const signalId = S.currentRoom.signalRoomId ?? S.currentRoom.id;
+        connectSignal(signalId);
     }
     try { await waitForSignalOpen(); }
     catch (e) { alert('Нет соединения с сигнальным сервером: ' + e.message); return; }
@@ -156,7 +159,8 @@ export async function startVideoCall() {
     if (!S.currentRoom) return;
 
     if (!S.signalWs || S.signalWs.readyState === WebSocket.CLOSED) {
-        connectSignal(S.currentRoom.id);
+        const signalId = S.currentRoom.signalRoomId ?? S.currentRoom.id;
+        connectSignal(signalId);
     }
     try { await waitForSignalOpen(); }
     catch (e) { alert('Нет соединения с сигнальным сервером: ' + e.message); return; }
