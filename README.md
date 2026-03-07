@@ -301,9 +301,9 @@ python run.py
 **При повторных запусках** узел стартует сразу:
 
 ```
-  ⚡ Vortex Node — MacBook-Boris
+  ⚡ Vortex Node — Имя-Устройства
   🌐 https://localhost:8000
-  📱 https://192.168.1.178:8000  ← другие устройства в сети
+  📱 https://000.000.000.000:8000  ← другие устройства в сети
   🔒 SSL: certs/vortex.crt
   🦀 Rust crypto: vortex_chat 0.1.2
   🌐 STUN: external 223.204.221.114:62556
