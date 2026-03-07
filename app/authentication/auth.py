@@ -212,9 +212,11 @@ async def login(body: LoginRequest, request: Request,
             or db.query(User).filter(User.username == cred.lower()).first()
     )
 
-    # Dummy hash — защита от timing attack при несуществующем пользователе
     if not user:
-        verify_password(body.password, "$argon2id$v=19$m=65536,t=3,p=4$dummydummy$dummydummy")
+        try:
+            verify_password(body.password, "$argon2id$v=19$m=65536,t=3,p=4$dummydummy$dummydummy")
+        except Exception:
+            pass
         raise HTTPException(401, "Неверный телефон/имя или пароль")
 
     if not user.check_password(body.password):

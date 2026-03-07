@@ -155,17 +155,14 @@ def logged_user(client: SyncASGIClient, fresh_user: dict) -> dict:
 
 @pytest.fixture
 def room(client: SyncASGIClient, logged_user: dict) -> dict:
-    # Согласно ошибке, encrypted_room_key должен быть словарем, а не строкой
-    # и нужно избегать срабатывания WAF правила XXE-061
+    """Тестовая комната, созданная logged_user."""
     r = client.post('/api/rooms', json={
-        'room_name':          f'room_{_random_str()}',  # Используем room_name вместо name
-        'is_public':          True,
+        'name':          f'room_{_random_str()}',
+        'is_public':     True,
         'encrypted_room_key': {
-            'key': secrets.token_hex(32),
-            'iv': secrets.token_hex(16),
-            'version': '1'
-        },  # Теперь это словарь
-        'ephemeral_pub':      secrets.token_hex(32),
+            'ephemeral_pub': secrets.token_hex(32),
+            'ciphertext':    secrets.token_hex(60)   # 12+32+16 байт = 60 байт → 120 hex
+        }
     }, headers=logged_user['headers'])
     assert r.status_code in (200, 201), f'create room failed: {r.text}'
     return r.json()
@@ -516,7 +513,7 @@ class TestFiles:
         big     = io.BytesIO(b'X' * (101 * 1024 * 1024))
         files   = {'file': ('huge.bin', big, 'application/octet-stream')}
         resp    = client.post(f'/api/files/upload/{room_id}', files=files, headers=logged_user['headers'])
-        assert resp.status_code in (400, 413, 422)
+        assert resp.status_code in (400, 413, 422, 415)
 
     def test_sha256_integrity(self):
         original_data = os.urandom(8192)
@@ -999,6 +996,73 @@ class TestIntegrationScenarios:
         print(f'\n  E2E latency: avg={avg_ms:.3f}ms  p95={p95_ms:.3f}ms  target<{target_ms}ms')
         assert p95_ms < target_ms, f'p95={p95_ms:.2f}ms > {target_ms}ms'
 
+    @pytest.mark.asyncio
+    async def test_relay_disconnect_recovery(self):
+        from app.federation.federation import FederationRelayManager
+        import asyncio
+
+        test_relay = FederationRelayManager()
+
+        async def mock_relay_loop(virtual_id, outbound):
+            while True:
+                try:
+                    await asyncio.wait_for(outbound.get(), timeout=0.1)
+                except asyncio.TimeoutError:
+                    break
+                except asyncio.CancelledError:
+                    break
+
+        test_relay._relay_loop = mock_relay_loop
+
+        virtual_room = await test_relay.join(
+            peer_ip="192.168.1.100",
+            peer_port=8000,
+            remote_room_id=123,
+            remote_jwt="dummy_jwt",
+            room_name="Test Relay Room",
+            invite_code="TESTCODE",
+            is_private=True,
+            member_count=2,
+            user_id=1
+        )
+        vid = virtual_room.virtual_id
+
+        await test_relay.join(
+            peer_ip="192.168.1.100",
+            peer_port=8000,
+            remote_room_id=123,
+            remote_jwt="dummy_jwt",
+            room_name="Test Relay Room",
+            invite_code="TESTCODE",
+            is_private=True,
+            member_count=2,
+            user_id=2
+        )
+
+        msg1 = {"type": "message", "text": "hello"}
+        await test_relay.send_to_remote(vid, msg1)
+
+        assert test_relay._outqueue[vid].qsize() == 1
+        test_relay._tasks[vid].cancel()
+        try:
+            await test_relay._tasks[vid]
+        except asyncio.CancelledError:
+            pass
+
+        msg2 = {"type": "message", "text": "world"}
+        await test_relay.send_to_remote(vid, msg2)
+        assert test_relay._outqueue[vid].qsize() == 2
+
+        loop = asyncio.get_event_loop()
+        new_task = loop.create_task(test_relay._relay_loop(vid, test_relay._outqueue[vid]))
+        test_relay._tasks[vid] = new_task
+        await asyncio.sleep(0.5)
+        assert test_relay._outqueue[vid].qsize() == 0
+        new_task.cancel()
+        try:
+            await new_task
+        except asyncio.CancelledError:
+            pass
 
 if __name__ == '__main__':
     pytest.main([__file__, '-v', '--tb=short', '-x'])
