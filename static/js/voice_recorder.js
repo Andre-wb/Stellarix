@@ -291,11 +291,17 @@ async function _upload(blob, name, mime) {
     const S = window.AppState;
     if (!S?.currentRoom) throw new Error('Нет активной комнаты');
 
-    const csrf = document.cookie.split('; ')
-        .find(r => r.startsWith('csrf_token='))?.split('=')[1] || '';
+    // ✅ Берём токен из мета-тега (надёжнее cookie)
+    const csrf =
+        document.querySelector('meta[name="csrf-token"]')?.content ||
+        document.cookie.split('; ')
+            .find(r => r.startsWith('csrf_token='))?.split('=')[1] ||
+        '';
 
-    if (S.ws?.readyState === WebSocket.OPEN)
+    // ✅ Проверяем подключение WS перед отправкой уведомления
+    if (S.ws?.readyState === WebSocket.OPEN) {
         S.ws.send(JSON.stringify({ action: 'file_sending', filename: name }));
+    }
 
     const fd = new FormData();
     fd.append('file', new File([blob], name, { type: mime }));
@@ -303,10 +309,19 @@ async function _upload(blob, name, mime) {
     try {
         const res = await fetch(`/api/files/upload/${S.currentRoom.id}`, {
             method: 'POST',
-            headers: { 'X-CSRF-Token': csrf },
+            headers: {
+                'X-CSRF-Token': csrf,
+                // ✅ Явно указываем что это XHR, а не form submit
+                'X-Requested-With': 'XMLHttpRequest',
+            },
             body: fd,
+            // ✅ Включаем cookies для cross-origin если сервер на другом порту
+            credentials: 'include',
         });
-        if (!res.ok) throw new Error(await res.text());
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`HTTP ${res.status}: ${text}`);
+        }
     } finally {
         if (S.ws?.readyState === WebSocket.OPEN)
             S.ws.send(JSON.stringify({ action: 'stop_file_sending' }));
