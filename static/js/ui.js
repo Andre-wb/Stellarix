@@ -58,6 +58,7 @@ export function openRoom(id) {
     $('chat-room-meta').textContent = `${room.member_count} участников · ${room.online_count} онлайн`;
     renderRoomsList();
     connectWS(id);
+    // ✅ Федеративные комнаты всегда сигналят через виртуальный ID = -1
     const signalId = room.is_federated ? -1 : id;
     connectSignal(signalId);
 }
