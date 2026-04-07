@@ -119,6 +119,19 @@ export function openRoom(id) {
         if (inputArea && !room.is_owner && !room.is_admin) {
             inputArea.style.display = 'none';
         }
+        // Copy protection enforcement
+        const msgContainer = document.getElementById('messages-container');
+        if (msgContainer) {
+            if (room.copy_protection) {
+                msgContainer.style.userSelect = 'none';
+                msgContainer.style.webkitUserSelect = 'none';
+                msgContainer.oncontextmenu = (e) => { e.preventDefault(); return false; };
+            } else {
+                msgContainer.style.userSelect = '';
+                msgContainer.style.webkitUserSelect = '';
+                msgContainer.oncontextmenu = null;
+            }
+        }
     // Show / hide Mini App button
     const miniAppBtn = document.getElementById('mini-app-btn');
     if (miniAppBtn) {

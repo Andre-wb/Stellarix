@@ -1,6 +1,7 @@
 // static/js/rooms/info.js — room info panel, global search, add peer, joinAndOpenChannel
 
 import { $, api, esc, openModal, closeModal, showAlert } from '../utils.js';
+import { t } from '../i18n.js';
 import { showWelcome } from '../ui.js';
 import { renderRoomsList, loadMyRooms } from './core.js';
 
@@ -84,8 +85,27 @@ export async function openRoomInfo() {
     const createdDate = room.created_at ? new Date(room.created_at).toLocaleDateString('ru') : '';
     const _meta = $('room-info-meta'); if (_meta) _meta.textContent = `${room.member_count} ${t('rooms.members')} \u00b7 ${room.online_count} ${t('rooms.online')} \u00b7 ${createdDate}`;
 
-    // Invite code
+    // Invite code + channel-specific UI adjustments
     const _invite = $('room-info-invite'); if (_invite) _invite.textContent = room.invite_code || '';
+    const _inviteSection = $('rss-invite-section');
+    const _membersBtn = $('rss-members-btn');
+    const _leaveBtn = $('room-info-leave-btn');
+    if (room.is_channel) {
+        // Для каналов: скрыть invite-код, изменить заголовок, кнопку
+        if (_inviteSection) _inviteSection.style.display = 'none';
+        if (_membersBtn) _membersBtn.textContent = t('channel.subscribers') || 'Подписчики';
+        if (_leaveBtn) _leaveBtn.textContent = t('channel.unsubscribe') || 'Отписаться';
+        const topTitle = $('rss-topbar-title');
+        if (topTitle) topTitle.textContent = t('channel.settings') || 'Настройки канала';
+        const _metaEl = $('room-info-meta');
+        if (_metaEl) _metaEl.textContent = `${room.member_count} ${t('channel.subscribers') || 'подписчиков'} · ${createdDate}`;
+    } else {
+        if (_inviteSection) _inviteSection.style.display = '';
+        if (_membersBtn) _membersBtn.textContent = t('chat.members') || 'Участники';
+        if (_leaveBtn) _leaveBtn.textContent = t('room.leaveShort') || 'Покинуть';
+        const topTitle = $('rss-topbar-title');
+        if (topTitle) topTitle.textContent = t('room.settings') || 'Настройки комнаты';
+    }
 
     // Settings section (admin/owner only, never for DM)
     const settingsEl = $('room-info-settings');
@@ -106,9 +126,44 @@ export async function openRoomInfo() {
                 if (channelSettings) channelSettings.style.display = '';
                 if (groupSettings) groupSettings.style.display = 'none';
 
+                // Update section title
+                const secTitle = $('rss-settings-title');
+                if (secTitle) secTitle.textContent = t('channel.settings') || 'Настройки канала';
+
+                // Channel type (public/private)
+                const pubToggle = $('channel-public-toggle');
+                if (pubToggle) pubToggle.checked = !room.is_private;
+
+                // Join approval
+                const jaEl = $('channel-join-approval');
+                if (jaEl) jaEl.checked = !!room.join_approval;
+
                 // Discussion chat toggle
                 const discEl = $('channel-discussion-enabled');
                 if (discEl) discEl.checked = !!room.discussion_enabled;
+
+                // Reactions
+                const rtEl = $('channel-reactions-type');
+                if (rtEl) rtEl.value = room.reactions_type || 'all';
+                window._onReactionsTypeChange();
+                const riEl = $('channel-reactions-input');
+                if (riEl) riEl.value = room.allowed_reactions || '';
+
+                // Admin signatures
+                const asEl = $('channel-admin-signatures');
+                if (asEl) asEl.checked = !!room.admin_signatures;
+
+                // Silent default
+                const sdEl = $('channel-silent-default');
+                if (sdEl) sdEl.checked = !!room.silent_default;
+
+                // Copy protection
+                const cpEl = $('channel-copy-protection');
+                if (cpEl) cpEl.checked = !!room.copy_protection;
+
+                // Hashtags
+                const htEl = $('channel-hashtags-enabled');
+                if (htEl) htEl.checked = room.hashtags_enabled !== false;
 
                 // Load authors
                 _loadChannelAuthors(room.id);
@@ -192,9 +247,34 @@ window._roomInfoSave = async function() {
     };
 
     if (S.currentRoom.is_channel) {
+        // Channel type: public toggle inverts is_private
+        const pubToggle = $('channel-public-toggle');
+        if (pubToggle) body.is_private = !pubToggle.checked;
+
         // Channel-specific settings
         const discEl = $('channel-discussion-enabled');
         if (discEl) body.discussion_enabled = discEl.checked;
+
+        const jaEl = $('channel-join-approval');
+        if (jaEl) body.join_approval = jaEl.checked;
+
+        const rtEl = $('channel-reactions-type');
+        if (rtEl) body.reactions_type = rtEl.value;
+
+        const riEl = $('channel-reactions-input');
+        if (riEl) body.allowed_reactions = riEl.value.trim();
+
+        const asEl = $('channel-admin-signatures');
+        if (asEl) body.admin_signatures = asEl.checked;
+
+        const sdEl = $('channel-silent-default');
+        if (sdEl) body.silent_default = sdEl.checked;
+
+        const cpEl = $('channel-copy-protection');
+        if (cpEl) body.copy_protection = cpEl.checked;
+
+        const htEl = $('channel-hashtags-enabled');
+        if (htEl) body.hashtags_enabled = htEl.checked;
     } else {
         // Group-specific settings
         const antispamConfig = JSON.stringify({
@@ -422,6 +502,177 @@ window._toggleChannelDiscussion = async function() {
         }
     } catch (e) {
         console.error('Toggle discussion error:', e);
+    }
+};
+
+// Reactions type change handler
+window._onReactionsTypeChange = function() {
+    const rtEl = $('channel-reactions-type');
+    const picker = $('channel-reactions-picker');
+    if (rtEl && picker) {
+        picker.style.display = rtEl.value === 'selected' ? '' : 'none';
+    }
+};
+
+// Subscribers search
+window._searchChannelSubscribers = async function() {
+    const S = window.AppState;
+    if (!S.currentRoom) return;
+    const q = $('channel-subscribers-search')?.value?.trim() || '';
+    const list = $('channel-subscribers-list');
+    if (!list) return;
+    list.replaceChildren();
+    try {
+        const data = await api('GET', `/api/channels/${S.currentRoom.id}/subscribers?q=${encodeURIComponent(q)}&limit=30`);
+        const subs = data.subscribers || [];
+        if (!subs.length) {
+            const empty = document.createElement('div');
+            empty.style.cssText = 'color:var(--text3);font-size:12px;padding:8px 0;';
+            empty.textContent = t('channel.noSubscribers') || 'Нет подписчиков';
+            list.appendChild(empty);
+            return;
+        }
+        subs.forEach(s => {
+            const row = document.createElement('div');
+            row.className = 'channel-author-row';
+            const avatar = document.createElement('div');
+            avatar.className = 'channel-author-avatar';
+            avatar.textContent = s.avatar_emoji || '\u{1F464}';
+            row.appendChild(avatar);
+            const info = document.createElement('div');
+            info.className = 'channel-author-info';
+            info.style.flex = '1';
+            const nameEl = document.createElement('div');
+            nameEl.className = 'channel-author-name';
+            nameEl.textContent = s.display_name || s.username;
+            info.appendChild(nameEl);
+            const roleEl = document.createElement('div');
+            roleEl.className = 'channel-author-role';
+            roleEl.textContent = s.role === 'owner' ? (t('channel.owner') || 'Владелец') : (s.role === 'admin' ? (t('channel.author') || 'Автор') : (t('channel.subscriber') || 'Подписчик'));
+            info.appendChild(roleEl);
+            row.appendChild(info);
+            if (s.role !== 'owner') {
+                const banBtn = document.createElement('button');
+                banBtn.className = 'btn btn-danger btn-sm';
+                banBtn.textContent = s.is_banned ? (t('channel.unban') || 'Разбан') : (t('channel.ban') || 'Бан');
+                banBtn.style.cssText = 'padding:2px 8px;font-size:11px;';
+                banBtn.onclick = async () => {
+                    try {
+                        const endpoint = s.is_banned ? 'unban' : 'ban';
+                        await api('POST', `/api/channels/${S.currentRoom.id}/subscribers/${s.user_id}/${endpoint}`);
+                        window._searchChannelSubscribers();
+                    } catch (e) { alert(e.message); }
+                };
+                row.appendChild(banBtn);
+                if (s.role === 'member') {
+                    const rmBtn = document.createElement('button');
+                    rmBtn.className = 'btn btn-secondary btn-sm';
+                    rmBtn.textContent = '\u00D7';
+                    rmBtn.title = t('channel.removeSubscriber') || 'Удалить';
+                    rmBtn.style.cssText = 'width:24px;height:24px;padding:0;font-size:14px;margin-left:4px;';
+                    rmBtn.onclick = async () => {
+                        if (!confirm(t('channel.removeConfirm') || `Удалить ${s.display_name}?`)) return;
+                        try {
+                            await api('DELETE', `/api/channels/${S.currentRoom.id}/subscribers/${s.user_id}`);
+                            window._searchChannelSubscribers();
+                        } catch (e) { alert(e.message); }
+                    };
+                    row.appendChild(rmBtn);
+                }
+            }
+            list.appendChild(row);
+        });
+    } catch (e) {
+        console.warn('Failed to load subscribers:', e);
+    }
+};
+
+// Banned subscribers
+window._showBannedSubscribers = async function() {
+    const S = window.AppState;
+    if (!S.currentRoom) return;
+    const list = $('channel-banned-list');
+    if (!list) return;
+    list.style.display = list.style.display === 'none' ? '' : 'none';
+    if (list.style.display === 'none') return;
+    list.replaceChildren();
+    try {
+        const data = await api('GET', `/api/channels/${S.currentRoom.id}/banned`);
+        const banned = data.banned || [];
+        if (!banned.length) {
+            const empty = document.createElement('div');
+            empty.style.cssText = 'color:var(--text3);font-size:12px;padding:8px 0;';
+            empty.textContent = t('channel.noBanned') || 'Нет заблокированных';
+            list.appendChild(empty);
+            return;
+        }
+        banned.forEach(b => {
+            const row = document.createElement('div');
+            row.className = 'channel-author-row';
+            const avatar = document.createElement('div');
+            avatar.className = 'channel-author-avatar';
+            avatar.textContent = b.avatar_emoji || '\u{1F464}';
+            row.appendChild(avatar);
+            const nameEl = document.createElement('div');
+            nameEl.className = 'channel-author-name';
+            nameEl.style.flex = '1';
+            nameEl.textContent = b.display_name || b.username;
+            row.appendChild(nameEl);
+            const unbanBtn = document.createElement('button');
+            unbanBtn.className = 'btn btn-secondary btn-sm';
+            unbanBtn.textContent = t('channel.unban') || 'Разбан';
+            unbanBtn.style.cssText = 'padding:2px 8px;font-size:11px;';
+            unbanBtn.onclick = async () => {
+                try {
+                    await api('POST', `/api/channels/${S.currentRoom.id}/subscribers/${b.user_id}/unban`);
+                    window._showBannedSubscribers();
+                } catch (e) { alert(e.message); }
+            };
+            row.appendChild(unbanBtn);
+            list.appendChild(row);
+        });
+    } catch (e) {
+        console.warn('Failed to load banned:', e);
+    }
+};
+
+// Recent actions log
+window._loadRecentActions = async function() {
+    const S = window.AppState;
+    if (!S.currentRoom) return;
+    const list = $('channel-recent-actions');
+    if (!list) return;
+    list.replaceChildren();
+    try {
+        const data = await api('GET', `/api/channels/${S.currentRoom.id}/recent-actions`);
+        const actions = data.actions || [];
+        if (!actions.length) {
+            const empty = document.createElement('div');
+            empty.style.cssText = 'color:var(--text3);font-size:12px;padding:8px 0;';
+            empty.textContent = t('channel.noRecentActions') || 'Нет действий за 48 часов';
+            list.appendChild(empty);
+            return;
+        }
+        actions.forEach(a => {
+            const row = document.createElement('div');
+            row.style.cssText = 'padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;display:flex;justify-content:space-between;align-items:center;';
+            const typeLabel = a.type === 'join' ? (t('channel.actionJoin') || 'Вступил')
+                            : a.type === 'edit' ? (t('channel.actionEdit') || 'Редактировал пост')
+                            : a.type;
+            const left = document.createElement('span');
+            left.textContent = `${esc(a.user)} — ${typeLabel}`;
+            row.appendChild(left);
+            if (a.at) {
+                const right = document.createElement('span');
+                right.style.cssText = 'color:var(--text3);font-size:10px;font-family:var(--mono);';
+                const d = new Date(a.at);
+                right.textContent = d.toLocaleString('ru', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+                row.appendChild(right);
+            }
+            list.appendChild(row);
+        });
+    } catch (e) {
+        console.warn('Failed to load actions:', e);
     }
 };
 

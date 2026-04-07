@@ -565,3 +565,220 @@ async def list_donations(channel_id: int, u: User = Depends(get_current_user),
          "created_at": d.created_at.isoformat() if d.created_at else ""}
         for d in dons
     ]}
+
+
+@router.get("/{channel_id}/subscribers")
+async def list_subscribers(
+    channel_id: int,
+    q: str = "",
+    offset: int = 0,
+    limit: int = 50,
+    u: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List channel subscribers with ban/remove capability (admin/owner)."""
+    channel = db.query(Room).filter(Room.id == channel_id, Room.is_channel == True).first()
+    if not channel:
+        raise HTTPException(404, "Channel not found")
+    actor = db.query(RoomMember).filter(
+        RoomMember.room_id == channel_id, RoomMember.user_id == u.id,
+    ).first()
+    if not actor or actor.role not in (RoomRole.OWNER, RoomRole.ADMIN):
+        raise HTTPException(403, "Admin access required")
+
+    query = db.query(RoomMember).filter(RoomMember.room_id == channel_id)
+    if q:
+        user_ids = [
+            uid for (uid,) in db.query(User.id).filter(
+                User.username.ilike(f"%{q}%") | User.display_name.ilike(f"%{q}%")
+            ).all()
+        ]
+        query = query.filter(RoomMember.user_id.in_(user_ids))
+
+    total = query.count()
+    members = query.order_by(RoomMember.joined_at.desc()).offset(offset).limit(min(limit, 100)).all()
+
+    result = []
+    for m in members:
+        user = db.query(User).filter(User.id == m.user_id).first()
+        if not user:
+            continue
+        result.append({
+            "user_id": user.id,
+            "username": user.username,
+            "display_name": user.display_name or user.username,
+            "avatar_emoji": user.avatar_emoji,
+            "avatar_url": user.avatar_url,
+            "role": m.role.value,
+            "is_banned": m.is_banned,
+            "joined_at": m.joined_at.isoformat() if m.joined_at else "",
+        })
+
+    return {"subscribers": result, "total": total, "offset": offset}
+
+
+@router.post("/{channel_id}/subscribers/{user_id}/ban")
+async def ban_subscriber(
+    channel_id: int, user_id: int,
+    u: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Ban a subscriber from channel."""
+    channel = db.query(Room).filter(Room.id == channel_id, Room.is_channel == True).first()
+    if not channel:
+        raise HTTPException(404)
+    actor = db.query(RoomMember).filter(
+        RoomMember.room_id == channel_id, RoomMember.user_id == u.id,
+    ).first()
+    if not actor or actor.role not in (RoomRole.OWNER, RoomRole.ADMIN):
+        raise HTTPException(403)
+    target = db.query(RoomMember).filter(
+        RoomMember.room_id == channel_id, RoomMember.user_id == user_id,
+    ).first()
+    if not target:
+        raise HTTPException(404, "Subscriber not found")
+    if target.role == RoomRole.OWNER:
+        raise HTTPException(403, "Cannot ban owner")
+    target.is_banned = True
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/{channel_id}/subscribers/{user_id}/unban")
+async def unban_subscriber(
+    channel_id: int, user_id: int,
+    u: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Unban a subscriber."""
+    channel = db.query(Room).filter(Room.id == channel_id, Room.is_channel == True).first()
+    if not channel:
+        raise HTTPException(404)
+    actor = db.query(RoomMember).filter(
+        RoomMember.room_id == channel_id, RoomMember.user_id == u.id,
+    ).first()
+    if not actor or actor.role not in (RoomRole.OWNER, RoomRole.ADMIN):
+        raise HTTPException(403)
+    target = db.query(RoomMember).filter(
+        RoomMember.room_id == channel_id, RoomMember.user_id == user_id,
+    ).first()
+    if not target:
+        raise HTTPException(404)
+    target.is_banned = False
+    db.commit()
+    return {"ok": True}
+
+
+@router.delete("/{channel_id}/subscribers/{user_id}")
+async def remove_subscriber(
+    channel_id: int, user_id: int,
+    u: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Remove a subscriber from channel."""
+    channel = db.query(Room).filter(Room.id == channel_id, Room.is_channel == True).first()
+    if not channel:
+        raise HTTPException(404)
+    actor = db.query(RoomMember).filter(
+        RoomMember.room_id == channel_id, RoomMember.user_id == u.id,
+    ).first()
+    if not actor or actor.role not in (RoomRole.OWNER, RoomRole.ADMIN):
+        raise HTTPException(403)
+    target = db.query(RoomMember).filter(
+        RoomMember.room_id == channel_id, RoomMember.user_id == user_id,
+    ).first()
+    if not target:
+        raise HTTPException(404)
+    if target.role == RoomRole.OWNER:
+        raise HTTPException(403, "Cannot remove owner")
+    db.delete(target)
+    # Delete their encrypted key
+    db.query(EncryptedRoomKey).filter(
+        EncryptedRoomKey.room_id == channel_id,
+        EncryptedRoomKey.user_id == user_id,
+    ).delete()
+    db.commit()
+    return {"ok": True}
+
+
+@router.get("/{channel_id}/banned")
+async def list_banned(
+    channel_id: int,
+    u: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List banned subscribers."""
+    channel = db.query(Room).filter(Room.id == channel_id, Room.is_channel == True).first()
+    if not channel:
+        raise HTTPException(404)
+    actor = db.query(RoomMember).filter(
+        RoomMember.room_id == channel_id, RoomMember.user_id == u.id,
+    ).first()
+    if not actor or actor.role not in (RoomRole.OWNER, RoomRole.ADMIN):
+        raise HTTPException(403)
+    banned = db.query(RoomMember).filter(
+        RoomMember.room_id == channel_id, RoomMember.is_banned == True,
+    ).all()
+    result = []
+    for m in banned:
+        user = db.query(User).filter(User.id == m.user_id).first()
+        if user:
+            result.append({
+                "user_id": user.id,
+                "username": user.username,
+                "display_name": user.display_name or user.username,
+                "avatar_emoji": user.avatar_emoji,
+            })
+    return {"banned": result}
+
+
+@router.get("/{channel_id}/recent-actions")
+async def recent_actions(
+    channel_id: int,
+    u: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Recent admin actions in the last 48 hours (from message log)."""
+    channel = db.query(Room).filter(Room.id == channel_id, Room.is_channel == True).first()
+    if not channel:
+        raise HTTPException(404)
+    actor = db.query(RoomMember).filter(
+        RoomMember.room_id == channel_id, RoomMember.user_id == u.id,
+    ).first()
+    if not actor or actor.role not in (RoomRole.OWNER, RoomRole.ADMIN):
+        raise HTTPException(403)
+
+    since = datetime.now(timezone.utc) - timedelta(hours=48)
+
+    # Recent joins
+    recent_joins = db.query(RoomMember).filter(
+        RoomMember.room_id == channel_id,
+        RoomMember.joined_at >= since,
+    ).all()
+
+    # Recent messages (posts) — edited or deleted
+    recent_edits = db.query(Message).filter(
+        Message.room_id == channel_id,
+        Message.is_edited == True,
+        Message.edited_at >= since,
+    ).all()
+
+    actions = []
+    for m in recent_joins:
+        user = db.query(User).filter(User.id == m.user_id).first()
+        actions.append({
+            "type": "join",
+            "user": user.display_name or user.username if user else "?",
+            "at": m.joined_at.isoformat() if m.joined_at else "",
+        })
+    for m in recent_edits:
+        user = db.query(User).filter(User.id == m.sender_id).first() if m.sender_id else None
+        actions.append({
+            "type": "edit",
+            "user": user.display_name or user.username if user else "system",
+            "message_id": m.id,
+            "at": m.edited_at.isoformat() if m.edited_at else "",
+        })
+
+    actions.sort(key=lambda a: a.get("at", ""), reverse=True)
+    return {"actions": actions[:100]}

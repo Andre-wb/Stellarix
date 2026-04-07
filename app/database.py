@@ -233,6 +233,14 @@ def init_db() -> None:
             "CREATE INDEX IF NOT EXISTS ix_fed_backup_shards_user ON federated_backup_shards(user_id)",
             "CREATE TABLE IF NOT EXISTS key_transparency_log (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, key_type VARCHAR(30) NOT NULL, pub_key_hash VARCHAR(64) NOT NULL, prev_hash VARCHAR(64), signature TEXT NOT NULL, device_id INTEGER, seq INTEGER DEFAULT 0, created_at DATETIME)",
             "CREATE INDEX IF NOT EXISTS ix_kt_log_user_seq ON key_transparency_log(user_id, seq)",
+            "ALTER TABLE rooms ADD COLUMN discussion_enabled BOOLEAN DEFAULT 0",
+            "ALTER TABLE rooms ADD COLUMN reactions_type VARCHAR(20) DEFAULT 'all'",
+            "ALTER TABLE rooms ADD COLUMN allowed_reactions TEXT DEFAULT ''",
+            "ALTER TABLE rooms ADD COLUMN admin_signatures BOOLEAN DEFAULT 0",
+            "ALTER TABLE rooms ADD COLUMN copy_protection BOOLEAN DEFAULT 0",
+            "ALTER TABLE rooms ADD COLUMN silent_default BOOLEAN DEFAULT 0",
+            "ALTER TABLE rooms ADD COLUMN join_approval BOOLEAN DEFAULT 0",
+            "ALTER TABLE rooms ADD COLUMN hashtags_enabled BOOLEAN DEFAULT 1",
         ]
         with engine.connect() as conn:
             try:

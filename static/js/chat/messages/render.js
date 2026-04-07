@@ -85,12 +85,29 @@ export function appendMessage(msg) {
     if (showAuthor && !isOwn) {
         const author = document.createElement('div');
         author.className = 'msg-author';
-        const nameClick = msg.sender_id ? ` style="cursor:pointer;" onclick="window.openUserProfile(${msg.sender_id})"` : '';
+
+        // In channels, show channel name+avatar instead of individual sender
+        const room = S.currentRoom;
+        const isChannel = room && room.is_channel;
+        const authorName = isChannel
+            ? (room.name || msg.display_name || msg.sender || '?')
+            : (msg.display_name || msg.sender || '?');
+        const avatarObj = isChannel
+            ? { avatar_url: room.avatar_url, avatar_emoji: room.avatar_emoji || '\u{1F4E2}' }
+            : msg;
+        const nameClick = isChannel
+            ? ''
+            : (msg.sender_id ? ` style="cursor:pointer;" onclick="window.openUserProfile(${msg.sender_id})"` : '');
+
+        // Build author header using safe helpers — _avatarHtml uses esc() internally
+        const signatureHtml = (isChannel && room.admin_signatures && msg.display_name)
+            ? `<span class="msg-channel-signature">${esc(msg.display_name)}</span>` : '';
         author.innerHTML = `
-            ${_avatarHtml(msg)}
-            <span class="msg-name"${nameClick}>${esc(msg.display_name || msg.sender || '?')}</span>
+            ${_avatarHtml(avatarObj)}
+            <span class="msg-name"${nameClick}>${esc(authorName)}</span>
             ${msg.is_bot ? '<span class="msg-bot-badge">BOT</span>' : ''}
             <span class="msg-time">${fmtTime(msg.created_at)}</span>
+            ${signatureHtml}
             ${msg.from_peer ? '<span class="msg-peer-badge">P2P</span>' : ''}`;
         group.appendChild(author);
     }
@@ -428,12 +445,20 @@ export function appendFileMessage(msg) {
     div.dataset.msgId    = msg.msg_id || '';
     div.dataset.senderId = msg.sender_id || '';
 
+    // In channels, show channel name+avatar instead of individual sender
+    const _room = window.AppState?.currentRoom;
+    const _isCh = _room && _room.is_channel;
+    const _aName = _isCh ? (_room.name || msg.display_name || msg.sender || '?') : (msg.display_name || msg.sender || '?');
+    const _aObj = _isCh ? { avatar_url: _room.avatar_url, avatar_emoji: _room.avatar_emoji || '\u{1F4E2}' } : msg;
+    const _sigHtml = (_isCh && _room.admin_signatures && msg.display_name)
+        ? `<span class="msg-channel-signature">${esc(msg.display_name)}</span>` : '';
     const authorHtml = `
         <div class="msg-author">
-            ${_avatarHtml(msg)}
-            <span class="msg-name">${esc(msg.display_name || msg.sender || '?')}</span>
+            ${_avatarHtml(_aObj)}
+            <span class="msg-name">${esc(_aName)}</span>
             ${msg.is_bot ? '<span class="msg-bot-badge">BOT</span>' : ''}
             <span class="msg-time">${fmtTime(msg.created_at)}</span>
+            ${_sigHtml}
         </div>`;
 
     // Video note (circular video message) — file name starts with "video_" and is a video

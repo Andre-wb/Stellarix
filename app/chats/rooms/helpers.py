@@ -65,6 +65,13 @@ class RoomUpdate(BaseModel):
     antispam_enabled:    Optional[bool] = None
     antispam_config:     Optional[str]  = None   # JSON: {threshold, action, block_repeats, block_links}
     discussion_enabled:  Optional[bool] = None   # Channel: enable comments under posts
+    reactions_type:      Optional[str]  = Field(None, pattern=r"^(all|selected|off)$")
+    allowed_reactions:   Optional[str]  = Field(None, max_length=500)  # comma-separated emojis
+    admin_signatures:    Optional[bool] = None   # Show admin name under channel posts
+    copy_protection:     Optional[bool] = None   # Disable copy/forward in channel
+    silent_default:      Optional[bool] = None   # Posts silent by default
+    join_approval:       Optional[bool] = None   # Require approval to join
+    hashtags_enabled:    Optional[bool] = None   # Clickable hashtags
 
 
 class ChangeRoleRequest(BaseModel):
@@ -103,6 +110,13 @@ def _room_dict(r: Room) -> dict:
         "created_at":          r.created_at.isoformat(),
         "theme_json":          r.theme_json,
         "discussion_enabled":  getattr(r, "discussion_enabled", False) or False,
+        "reactions_type":      getattr(r, "reactions_type", "all") or "all",
+        "allowed_reactions":   getattr(r, "allowed_reactions", "") or "",
+        "admin_signatures":    getattr(r, "admin_signatures", False) or False,
+        "copy_protection":     getattr(r, "copy_protection", False) or False,
+        "silent_default":      getattr(r, "silent_default", False) or False,
+        "join_approval":       getattr(r, "join_approval", False) or False,
+        "hashtags_enabled":    getattr(r, "hashtags_enabled", True) if hasattr(r, "hashtags_enabled") else True,
     }
     # Add voice participants for voice channels
     if d["is_voice"]:

@@ -276,6 +276,22 @@ async def update_room(
     if body.discussion_enabled is not None:
         r.discussion_enabled = body.discussion_enabled
 
+    # Channel-specific fields
+    if body.reactions_type is not None:
+        r.reactions_type = body.reactions_type
+    if body.allowed_reactions is not None:
+        r.allowed_reactions = body.allowed_reactions[:500]
+    if body.admin_signatures is not None:
+        r.admin_signatures = body.admin_signatures
+    if body.copy_protection is not None:
+        r.copy_protection = body.copy_protection
+    if body.silent_default is not None:
+        r.silent_default = body.silent_default
+    if body.join_approval is not None:
+        r.join_approval = body.join_approval
+    if body.hashtags_enabled is not None:
+        r.hashtags_enabled = body.hashtags_enabled
+
     db.commit()
     db.refresh(r)
 

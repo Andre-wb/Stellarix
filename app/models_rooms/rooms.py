@@ -29,6 +29,15 @@ class Room(Base):
     subscriber_count = Column(Integer, default=0)
     discussion_enabled = Column(Boolean, default=False)  # Enable comments under channel posts
 
+    # Channel-specific settings
+    reactions_type      = Column(String(20), default="all")    # "all", "selected", "off"
+    allowed_reactions   = Column(Text, default="")             # comma-separated emojis if reactions_type=selected
+    admin_signatures    = Column(Boolean, default=False)       # Show admin name under posts
+    copy_protection     = Column(Boolean, default=False)       # Disable copy/forward/screenshots
+    silent_default      = Column(Boolean, default=False)       # Posts are silent by default (no notification sound)
+    join_approval       = Column(Boolean, default=False)       # Require admin approval for join requests
+    hashtags_enabled    = Column(Boolean, default=True)        # Enable clickable hashtags in channel
+
     # Привязка к пространству (Space)
     space_id    = Column(Integer, ForeignKey("spaces.id", ondelete="SET NULL"),
                          nullable=True, index=True)

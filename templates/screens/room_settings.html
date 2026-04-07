@@ -4,7 +4,7 @@
         <button class="rss-back" onclick="closeRoomSettingsScreen()" aria-label="Назад">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
         </button>
-        <span class="rss-title" data-i18n="room.settings">Настройки комнаты</span>
+        <span class="rss-title" id="rss-topbar-title" data-i18n="room.settings">Настройки комнаты</span>
     </div>
     <div class="rss-body">
         <!-- Аватар комнаты -->
@@ -18,8 +18,8 @@
             <div class="room-info-meta" id="room-info-meta"></div>
         </div>
 
-        <!-- Invite-код -->
-        <div class="room-info-section">
+        <!-- Invite-код (скрыто для каналов) -->
+        <div class="room-info-section" id="rss-invite-section">
             <div class="room-info-label" data-i18n="room.inviteCodeShort">Invite-код</div>
             <div style="display:flex;align-items:center;gap:8px;">
                 <span id="room-info-invite" style="font-size:16px;letter-spacing:3px;font-weight:700;color:var(--accent2);font-family:var(--mono);"></span>
@@ -28,8 +28,8 @@
         </div>
 
         <!-- Быстрые кнопки -->
-        <div class="room-info-section" style="display:flex;gap:8px;">
-            <button class="btn btn-secondary" style="flex:1;" onclick="showMembersModal()" data-i18n="chat.members">Участники</button>
+        <div class="room-info-section" id="rss-quick-buttons" style="display:flex;gap:8px;">
+            <button class="btn btn-secondary" style="flex:1;" onclick="showMembersModal()" id="rss-members-btn" data-i18n="chat.members">Участники</button>
             <button class="btn btn-danger" style="flex:1;" id="room-info-leave-btn" onclick="leaveRoom();closeRoomSettingsScreen();" data-i18n="room.leaveShort">Покинуть</button>
         </div>
 
@@ -71,12 +71,32 @@
                 </div>
             </div>
 
-            <!-- ═══ Настройки КАНАЛА ═══ -->
+            <!-- Channel Settings -->
             <div id="rss-channel-settings" style="display:none;">
                 <div class="room-info-divider"></div>
                 <div class="room-info-section-title" data-i18n="channel.settings">Настройки канала</div>
 
-                <!-- Чат обсуждений -->
+                <!-- Channel Type -->
+                <div class="room-info-section">
+                    <label class="room-info-toggle">
+                        <span data-i18n="channel.publicChannel">Публичный канал</span>
+                        <input type="checkbox" id="channel-public-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <div class="room-info-hint" data-i18n="channel.publicHint">Публичные каналы доступны через поиск</div>
+                </div>
+
+                <!-- Join Approval -->
+                <div class="room-info-section">
+                    <label class="room-info-toggle">
+                        <span data-i18n="channel.joinApproval">Одобрение заявок на вступление</span>
+                        <input type="checkbox" id="channel-join-approval">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <div class="room-info-hint" data-i18n="channel.joinApprovalHint">Новые подписчики должны быть одобрены администратором</div>
+                </div>
+
+                <!-- Discussion Chat -->
                 <div class="room-info-section">
                     <label class="room-info-toggle">
                         <span data-i18n="channel.discussionChat">Чат обсуждений</span>
@@ -86,14 +106,96 @@
                     <div class="room-info-hint" data-i18n="channel.discussionHint">Под каждым постом можно оставить комментарий</div>
                 </div>
 
-                <!-- Управление авторами -->
+                <!-- Reactions -->
+                <div class="room-info-section">
+                    <div class="room-info-label" data-i18n="channel.reactions">Реакции</div>
+                    <select class="form-input" id="channel-reactions-type" onchange="window._onReactionsTypeChange()">
+                        <option value="all" data-i18n="channel.reactionsAll">Все эмодзи</option>
+                        <option value="selected" data-i18n="channel.reactionsSelected">Только выбранные</option>
+                        <option value="off" data-i18n="channel.reactionsOff">Выключены</option>
+                    </select>
+                    <div id="channel-reactions-picker" style="display:none;margin-top:8px;">
+                        <div class="room-info-hint" data-i18n="channel.reactionsPickerHint">Нажмите чтобы выбрать разрешённые реакции</div>
+                        <div id="channel-allowed-reactions" class="channel-reactions-grid" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">
+                        </div>
+                        <input class="form-input" id="channel-reactions-input" placeholder="👍,❤️,🔥,😂,😢,👏" style="margin-top:6px;font-size:16px;">
+                    </div>
+                </div>
+
+                <!-- Admin Signatures -->
+                <div class="room-info-section">
+                    <label class="room-info-toggle">
+                        <span data-i18n="channel.adminSignatures">Подписи авторов</span>
+                        <input type="checkbox" id="channel-admin-signatures">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <div class="room-info-hint" data-i18n="channel.signaturesHint">Имя автора будет отображаться под его постами</div>
+                </div>
+
+                <!-- Silent Messages -->
+                <div class="room-info-section">
+                    <label class="room-info-toggle">
+                        <span data-i18n="channel.silentDefault">Бесшумные сообщения</span>
+                        <input type="checkbox" id="channel-silent-default">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <div class="room-info-hint" data-i18n="channel.silentHint">Посты не будут вызывать звуковое уведомление</div>
+                </div>
+
+                <!-- Copy Protection -->
+                <div class="room-info-section">
+                    <label class="room-info-toggle">
+                        <span data-i18n="channel.copyProtection">Запрет копирования</span>
+                        <input type="checkbox" id="channel-copy-protection">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <div class="room-info-hint" data-i18n="channel.copyProtectionHint">Блокирует копирование, пересылку и скриншоты</div>
+                </div>
+
+                <!-- Hashtags -->
+                <div class="room-info-section">
+                    <label class="room-info-toggle">
+                        <span data-i18n="channel.hashtags">Хэштеги</span>
+                        <input type="checkbox" id="channel-hashtags-enabled">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <div class="room-info-hint" data-i18n="channel.hashtagsHint">Кликабельные #хэштеги для навигации по каналу</div>
+                </div>
+
+                <div class="room-info-divider"></div>
+
+                <!-- Authors Management -->
                 <div class="room-info-section">
                     <div class="room-info-section-title" data-i18n="channel.authors">Авторы канала</div>
                     <div id="channel-authors-list" class="channel-authors-list"></div>
                     <button class="btn btn-secondary btn-sm" style="width:100%;margin-top:8px;" onclick="window._showAddAuthorModal()" data-i18n="channel.addAuthor">+ Добавить автора</button>
                 </div>
 
-                <!-- Стримы -->
+                <!-- Subscribers Management -->
+                <div class="room-info-section">
+                    <div class="room-info-section-title" data-i18n="channel.subscribers">Подписчики</div>
+                    <div style="display:flex;gap:6px;margin-bottom:8px;">
+                        <input class="form-input" id="channel-subscribers-search" placeholder="Поиск подписчиков..." data-i18n-placeholder="channel.searchSubscribers" style="flex:1;">
+                        <button class="btn btn-secondary btn-sm" onclick="window._searchChannelSubscribers()">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                        </button>
+                    </div>
+                    <div id="channel-subscribers-list" class="channel-authors-list" style="max-height:200px;overflow-y:auto;"></div>
+                    <button class="btn btn-secondary btn-sm" style="width:100%;margin-top:8px;" onclick="window._showBannedSubscribers()" data-i18n="channel.showBanned">Заблокированные подписчики</button>
+                    <div id="channel-banned-list" class="channel-authors-list" style="display:none;margin-top:8px;"></div>
+                </div>
+
+                <!-- Recent Actions -->
+                <div class="room-info-section">
+                    <div class="room-info-section-title" data-i18n="channel.recentActions">Недавние действия</div>
+                    <div class="room-info-hint" data-i18n="channel.recentActionsHint">Журнал событий за последние 48 часов</div>
+                    <div id="channel-recent-actions" class="channel-authors-list" style="max-height:200px;overflow-y:auto;margin-top:6px;"></div>
+                    <button class="btn btn-secondary btn-sm" style="width:100%;margin-top:8px;" onclick="window._loadRecentActions()" data-i18n="channel.loadActions">Загрузить журнал</button>
+                </div>
+
+                <div class="room-info-divider"></div>
+
+                <!-- Streaming -->
                 <div class="room-info-section">
                     <div class="room-info-section-title" data-i18n="channel.streaming">Стримы</div>
                     <button class="btn btn-primary" style="width:100%;" onclick="window._startChannelStream()" id="channel-stream-btn" data-i18n="channel.goLive">Начать стрим</button>

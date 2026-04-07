@@ -71,6 +71,10 @@
     padding: 1px 6px; border-radius: 20px;
     text-transform: uppercase; letter-spacing: 0.5px;
 }
+.msg-channel-signature {
+    font-size: 11px; color: var(--text3); font-style: italic;
+    margin-left: 6px;
+}
 
 /* Пузырёк сообщения */
 .msg-bubble {
