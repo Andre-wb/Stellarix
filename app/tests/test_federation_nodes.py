@@ -73,7 +73,7 @@ class TestFederationNodes:
             'node_id': secrets.token_hex(16),
             'url': url,
             'code_hash': local_hash,
-            'version': '5.0.0',
+            'version': '1.0.0',
         }, headers=logged_user['headers'])
 
         # Now try to add the same URL via /nodes/add — should be 409 (duplicate)
@@ -155,7 +155,7 @@ class TestFederationNodes:
             'node_id': secrets.token_hex(16),
             'url': f'https://handshake-test-{tag}.example.com:8443',
             'code_hash': local_hash,
-            'version': '5.0.0',
+            'version': '1.0.0',
         }, headers=logged_user['headers'])
         assert r.status_code == 200
         body = r.json()
@@ -169,7 +169,7 @@ class TestFederationNodes:
             'node_id': secrets.token_hex(16),
             'url': f'https://badhash-{tag}.example.com:8443',
             'code_hash': 'a' * 64,  # wrong hash
-            'version': '5.0.0',
+            'version': '1.0.0',
         }, headers=logged_user['headers'])
         assert r.status_code == 200
         body = r.json()
@@ -187,7 +187,7 @@ class TestFederationNodes:
             'node_id': secrets.token_hex(16),
             'url': f'https://gossip-join-{tag}.example.com:8443',
             'code_hash': local_hash,
-            'version': '5.0.0',
+            'version': '1.0.0',
         }, headers=logged_user['headers'])
         assert r.status_code == 200
         body = r.json()

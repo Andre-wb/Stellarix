@@ -82,6 +82,9 @@ export async function setLocale(locale) {
     // RTL support for Arabic, Persian, Urdu
     const RTL_LOCALES = ['ar', 'he', 'fa', 'ur', 'ug', 'bal', 'ps', 'sd'];
     document.documentElement.dir = RTL_LOCALES.includes(locale) ? 'rtl' : 'ltr';
+
+    // Rebuild Gravitix docs overlay with new language
+    if (typeof window.gxDocsRebuild === 'function') window.gxDocsRebuild();
 }
 
 /**

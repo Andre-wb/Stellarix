@@ -796,12 +796,12 @@ export function renderVoiceConnectorBar() {
             <div class="vcb-name">${esc(_voiceRoomName || '')}</div>
         </div>
         <div class="vcb-actions">
-            <button class="vcb-btn ${_voiceMuted ? 'vcb-btn-muted' : ''}" onclick="toggleVoiceMute()" title="${_voiceMuted ? 'Unmute microphone' : 'Mute microphone'}">
+            <button class="vcb-btn ${_voiceMuted ? 'vcb-btn-muted' : ''}" onclick="toggleVoiceMute()" title="${_voiceMuted ? (typeof t==='function'?t('voice.unmuteMic'):'Unmute microphone') : (typeof t==='function'?t('voice.muteMic'):'Mute microphone')}">
                 ${_voiceMuted
                     ? '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M8.03 12.27a3.98 3.98 0 0 0 3.7 3.7zM20 12h-2c0 1.29-.42 2.49-1.12 3.47l-1.44-1.44c.36-.59.56-1.28.56-2.02v-6c0-2.21-1.79-4-4-4s-4 1.79-4 4v.59L2.71 1.29 1.3 2.7l20 20 1.41-1.41-4.4-4.4A7.9 7.9 0 0 0 20 12M10 6c0-1.1.9-2 2-2s2 .9 2 2v6c0 .18-.03.35-.07.51L10 8.58V5.99Z"/><path d="M12 18c-3.31 0-6-2.69-6-6H4c0 4.07 3.06 7.44 7 7.93V22h2v-2.07c.74-.09 1.45-.29 2.12-.57l-1.57-1.57c-.49.13-1.01.21-1.55.21"/></svg>'
                     : '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M16 12V6c0-2.21-1.79-4-4-4S8 3.79 8 6v6c0 2.21 1.79 4 4 4s4-1.79 4-4m-6 0V6c0-1.1.9-2 2-2s2 .9 2 2v6c0 1.1-.9 2-2 2s-2-.9-2-2"/><path d="M18 12c0 3.31-2.69 6-6 6s-6-2.69-6-6H4c0 4.07 3.06 7.44 7 7.93V22h2v-2.07c3.94-.49 7-3.86 7-7.93z"/></svg>'}
             </button>
-            <button class="vcb-btn vcb-btn-leave" onclick="leaveVoiceChannel()" title="Disconnect">
+            <button class="vcb-btn vcb-btn-leave" onclick="leaveVoiceChannel()" title="${typeof t==='function'?t('voice.disconnect'):'Disconnect'}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08a.956.956 0 0 1-.29-.7c0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28a11.27 11.27 0 0 0-2.67-1.85.996.996 0 0 1-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/></svg>
             </button>
         </div>`;

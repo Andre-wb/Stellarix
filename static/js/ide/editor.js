@@ -163,7 +163,7 @@ function ideConfirmNewFile() {
 }
 
 function ideDeleteFile(name) {
-    if (!confirm(`Delete "${name}"?`)) return;
+    if (!confirm((typeof t==='function'?t('ide.deleteFileConfirm'):'Delete') + ` "${name}"?`)) return;
     delete IDE.current.files[name];
     IDE.openFiles = IDE.openFiles.filter(f => f !== name);
     if (IDE.activeFile === name) {

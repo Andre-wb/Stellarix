@@ -867,7 +867,7 @@ async def _initiate_handshake(node_db_id: int) -> None:
                     "node_id": local_node_id,
                     "url": local_url,
                     "code_hash": local_hash,
-                    "version": "5.0.0",
+                    "version": "1.0.0",
                     "name": Config.DEVICE_NAME or "Vortex Node",
                 },
             )

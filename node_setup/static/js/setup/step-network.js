@@ -48,14 +48,14 @@ async function _checkCloudflared() {
         const data = await r.json();
         if (data.installed) {
             el.className = 'alert alert-success show';
-            el.textContent = '✓ cloudflared установлен — туннель запустится автоматически';
+            el.textContent = '✓ cloudflared installed — tunnel will start automatically';
         } else {
             el.className = 'alert alert-error show';
-            el.innerHTML = '⚠ cloudflared не найден.<br>Установите: <code>brew install cloudflared</code> (macOS) или <code>sudo apt install cloudflared</code> (Linux).<br>Без него глобальный режим будет работать только по прямому IP.';
+            el.innerHTML = '⚠ cloudflared not found.<br>Install: <code>brew install cloudflared</code> (macOS) or <code>sudo apt install cloudflared</code> (Linux).<br>Without it, global mode will only work via direct IP.';
         }
     } catch {
         el.className = 'alert show';
-        el.textContent = 'Не удалось проверить cloudflared';
+        el.textContent = 'Failed to check cloudflared';
     }
 }
 

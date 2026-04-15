@@ -18,8 +18,12 @@
 #app-content {
     flex: 1;
     min-width: 0;
-    padding-bottom: 56px; /* space for .bottom-tabs */
-    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: 50px;
+}
+@media (max-width: 768px) {
+    body.chat-open #app-content {
+        padding-bottom: 0 !important;
+    }
 }
 
 .tab-item {
@@ -75,10 +79,6 @@ body[data-theme="light"] .bottom-tabs {
     border-top-color: #e4e4e7;
 }
 
-/* Когда чат открыт — tab bar видим, контент не перекрывается */
-body.mobile-chat-open #main {
-    padding-bottom: calc(42px + env(safe-area-inset-bottom, 0px));
-}
 
 /* ══════════════════════════════════════════════════════════════════════════════
  * INPUT ATTACHMENT PANEL (скрепка → выдвижная панель вместо кучи иконок)
@@ -225,6 +225,13 @@ body.mobile-chat-open #main {
     font-size: 18px;
 }
 
+
+/* ── Tab bar spacing: only on screens where tabs are visible ──────────── */
+@media (max-width: 768px) {
+    body.chat-open .bottom-tabs {
+        display: none !important;
+    }
+}
 
 /* ── Extra small phones (< 380px, iPhone SE etc) ─────────────────────────── */
 @media (max-width: 380px) {

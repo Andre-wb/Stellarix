@@ -7,35 +7,37 @@
 
 const STORAGE_KEY = 'vortex_onboarding_done';
 
+const _tO = (key, fallback) => (typeof window.t === 'function' ? window.t(key) : fallback) || fallback;
+
 const STEPS = [
     {
         target: '#nav-new-room',
-        title: 'Create your first room',
-        text: 'Tap here to create a new room and start chatting with others.',
+        title: () => _tO('onboarding.step1Title', 'Create your first room'),
+        text:  () => _tO('onboarding.step1Text', 'Tap here to create a new room and start chatting with others.'),
         position: 'right',
     },
     {
         target: '.header-btn[onclick*="copyInviteCode"]',
-        title: 'Share this code to invite friends',
-        text: 'Every room has a unique invite code. Share it so others can join.',
+        title: () => _tO('onboarding.step2Title', 'Share this code to invite friends'),
+        text:  () => _tO('onboarding.step2Text', 'Every room has a unique invite code. Share it so others can join.'),
         position: 'left',
     },
     {
         target: '#msg-input',
-        title: 'Type and send your first message',
-        text: 'Write a message and press Enter to send it to the room.',
+        title: () => _tO('onboarding.step3Title', 'Type and send your first message'),
+        text:  () => _tO('onboarding.step3Text', 'Write a message and press Enter to send it to the room.'),
         position: 'top',
     },
     {
         target: '#chat-e2e-badge',
-        title: 'All messages are end-to-end encrypted',
-        text: 'The lock icon means your conversation is secured. Nobody else can read it.',
+        title: () => _tO('onboarding.step4Title', 'All messages are end-to-end encrypted'),
+        text:  () => _tO('onboarding.step4Text', 'The lock icon means your conversation is secured. Nobody else can read it.'),
         position: 'left',
     },
     {
         target: null, // completion step — centered, no spotlight
-        title: "You're all set! Enjoy Vortex",
-        text: 'You know the basics. Explore rooms, invite friends, and chat securely.',
+        title: () => _tO('onboarding.step5Title', "You're all set! Enjoy Vortex"),
+        text:  () => _tO('onboarding.step5Text', 'You know the basics. Explore rooms, invite friends, and chat securely.'),
         position: 'center',
     },
 ];
@@ -113,12 +115,14 @@ function _showStep(idx) {
 
     // Build tooltip HTML
     const stepCounter = `<span class="onboarding-step-counter">${idx + 1} / ${STEPS.length}</span>`;
-    const title = `<div class="onboarding-title">${step.title}</div>`;
-    const text = `<div class="onboarding-text">${step.text}</div>`;
-    const nextLabel = isLast ? 'Done' : 'Next';
+    const titleText = typeof step.title === 'function' ? step.title() : step.title;
+    const bodyText  = typeof step.text  === 'function' ? step.text()  : step.text;
+    const title = `<div class="onboarding-title">${titleText}</div>`;
+    const text = `<div class="onboarding-text">${bodyText}</div>`;
+    const nextLabel = isLast ? _tO('onboarding.finish', 'Done') : _tO('onboarding.next', 'Next');
     const buttons = `
         <div class="onboarding-buttons">
-            ${!isLast ? '<button class="onboarding-btn onboarding-btn-skip">Skip</button>' : ''}
+            ${!isLast ? `<button class="onboarding-btn onboarding-btn-skip">${_tO('onboarding.skipAll', 'Skip')}</button>` : ''}
             <button class="onboarding-btn onboarding-btn-next">${nextLabel}</button>
         </div>`;
     _tooltip.innerHTML = stepCounter + title + text + buttons;

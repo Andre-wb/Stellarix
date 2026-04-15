@@ -1,6 +1,6 @@
 [package]
 name = "vortex-desktop"
-version = "5.0.0"
+version = "1.0.0"
 description = "Vortex Chat — Decentralized P2P Messenger (Desktop)"
 authors = ["Vortex Team"]
 license = "Apache-2.0"

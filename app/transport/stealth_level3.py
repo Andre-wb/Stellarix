@@ -1956,7 +1956,7 @@ class TrafficScheduler:
         0.0-1.0, где 1.0 = максимальная активность.
         """
         import datetime
-        utc_hour = datetime.datetime.utcnow().hour
+        utc_hour = datetime.datetime.now(datetime.timezone.utc).hour
         local_hour = (utc_hour + self.tz_offset) % 24
         base = self.HOURLY_ACTIVITY[local_hour]
 

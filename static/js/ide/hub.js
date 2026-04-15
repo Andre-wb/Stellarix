@@ -312,7 +312,7 @@ function ideCreateProject() {
 }
 
 function ideDeleteProject(idx) {
-    if (!confirm(`Delete project "${IDE.projects[idx].name}"?`)) return;
+    if (!confirm((typeof t==='function'?t('ide.deleteProjectConfirm'):'Delete project') + ` "${IDE.projects[idx].name}"?`)) return;
     IDE.projects.splice(idx, 1);
     ideSave();
     ideRenderHub();

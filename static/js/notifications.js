@@ -120,6 +120,22 @@ function _scheduleReconnect() {
 function handleNotification(data) {
     const S = window.AppState;
 
+    // Новая story — обновляем stories strip
+    if (data.type === 'new_story') {
+        if (typeof window.loadStories === 'function') window.loadStories();
+        return;
+    }
+
+    // Story reaction/reply — показываем toast
+    if (data.type === 'story_reaction' || data.type === 'story_reply') {
+        const name = data.from_display_name || data.from_username || '';
+        const text = data.type === 'story_reaction'
+            ? `${name} ${data.emoji || '❤️'}`
+            : `${name}: ${(data.text || '').slice(0, 50)}`;
+        if (typeof window.showToast === 'function') window.showToast(text, 'info');
+        return;
+    }
+
     // Новый DM — добавляем комнату в список, показываем уведомление
     if (data.type === 'new_dm' && data.room) {
         _handleNewDm(data);

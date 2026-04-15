@@ -735,28 +735,29 @@ export function appendFileMessage(msg) {
         const vb = _buildVoiceBubble(msg, isOwn);
         div.appendChild(vb);
     } else if (isVideoNote) {
-        // Render as circular video note
+        // Circular video note — no bubble, no glass, centered
         div.innerHTML = authorHtml;
-        const bubble = document.createElement('div');
-        bubble.className = `msg-bubble lg video-note-bubble${isOwn ? ' lg-own own' : ''}`;
-        bubble.style.cssText = 'padding:4px;background:transparent;box-shadow:none;';
-
-        const grain = document.createElement('div');
-        grain.className = 'lg-grain';
-        bubble.appendChild(grain);
 
         const container = document.createElement('div');
         container.className = 'video-note-container';
+        container.style.cssText = isOwn ? 'margin-left:auto;margin-right:0;' : 'margin-left:36px;margin-right:auto;';
 
         const videoEl = document.createElement('video');
         videoEl.preload = 'metadata';
         videoEl.playsInline = true;
-        // E2E: decrypt and cache video
-        loadEncryptedMedia(videoEl, msg.download_url, 'video/mp4');
+        videoEl.muted = true;
+        // E2E: decrypt and load
+        let _vnBlobUrl = null;
+        loadEncryptedMedia(videoEl, msg.download_url, 'video/webm').then(function(url) { _vnBlobUrl = url; });
+
+        // Auto-generate thumbnail from first frame
+        videoEl.addEventListener('loadeddata', function() {
+            videoEl.currentTime = 0.1;
+        }, { once: true });
 
         const overlay = document.createElement('div');
         overlay.className = 'video-note-overlay';
-        overlay.innerHTML = '<svg width="36" height="36" fill="#fff" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+        overlay.innerHTML = '<svg width="32" height="32" fill="#fff" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
 
         const progress = document.createElement('div');
         progress.className = 'video-note-progress';
@@ -764,48 +765,46 @@ export function appendFileMessage(msg) {
         progressBar.className = 'video-note-progress-bar';
         progress.appendChild(progressBar);
 
-        const duration = document.createElement('div');
-        duration.className = 'video-note-duration';
-
         container.appendChild(videoEl);
         container.appendChild(overlay);
         container.appendChild(progress);
-        container.appendChild(duration);
 
-        const _fmtSec = s => { const m = Math.floor(s/60); return m + ':' + String(Math.floor(s%60)).padStart(2,'0'); };
+        const _fmtSec = function(s) { var m = Math.floor(s/60); return m + ':' + String(Math.floor(s%60)).padStart(2,'0'); };
+        var _vnPlaying = false;
 
-        videoEl.onloadedmetadata = () => { duration.textContent = _fmtSec(videoEl.duration); };
-        videoEl.ontimeupdate = () => {
-            if (videoEl.duration) {
-                progressBar.style.width = (videoEl.currentTime / videoEl.duration * 100) + '%';
-                duration.textContent = _fmtSec(videoEl.currentTime) + ' / ' + _fmtSec(videoEl.duration);
-            }
+        videoEl.ontimeupdate = function() {
+            if (videoEl.duration) progressBar.style.width = (videoEl.currentTime / videoEl.duration * 100) + '%';
         };
-        videoEl.onended = () => {
+        videoEl.onended = function() {
             videoEl.currentTime = 0;
+            videoEl.muted = true;
             progressBar.style.width = '0';
             container.classList.remove('playing');
-            duration.textContent = _fmtSec(videoEl.duration);
+            _vnPlaying = false;
         };
-        videoEl.onplay = () => container.classList.add('playing');
-        videoEl.onpause = () => container.classList.remove('playing');
 
-        container.onclick = (e) => {
-            if (e.target.closest('.lg-reply')) return;
+        // Click on container — play/pause inline (not open viewer)
+        container.addEventListener('click', function(e) {
             e.stopPropagation();
-            window.openVideoNoteViewer?.(msg.download_url, msg.file_name);
-        };
+            if (_vnPlaying) {
+                videoEl.pause();
+                container.classList.remove('playing');
+                _vnPlaying = false;
+            } else {
+                videoEl.muted = false;
+                videoEl.play();
+                container.classList.add('playing');
+                _vnPlaying = true;
+            }
+        });
 
-        bubble.appendChild(container);
-
-        bubble.addEventListener('contextmenu', (e) => {
+        container.addEventListener('contextmenu', function(e) {
             e.preventDefault();
-            if (e.target === videoEl || e.target.closest('.lg-reply')) return;
             _showContextMenu(e, msg, isOwn);
         });
-        _attachMobileLongPress(bubble, msg, isOwn);
+        _attachMobileLongPress(container, msg, isOwn);
 
-        div.appendChild(bubble);
+        div.appendChild(container);
     } else if (isImage && msg.download_url) {
         // Hide author time — shown as overlay on image
         { const _at = div.querySelector('.msg-time'); if (_at) _at.style.display = 'none'; }

@@ -254,11 +254,14 @@ async def global_search(
         "is_channel": getattr(r, 'is_channel', False),
     } for r in my_rooms]
 
-    # Bots matching name
+    # Bots matching name or display_name
     bots = db.query(User).filter(
         User.is_bot == True,
         User.is_active == True,
-        User.username.ilike(f"%{q}%"),
+        or_(
+            User.username.ilike(f"%{q}%"),
+            User.display_name.ilike(f"%{q}%"),
+        ),
     ).limit(10).all()
 
     bot_results = [{

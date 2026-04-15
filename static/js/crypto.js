@@ -195,6 +195,113 @@ export async function decryptFile(encryptedData, roomKeyBytes) {
 }
 
 // ============================================================================
+// E2E Story Encryption — per-story random key + ECIES key wrapping
+// ============================================================================
+
+/**
+ * Generate a random 32-byte story key.
+ */
+export function generateStoryKey() {
+    return crypto.getRandomValues(new Uint8Array(32));
+}
+
+/**
+ * Encrypt arbitrary data with a 32-byte AES-256-GCM key.
+ * Returns hex string: nonce(12) + ciphertext.
+ */
+export async function storyEncrypt(data, keyBytes) {
+    const key = await crypto.subtle.importKey(
+        'raw', keyBytes, { name: 'AES-GCM' }, false, ['encrypt']
+    );
+    const nonce = crypto.getRandomValues(new Uint8Array(12));
+    const encoded = typeof data === 'string' ? new TextEncoder().encode(data) : data;
+    const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, key, encoded);
+    const buf = new Uint8Array(12 + ct.byteLength);
+    buf.set(nonce, 0);
+    buf.set(new Uint8Array(ct), 12);
+    return toHex(buf);
+}
+
+/**
+ * Decrypt hex-encoded AES-256-GCM ciphertext with a 32-byte key.
+ * Returns the plaintext as a string.
+ */
+export async function storyDecryptText(hexCt, keyBytes) {
+    const data = fromHex(hexCt);
+    const nonce = data.slice(0, 12);
+    const ct = data.slice(12);
+    const key = await crypto.subtle.importKey(
+        'raw', keyBytes, { name: 'AES-GCM' }, false, ['decrypt']
+    );
+    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, key, ct);
+    return new TextDecoder().decode(plain);
+}
+
+/**
+ * Encrypt a binary blob (media file) with story key.
+ * Returns ArrayBuffer: nonce(12) + ciphertext.
+ */
+export async function storyEncryptBlob(blob, keyBytes) {
+    const key = await crypto.subtle.importKey(
+        'raw', keyBytes, { name: 'AES-GCM' }, false, ['encrypt']
+    );
+    const nonce = crypto.getRandomValues(new Uint8Array(12));
+    const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, key, blob);
+    const buf = new Uint8Array(12 + ct.byteLength);
+    buf.set(nonce, 0);
+    buf.set(new Uint8Array(ct), 12);
+    return buf.buffer;
+}
+
+/**
+ * Decrypt a binary blob from ArrayBuffer with story key.
+ * Input: ArrayBuffer of nonce(12) + ciphertext.
+ */
+export async function storyDecryptBlob(encBuf, keyBytes) {
+    const data = new Uint8Array(encBuf);
+    const nonce = data.slice(0, 12);
+    const ct = data.slice(12);
+    const key = await crypto.subtle.importKey(
+        'raw', keyBytes, { name: 'AES-GCM' }, false, ['decrypt']
+    );
+    return crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, key, ct);
+}
+
+/**
+ * Wrap story_key for a list of contacts via ECIES.
+ * @param {Uint8Array} storyKey - 32-byte random key
+ * @param {Array<{user_id: number, pub_key: string}>} contacts - list with X25519 pub hex
+ * @returns {Promise<Array<{user_id, ephemeral_pub, ciphertext}>>}
+ */
+export async function wrapStoryKeyForContacts(storyKey, contacts) {
+    const envelopes = [];
+    for (const c of contacts) {
+        if (!c.pub_key) continue;
+        try {
+            const { ephemeral_pub, ciphertext } = await eciesEncrypt(storyKey, c.pub_key);
+            envelopes.push({
+                user_id: c.user_id,
+                ephemeral_pub,
+                ciphertext,
+            });
+        } catch (e) {
+            console.warn('[STORY] Failed to wrap key for user', c.user_id, e);
+        }
+    }
+    return envelopes;
+}
+
+/**
+ * Unwrap story_key from an ECIES envelope.
+ * @param {{ephemeral_pub: string, ciphertext: string}} envelope
+ * @param {string} privKeyJwk - our X25519 private key (JWK JSON string)
+ * @returns {Promise<Uint8Array>} - 32-byte story key
+ */
+export async function unwrapStoryKey(envelope, privKeyJwk) {
+    return eciesDecrypt(envelope.ephemeral_pub, envelope.ciphertext, privKeyJwk);
+}
+
+// ============================================================================
 // Message Ratchet — KDF chain для forward secrecy
 // ============================================================================
 

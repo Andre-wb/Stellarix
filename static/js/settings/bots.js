@@ -845,8 +845,8 @@ window.mpOpenBotChat = async function(botUserId) {
             window.closeModal('settings-modal');
         }
         // Open DM with bot's user account
-        if (window.openDm) {
-            await window.openDm(botUserId);
+        if (window.openDM) {
+            await window.openDM(botUserId);
         } else if (window.startDmWith) {
             await window.startDmWith(botUserId);
         }
@@ -861,29 +861,26 @@ window.mpBackToList = function() {
 };
 
 window.mpInstallBot = async function(botId) {
-    var sel = document.getElementById('mp-install-room');
-    var roomId = sel ? sel.value : '';
-    if (!roomId) {
-        // No room selected — try current room
-        roomId = window.AppState?.currentRoom?.id;
-    }
-    if (!roomId) {
-        if (window.showToast) window.showToast(t('bots.selectRoom'), 'error');
-        return;
-    }
     try {
-        var resp = await window.api('POST', '/api/marketplace/' + botId + '/install/' + roomId);
+        // Get bot detail to find user_id
+        var detail = await window.api('GET', '/api/marketplace/' + botId);
+        var botUserId = detail.user_id;
+
+        // Try install to selected room if available
+        var sel = document.getElementById('mp-install-room');
+        var roomId = sel ? sel.value : '';
+        if (roomId) {
+            await window.api('POST', '/api/marketplace/' + botId + '/install/' + roomId).catch(function() {});
+        }
+
         if (window.showToast) window.showToast(t('bots.installedToRoom'), 'success');
 
         // Close settings and open DM with bot
         if (window.closeModal) window.closeModal('settings-modal');
-        var botUserId = resp.bot_user_id;
-        if (botUserId) {
-            if (window.openDm) {
-                window.openDm(botUserId);
-            } else if (window.startDmWith) {
-                window.startDmWith(botUserId);
-            }
+        if (botUserId && window.openDM) {
+            window.openDM(botUserId);
+        } else if (botUserId && window.startDmWith) {
+            window.startDmWith(botUserId);
         }
     } catch (e) {
         if (window.showToast) window.showToast(t('bots.error') + ': ' + (e.message || e), 'error');

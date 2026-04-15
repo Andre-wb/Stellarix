@@ -1,5 +1,11 @@
-// static/js/stories.js — Stories (Instagram/Telegram style)
+// static/js/stories.js — E2E Encrypted Stories (Instagram/Telegram style)
 import { api, esc } from './utils.js';
+import {
+    generateStoryKey, storyEncrypt, storyDecryptText,
+    storyEncryptBlob, storyDecryptBlob,
+    wrapStoryKeyForContacts, unwrapStoryKey,
+    eciesEncrypt,
+} from './crypto.js';
 
 // ── State ────────────────────────────────────────────────────────────────────
 let _groups = [];          // story groups from API
@@ -141,7 +147,7 @@ export function closeStoryViewer() {
     _stopCamera();
 }
 
-function _renderCurrent() {
+async function _renderCurrent() {
     const group = _groups[_gi];
     if (!group) { closeStoryViewer(); return; }
     const story = group.stories[_si];
@@ -153,11 +159,15 @@ function _renderCurrent() {
     document.getElementById('sv-username').textContent = group.display_name;
     document.getElementById('sv-time').textContent = _timeAgo(story.created_at);
     const avatarEl = document.getElementById('sv-avatar');
-    avatarEl.innerHTML = '';
+    // Safe avatar rendering using DOM methods
+    avatarEl.textContent = '';
     if (group.avatar_url) {
-        avatarEl.innerHTML = `<img src="${esc(group.avatar_url)}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">`;
+        const avatarImg = document.createElement('img');
+        avatarImg.src = group.avatar_url;
+        avatarImg.style.cssText = 'width:40px;height:40px;border-radius:50%;object-fit:cover;';
+        avatarEl.appendChild(avatarImg);
     } else {
-        avatarEl.textContent = group.avatar_emoji || '👤';
+        avatarEl.textContent = group.avatar_emoji || '\u{1F464}';
     }
 
     // Add + Delete buttons for own stories
@@ -189,32 +199,107 @@ function _renderCurrent() {
     vid.style.display = 'none';
     textSlide.style.display = 'none';
 
-    if (story.media_type === 'photo' && story.media_url) {
-        img.src = story.media_url;
-        img.style.display = 'block';
-        content.style.background = '#000';
-    } else if (story.media_type === 'video' && story.media_url) {
-        vid.src = story.media_url;
-        vid.style.display = 'block';
-        vid.muted = false;
-        vid.play().catch(() => {});
-        content.style.background = '#000';
-    } else {
-        // text story
+    // ── E2E Decryption ──────────────────────────────────────────────
+    let storyKey = null;
+    let decryptedText = '';
+    let meta = { text_color: '#ffffff', bg_color: 'linear-gradient(135deg,#667eea 0%,#764ba2 100%)', music_title: '' };
+
+    if (story.encrypted && story.key_envelope) {
+        try {
+            const privJwk = localStorage.getItem('vortex_x25519');
+            if (privJwk) {
+                storyKey = await unwrapStoryKey(story.key_envelope, privJwk);
+            }
+        } catch (e) {
+            console.warn('[STORY] Failed to unwrap story key:', e);
+        }
+
+        if (storyKey) {
+            if (story.text_ct) {
+                try { decryptedText = await storyDecryptText(story.text_ct, storyKey); } catch {}
+            }
+            if (story.meta_ct) {
+                try {
+                    const metaJson = await storyDecryptText(story.meta_ct, storyKey);
+                    meta = { ...meta, ...JSON.parse(metaJson) };
+                } catch {}
+            }
+        }
+    } else if (!story.encrypted) {
+        decryptedText = story.text || '';
+        meta = { text_color: story.text_color || '#fff', bg_color: story.bg_color || meta.bg_color, music_title: story.music_title || '' };
+    }
+
+    // Render media
+    if (story.encrypted && storyKey && story.has_media) {
+        try {
+            const resp = await fetch(`/api/stories/${story.id}/media`, { credentials: 'include' });
+            if (resp.ok) {
+                const encBuf = await resp.arrayBuffer();
+                const plainBuf = await storyDecryptBlob(encBuf, storyKey);
+                const blob = new Blob([plainBuf]);
+                const url = URL.createObjectURL(blob);
+
+                if (story.media_type === 'photo') {
+                    img.src = url;
+                    img.style.display = 'block';
+                    img.onload = () => URL.revokeObjectURL(url);
+                    content.style.background = '#000';
+                } else if (story.media_type === 'video') {
+                    vid.src = url;
+                    vid.style.display = 'block';
+                    vid.muted = false;
+                    vid.play().catch(() => {});
+                    vid.onended = () => URL.revokeObjectURL(url);
+                    content.style.background = '#000';
+                }
+            }
+        } catch (e) {
+            console.warn('[STORY] Failed to decrypt media:', e);
+        }
+    } else if (!story.encrypted && story.media_url) {
+        if (story.media_type === 'photo') {
+            img.src = story.media_url;
+            img.style.display = 'block';
+            content.style.background = '#000';
+        } else if (story.media_type === 'video') {
+            vid.src = story.media_url;
+            vid.style.display = 'block';
+            vid.muted = false;
+            vid.play().catch(() => {});
+            content.style.background = '#000';
+        }
+    }
+
+    if (story.media_type === 'text' || (!story.has_media && !story.media_url)) {
         textSlide.style.display = 'flex';
-        textSlide.style.background = story.bg_color || 'linear-gradient(135deg,#667eea 0%,#764ba2 100%)';
+        textSlide.style.background = meta.bg_color;
         const p = document.getElementById('sv-text-content');
-        p.textContent = story.text || '';
-        p.style.color = story.text_color || '#fff';
+        p.textContent = decryptedText;
+        p.style.color = meta.text_color || '#fff';
         content.style.background = 'transparent';
     }
 
     // Music
     const musicBadge = document.getElementById('sv-music-badge');
     const audio = document.getElementById('sv-audio');
-    if (story.music_url || story.music_title) {
+
+    if (story.encrypted && storyKey && story.has_music) {
+        try {
+            const resp = await fetch(`/api/stories/${story.id}/music`, { credentials: 'include' });
+            if (resp.ok) {
+                const encBuf = await resp.arrayBuffer();
+                const plainBuf = await storyDecryptBlob(encBuf, storyKey);
+                const blob = new Blob([plainBuf]);
+                audio.src = URL.createObjectURL(blob);
+                audio.play().catch(() => {});
+                musicBadge.style.display = 'flex';
+                document.getElementById('sv-music-title').textContent = meta.music_title || '\u266B';
+            }
+        } catch {}
+    } else if (!story.encrypted && (story.music_url || story.music_title)) {
         musicBadge.style.display = 'flex';
-        document.getElementById('sv-music-title').textContent = story.music_title || '♫';
+        document.getElementById('sv-music-title').textContent = story.music_title || '\u266B';
         if (story.music_url) {
             audio.src = story.music_url;
             audio.play().catch(() => {});
@@ -462,6 +547,7 @@ window.showStoryCreator = showStoryCreator;
 window.closeStoryCreator = closeStoryCreator;
 window.expandStories = expandStories;
 window.collapseStories = collapseStories;
+window.loadStories = loadStories;
 
 window._scBack = function() {
     _stopCamera();
@@ -638,22 +724,64 @@ window._scPublish = async function() {
             : ['camera-video','video'].includes(_scType) ? 'video' : 'text';
         fd.append('media_type', mediaType);
 
-        if (_scFile) fd.append('file', _scFile);
-        if (_scMusicFile) fd.append('music_file', _scMusicFile);
+        // ── E2E Encryption ─────────────────────────────────────────────
+        // 1. Generate random story key
+        const storyKey = generateStoryKey();
 
-        const musicTitle = document.getElementById('sc-music-title')?.value.trim();
-        if (musicTitle) fd.append('music_title', musicTitle);
+        // 2. Encrypt media blob
+        if (_scFile) {
+            const rawBuf = await _scFile.arrayBuffer();
+            const encBuf = await storyEncryptBlob(rawBuf, storyKey);
+            fd.append('file', new Blob([encBuf]), 'story.enc');
+        }
 
+        // 3. Encrypt music blob
+        if (_scMusicFile) {
+            const rawBuf = await _scMusicFile.arrayBuffer();
+            const encBuf = await storyEncryptBlob(rawBuf, storyKey);
+            fd.append('music_file', new Blob([encBuf]), 'music.enc');
+        }
+
+        // 4. Encrypt text
         const overlayText = document.getElementById('sc-overlay-text')?.value.trim();
         const mainText = document.getElementById('sc-text-input')?.value.trim();
-        fd.append('text', overlayText || mainText || '');
-        fd.append('text_color', _scTextColor);
-        fd.append('bg_color', _scBg);
+        const plainText = overlayText || mainText || '';
+        if (plainText) {
+            const textCt = await storyEncrypt(plainText, storyKey);
+            fd.append('text_ct', textCt);
+        }
+
+        // 5. Encrypt metadata (text_color, bg_color, music_title)
+        const musicTitle = document.getElementById('sc-music-title')?.value.trim() || '';
+        const metaJson = JSON.stringify({
+            text_color: _scTextColor,
+            bg_color: _scBg,
+            music_title: musicTitle,
+        });
+        const metaCt = await storyEncrypt(metaJson, storyKey);
+        fd.append('meta_ct', metaCt);
 
         const dur = document.getElementById('sc-duration-input')?.value || '5';
         fd.append('duration', dur);
 
-        const csrf = window.AppState?.csrfToken || '';
+        // 6. Wrap story_key for each contact via ECIES
+        const contacts = await _getContactPubKeys();
+        const envelopes = await wrapStoryKeyForContacts(storyKey, contacts);
+
+        // Also wrap for self (so we can view our own stories)
+        const S = window.AppState;
+        const myPub = localStorage.getItem('vortex_x25519_pub');
+        if (myPub) {
+            try {
+                const selfEnv = await eciesEncrypt(storyKey, myPub);
+                envelopes.push({ user_id: S.user?.id, ...selfEnv });
+            } catch {}
+        }
+
+        fd.append('key_envelopes', JSON.stringify(envelopes));
+
+        // 7. Upload
+        const csrf = S?.csrfToken || '';
         const resp = await fetch('/api/stories', {
             method: 'POST',
             headers: { 'X-CSRF-Token': csrf },
@@ -666,7 +794,6 @@ window._scPublish = async function() {
         // Add to own group
         let selfGroup = _groups.find(g => g.is_self);
         if (!selfGroup) {
-            const S = window.AppState;
             selfGroup = {
                 user_id: S.user?.id,
                 username: S.user?.username,
@@ -684,6 +811,7 @@ window._scPublish = async function() {
         closeStoryCreator();
         renderStoriesStrip();
     } catch (e) {
+        console.error('[STORY] Publish error:', e);
         const errMsg = window.t ? window.t('stories.publishError').replace('{error}', e.message) : ('Error: ' + e.message);
         alert(errMsg);
     } finally {
@@ -691,3 +819,20 @@ window._scPublish = async function() {
         btn.textContent = window.t ? window.t('stories.publish') : 'Publish';
     }
 };
+
+/** Fetch contact public keys for ECIES wrapping. */
+async function _getContactPubKeys() {
+    try {
+        const data = await api('GET', '/api/contacts');
+        const contacts = data.contacts || data || [];
+        const result = [];
+        for (const c of contacts) {
+            const uid = c.contact_id || c.id;
+            const pub = c.x25519_public_key || c.x25519_pub || c.pub_key;
+            if (uid && pub) result.push({ user_id: uid, pub_key: pub });
+        }
+        return result;
+    } catch {
+        return [];
+    }
+}

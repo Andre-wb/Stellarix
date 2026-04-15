@@ -32,31 +32,31 @@ async def register(body: RegisterRequest, request: Request,
 
     ip = raw_ip_for_ratelimit(request)
     if not _check_auth_rate(ip, _AUTH_RATE_REGISTER):
-        raise HTTPException(429, "Слишком много попыток регистрации. Подождите минуту.")
+        raise HTTPException(429, "Too many registration attempts. Please wait a minute.")
 
     reg_mode = "open" if _IS_TESTING else Config.REGISTRATION_MODE
     if reg_mode == "closed":
-        raise HTTPException(403, "Регистрация закрыта")
+        raise HTTPException(403, "Registration is closed")
     elif reg_mode == "invite":
         if not body.invite_code:
-            raise HTTPException(403, "Требуется инвайт-код для регистрации")
+            raise HTTPException(403, "Invite code required for registration")
         supplied = body.invite_code.strip().upper()
         expected = Config.INVITE_CODE_NODE.upper()
         if not expected:
-            raise HTTPException(403, "Инвайт-код не настроен на этом узле")
+            raise HTTPException(403, "Invite code not configured on this node")
         if not secrets.compare_digest(supplied, expected):
-            raise HTTPException(403, "Неверный инвайт-код")
+            raise HTTPException(403, "Invalid invite code")
     elif reg_mode != "open":
-        raise HTTPException(403, "Регистрация недоступна")
+        raise HTTPException(403, "Registration is unavailable")
 
     if body.phone and db.query(User).filter(User.phone == body.phone).first():
-        raise HTTPException(409, "Номер телефона уже занят")
+        raise HTTPException(409, "Phone number already taken")
     if db.query(User).filter(User.username == body.username).first():
-        raise HTTPException(409, "Имя пользователя уже занято")
+        raise HTTPException(409, "Username already taken")
     if db.query(User).filter(User.x25519_public_key == body.x25519_public_key).first():
-        raise HTTPException(409, "Публичный ключ уже зарегистрирован")
+        raise HTTPException(409, "X25519 key already registered")
     if body.email and db.query(User).filter(User.email == body.email).first():
-        raise HTTPException(409, "Email уже занят")
+        raise HTTPException(409, "Email already in use")
 
     ok, msg = validate_password_with_context(body.password, body.username)
     if not ok:
@@ -81,7 +81,7 @@ async def register(body: RegisterRequest, request: Request,
     except Exception:
         db.rollback()
         logger.exception("Register commit failed")
-        raise HTTPException(500, "Ошибка базы данных")
+        raise HTTPException(500, "Database error")
 
     db.refresh(user)
 
@@ -138,9 +138,9 @@ async def register(body: RegisterRequest, request: Request,
     if seed_phrase:
         data["seed_phrase"] = seed_phrase
         data["seed_phrase_warning"] = (
-            "Запишите эти 24 слова на бумагу или сохраните в безопасном месте. "
-            "Это единственный ключ от аккаунта. Сервер НЕ хранит фразу — "
-            "восстановление без неё невозможно."
+            "Write down these 24 words on paper or save them in a safe place. "
+            "This is the only key to your account. The server does NOT store the phrase — "
+            "recovery without it is impossible."
         )
     response = JSONResponse(status_code=201, content=data)
     _set_auth_cookies(response, user, db, request)
@@ -153,7 +153,7 @@ async def login(body: LoginRequest, request: Request,
     """Классический вход по паролю."""
     ip = raw_ip_for_ratelimit(request)
     if not _check_auth_rate(ip, _AUTH_RATE_LOGIN):
-        raise HTTPException(429, "Слишком много попыток входа. Подождите минуту.")
+        raise HTTPException(429, "Too many login attempts. Please wait a minute.")
 
     cred = body.phone_or_username.strip()
     user = (
@@ -169,12 +169,12 @@ async def login(body: LoginRequest, request: Request,
                 None, verify_password, body.password, _DUMMY_HASH)
         except Exception:
             pass
-        raise HTTPException(401, "Неверный телефон/имя или пароль")
+        raise HTTPException(401, "Invalid phone/username or password")
 
     pw_ok = await _aio.get_event_loop().run_in_executor(
         None, user.check_password, body.password)
     if not pw_ok:
-        raise HTTPException(401, "Неверный телефон/имя или пароль")
+        raise HTTPException(401, "Invalid phone/username or password")
     if not user.is_active:
         if user.banned_until and user.banned_until <= datetime.now(timezone.utc):
             user.is_active = True
@@ -182,11 +182,11 @@ async def login(body: LoginRequest, request: Request,
             db.commit()
         elif user.banned_until:
             raise HTTPException(
-                403, f"Аккаунт заблокирован до {user.banned_until.strftime('%d.%m.%Y')}")
+                403, f"Account banned until {user.banned_until.strftime('%Y-%m-%d')}")
         elif (user.strike_count or 0) >= 5:
-            raise HTTPException(403, "Аккаунт заблокирован навсегда")
+            raise HTTPException(403, "Account permanently banned")
         else:
-            raise HTTPException(403, "Аккаунт заблокирован")
+            raise HTTPException(403, "Account is blocked")
 
     if user.totp_enabled and user.totp_secret:
         return JSONResponse(content={"requires_2fa": True, "user_id": user.id})
@@ -222,7 +222,7 @@ async def login_with_seed(body: SeedLoginRequest, request: Request,
     """Вход по username + seed phrase (для анонимных аккаунтов без телефона)."""
     ip = raw_ip_for_ratelimit(request)
     if not _check_auth_rate(ip, _AUTH_RATE_LOGIN):
-        raise HTTPException(429, "Слишком много попыток входа. Подождите минуту.")
+        raise HTTPException(429, "Too many login attempts. Please wait a minute.")
 
     user = db.query(User).filter(User.username == body.username).first()
 
@@ -235,19 +235,19 @@ async def login_with_seed(body: SeedLoginRequest, request: Request,
                 None, verify_password, "dummy", _DUMMY_HASH)
         except Exception:
             pass
-        raise HTTPException(401, "Неверный username или seed phrase")
+        raise HTTPException(401, "Invalid username or seed phrase")
 
     if not validate_mnemonic(body.seed_phrase):
-        raise HTTPException(422, "Некорректная seed phrase (ожидается 24 слова BIP39)")
+        raise HTTPException(422, "Invalid seed phrase (expected 24 BIP39 words)")
 
     normalized = normalize_mnemonic(body.seed_phrase)
     ok = await _aio.get_event_loop().run_in_executor(
         None, verify_password, normalized, user.seed_phrase_hash)
     if not ok:
-        raise HTTPException(401, "Неверный username или seed phrase")
+        raise HTTPException(401, "Invalid username or seed phrase")
 
     if not user.is_active:
-        raise HTTPException(403, "Аккаунт заблокирован")
+        raise HTTPException(403, "Account is blocked")
 
     user.last_seen = datetime.now(timezone.utc)
     user.last_ip = sanitize_ip(request)

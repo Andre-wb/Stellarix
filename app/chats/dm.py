@@ -101,6 +101,7 @@ def _room_to_dict(room: Room, other_user: User, has_key: bool) -> dict:
             "avatar_url":        other_user.avatar_url,
             "x25519_public_key": other_user.x25519_public_key,
             "kyber_public_key":  other_user.kyber_public_key,
+            "is_bot":            getattr(other_user, 'is_bot', False) or False,
             "is_online":         _is_user_online(other_user.id),
             "last_seen":         other_user.last_seen.isoformat() if other_user.last_seen and getattr(other_user, 'show_last_seen', True) not in (False,) else None,
             "show_last_seen":    getattr(other_user, 'show_last_seen', True) is not False,

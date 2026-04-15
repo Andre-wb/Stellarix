@@ -603,7 +603,7 @@ class TestConnectionManagerMethods:
         ws.close = AsyncMock()
         await mgr.connect(1, 100, "alice", "Alice", "👤", ws)
         assert mgr.total_connections() >= 1
-        mgr.disconnect(1, 100)
+        await mgr.disconnect(1, 100)
 
     @pytest.mark.asyncio
     async def test_broadcast_to_room(self):
@@ -617,8 +617,8 @@ class TestConnectionManagerMethods:
         await mgr.connect(1, 10, "u1", "U1", "👤", ws1)
         await mgr.connect(1, 11, "u2", "U2", "👤", ws2)
         await mgr.broadcast_to_room(1, {"type": "test"}, exclude=10)
-        mgr.disconnect(1, 10)
-        mgr.disconnect(1, 11)
+        await mgr.disconnect(1, 10)
+        await mgr.disconnect(1, 11)
 
     @pytest.mark.asyncio
     async def test_send_to_user(self):
@@ -634,7 +634,7 @@ class TestConnectionManagerMethods:
         assert result is True
         result2 = await mgr.send_to_user(1, 999, {"msg": "hi"})
         assert result2 is False
-        mgr.disconnect(1, 20)
+        await mgr.disconnect(1, 20)
 
     @pytest.mark.asyncio
     async def test_set_typing(self):
@@ -648,7 +648,7 @@ class TestConnectionManagerMethods:
         await mgr.connect(1, 30, "u", "U", "👤", ws)
         await mgr.set_typing(1, 30, True)
         await mgr.set_typing(1, 30, False)
-        mgr.disconnect(1, 30)
+        await mgr.disconnect(1, 30)
 
     @pytest.mark.asyncio
     async def test_check_rate_limit(self):
@@ -661,7 +661,7 @@ class TestConnectionManagerMethods:
         await mgr.connect(1, 40, "u", "U", "👤", ws)
         for _ in range(30):
             mgr.check_rate_limit(1, 40)
-        mgr.disconnect(1, 40)
+        await mgr.disconnect(1, 40)
 
     @pytest.mark.asyncio
     async def test_connect_global_and_notify(self):

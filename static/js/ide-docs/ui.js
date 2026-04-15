@@ -1,4 +1,73 @@
+/* ── Minimal Markdown → HTML converter for translated docs ── */
+function _mdToHtml(md) {
+    if (!md) return '';
+    const _esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    let html = '';
+    let inCode = false;
+    let codeLines = [];
+
+    const lines = md.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+
+        // Code blocks
+        if (line.trim().startsWith('```')) {
+            if (inCode) {
+                html += '<pre class="gxd-code-raw">' + _esc(codeLines.join('\n')) + '</pre>';
+                codeLines = [];
+                inCode = false;
+            } else {
+                inCode = true;
+            }
+            continue;
+        }
+        if (inCode) { codeLines.push(line); continue; }
+
+        const trimmed = line.trim();
+        if (!trimmed) { html += '<br>'; continue; }
+        if (trimmed === '---') { html += '<hr>'; continue; }
+
+        // Headings
+        if (trimmed.startsWith('### ')) { html += '<h3>' + _esc(trimmed.slice(4)) + '</h3>'; continue; }
+        if (trimmed.startsWith('## '))  { html += '<h2>' + _esc(trimmed.slice(3)) + '</h2>'; continue; }
+        if (trimmed.startsWith('# '))   { html += '<h1>' + _esc(trimmed.slice(2)) + '</h1>'; continue; }
+
+        // Callouts: > **emoji text**
+        if (trimmed.startsWith('> ')) {
+            html += '<div class="gxd-callout gxd-callout-blue"><p>' + _esc(trimmed.slice(2)) + '</p></div>';
+            continue;
+        }
+
+        // List items
+        if (trimmed.startsWith('- ')) {
+            html += '<li>' + _esc(trimmed.slice(2)) + '</li>';
+            continue;
+        }
+
+        // Table rows
+        if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+            if (trimmed.match(/^\|[\s\-|]+\|$/)) continue; // separator
+            const cells = trimmed.slice(1, -1).split('|').map(c => '<td>' + _esc(c.trim()) + '</td>');
+            html += '<tr>' + cells.join('') + '</tr>';
+            continue;
+        }
+
+        // Normal paragraph
+        html += '<p>' + _esc(trimmed) + '</p>';
+    }
+    // Close unclosed code block
+    if (inCode && codeLines.length) {
+        html += '<pre class="gxd-code-raw">' + _esc(codeLines.join('\n')) + '</pre>';
+    }
+    return html;
+}
+
 /* ── Build fullscreen docs overlay ───────────────────────── */
+function _destroyDocsOverlay() {
+    const el = document.getElementById('gx-docs-fs');
+    if (el) el.remove();
+}
+
 function _buildDocsOverlay() {
     if (document.getElementById('gx-docs-fs')) return;
 
@@ -32,17 +101,22 @@ function _buildDocsHTML() {
     let tocHTML = '';
     GX_TOC.forEach(item => {
         if (item.group) {
-            tocHTML += `<div class="gxd-toc-group">${item.group}</div>`;
+            const groupText = _t(item.group, item.fallback || item.group);
+            tocHTML += '<div class="gxd-toc-group">' + groupText + '</div>';
         } else {
-            tocHTML += `<a class="gxd-toc-link" href="#gxs-${item.id}" data-section="${item.id}" onclick="gxDocsSectionClick(event,'${item.id}')">${item.icon} ${item.label}</a>`;
+            const label = item.i18n ? _t(item.i18n, item.label) : item.label;
+            tocHTML += '<a class="gxd-toc-link" href="#gxs-' + item.id + '" data-section="' + item.id + '" onclick="gxDocsSectionClick(event,\'' + item.id + '\')">' + item.icon + ' ' + label + '</a>';
         }
     });
 
-    // Content
+    // Content — built dynamically with _t() calls for i18n.
+    // Code examples stay in Gravitix syntax (not translated).
+    // Descriptions, headings, callouts, and code comments are translated.
+    const sections = _gxSections();
     let contentHTML = '';
     GX_TOC.filter(t => t.id).forEach(item => {
-        const html = GX_SECTIONS[item.id] || '';
-        contentHTML += `<section class="gxd-section" id="gxs-${item.id}">${html}</section>`;
+        const html = sections[item.id] || '';
+        contentHTML += '<section class="gxd-section" id="gxs-' + item.id + '">' + html + '</section>';
     });
 
     return `
@@ -53,14 +127,14 @@ function _buildDocsHTML() {
         </button>
         <div class="gxd-topbar-logo">
           <span class="gxd-logo-gx">GX</span>
-          <span class="gxd-topbar-title">Gravitix Language Reference</span>
+          <span class="gxd-topbar-title">${_t('gravitixDocs.title', 'Gravitix Language Reference')}</span>
           <span class="gxd-ver-badge">v1.0</span>
         </div>
       </div>
       <div class="gxd-topbar-center">
         <div class="gxd-search-wrap">
           <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14"/></svg>
-          <input type="text" class="gxd-search-input" id="gxd-search" placeholder="Search the docs…" oninput="gxDocsSearch(this.value)">
+          <input type="text" class="gxd-search-input" id="gxd-search" placeholder="${_t('app.search', 'Search the docs...')}" oninput="gxDocsSearch(this.value)">
         </div>
       </div>
       <div class="gxd-topbar-right">
@@ -77,7 +151,7 @@ function _buildDocsHTML() {
         </div>
         <div id="gxd-no-results" class="gxd-no-results" style="display:none;">
           <div class="gxd-no-results-icon">🔍</div>
-          <div>No results found</div>
+          <div>${_t('app.noResults', 'No results found')}</div>
         </div>
       </main>
     </div>`;
@@ -165,3 +239,10 @@ window.gxDocsClose        = gxDocsClose;
 window.gxDocsSectionClick = gxDocsSectionClick;
 window.gxDocsMobileMenu   = gxDocsMobileMenu;
 window.gxDocsSearch       = gxDocsSearch;
+
+/* ── Rebuild docs when language changes ─────────────────── */
+window.gxDocsRebuild = function() {
+    const wasOpen = document.getElementById('gx-docs-fs')?.classList.contains('open');
+    _destroyDocsOverlay();
+    if (wasOpen) gxDocsOpen();
+};

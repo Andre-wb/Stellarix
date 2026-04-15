@@ -94,23 +94,17 @@ function filterBotCategory(cat) {
 
 async function installBot(botId) {
     Haptic.success();
+    if (window.mpInstallBot) {
+        window.mpInstallBot(botId);
+        return;
+    }
     try {
-        const csrf = document.cookie.match(/csrf_token=([^;]+)/)?.[1] || '';
-        const resp = await fetch(`/api/marketplace/${botId}/install`, {
-            method: 'POST', credentials: 'include',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
-        });
-        if (resp.ok) {
-            window.showToast?.('Bot installed! Add it to a room from room settings.', 'success');
-            // Update install count in detail view
-            const countEl = document.getElementById('bd-installs');
-            if (countEl) countEl.textContent = String(parseInt(countEl.textContent || '0') + 1);
-        } else {
-            const d = await resp.json().catch(() => ({}));
-            window.showToast?.(d.error || d.detail || 'Install failed', 'error');
-        }
+        const detail = await window.api('GET', '/api/marketplace/' + botId);
+        const botUserId = detail.user_id;
+        if (window.closeModal) window.closeModal('settings-modal');
+        if (botUserId && window.openDM) window.openDM(botUserId);
     } catch (e) {
-        window.showToast?.('Install error: ' + e.message, 'error');
+        window.showToast?.('Error: ' + e.message, 'error');
     }
 }
 
@@ -308,31 +302,39 @@ window.openBotDetail = openBotDetail;
 // ══════════════════════════════════════════════════════════════════════════════
 
 const ALL_LANGUAGES = [
-    {code:"af",name:"Afrikaans"},{code:"am",name:"አማርኛ"},{code:"ar",name:"العربية"},
-    {code:"az",name:"Azərbaycan"},{code:"be",name:"Беларуская"},{code:"bg",name:"Български"},
-    {code:"bn",name:"বাংলা"},{code:"ca",name:"Català"},{code:"cs",name:"Čeština"},
+    {code:"af",name:"Afrikaans"},{code:"ak",name:"Akan"},{code:"am",name:"አማርኛ"},
+    {code:"ar",name:"العربية"},{code:"ay",name:"Aymar aru"},{code:"az",name:"Azərbaycan"},
+    {code:"be",name:"Беларуская"},{code:"bg",name:"Български"},{code:"bho",name:"भोजपुरी"},
+    {code:"bn",name:"বাংলা"},{code:"bs",name:"Bosanski"},{code:"ca",name:"Català"},
+    {code:"ckb",name:"کوردیی ناوەندی"},{code:"co",name:"Corsu"},{code:"cs",name:"Čeština"},
     {code:"cy",name:"Cymraeg"},{code:"da",name:"Dansk"},{code:"de",name:"Deutsch"},
+    {code:"doi",name:"डोगरी"},{code:"dv",name:"ދިވެހި"},{code:"ee",name:"Eʋegbe"},
     {code:"el",name:"Ελληνικά"},{code:"en",name:"English"},{code:"eo",name:"Esperanto"},
     {code:"es",name:"Español"},{code:"et",name:"Eesti"},{code:"eu",name:"Euskara"},
     {code:"fa",name:"فارسی"},{code:"fi",name:"Suomi"},{code:"fr",name:"Français"},
-    {code:"ga",name:"Gaeilge"},{code:"gl",name:"Galego"},{code:"gu",name:"ગુજરાતી"},
-    {code:"ha",name:"Hausa"},{code:"he",name:"עברית"},{code:"hi",name:"हिन्दी"},
+    {code:"fy",name:"Frysk"},{code:"ga",name:"Gaeilge"},{code:"gd",name:"Gàidhlig"},
+    {code:"gl",name:"Galego"},{code:"gu",name:"ગુજરાતી"},{code:"ha",name:"Hausa"},
+    {code:"he",name:"עברית"},{code:"hi",name:"हिन्दी"},{code:"hmn",name:"Hmong"},
     {code:"hr",name:"Hrvatski"},{code:"hu",name:"Magyar"},{code:"hy",name:"Հայերեն"},
-    {code:"id",name:"Bahasa Indonesia"},{code:"is",name:"Íslenska"},{code:"it",name:"Italiano"},
-    {code:"ja",name:"日本語"},{code:"ka",name:"ქართული"},{code:"kk",name:"Қазақша"},
-    {code:"km",name:"ភាសាខ្មែរ"},{code:"kn",name:"ಕನ್ನಡ"},{code:"ko",name:"한국어"},
-    {code:"ku",name:"Kurdî"},{code:"ky",name:"Кыргызча"},{code:"lt",name:"Lietuvių"},
+    {code:"id",name:"Bahasa Indonesia"},{code:"ilo",name:"Ilokano"},{code:"is",name:"Íslenska"},
+    {code:"it",name:"Italiano"},{code:"ja",name:"日本語"},{code:"ka",name:"ქართული"},
+    {code:"kk",name:"Қазақша"},{code:"km",name:"ភាសាខ្មែរ"},{code:"kn",name:"ಕನ್ನಡ"},
+    {code:"ko",name:"한국어"},{code:"kri",name:"Krio"},{code:"ku",name:"Kurdî"},
+    {code:"ky",name:"Кыргызча"},{code:"lt",name:"Lietuvių"},{code:"lus",name:"Mizo ṭawng"},
     {code:"lv",name:"Latviešu"},{code:"mk",name:"Македонски"},{code:"ml",name:"മലയാളം"},
     {code:"mn",name:"Монгол"},{code:"mr",name:"मराठी"},{code:"ms",name:"Bahasa Melayu"},
     {code:"my",name:"မြန်မာ"},{code:"ne",name:"नेपाली"},{code:"nl",name:"Nederlands"},
-    {code:"no",name:"Norsk"},{code:"pa",name:"ਪੰਜਾਬੀ"},{code:"pl",name:"Polski"},
-    {code:"pt",name:"Português"},{code:"ro",name:"Română"},{code:"ru",name:"Русский"},
-    {code:"si",name:"සිංහල"},{code:"sk",name:"Slovenčina"},{code:"sl",name:"Slovenščina"},
-    {code:"so",name:"Soomaali"},{code:"sr",name:"Српски"},{code:"sv",name:"Svenska"},
-    {code:"sw",name:"Kiswahili"},{code:"ta",name:"தமிழ்"},{code:"te",name:"తెలుగు"},
-    {code:"th",name:"ไทย"},{code:"tl",name:"Filipino"},{code:"tr",name:"Türkçe"},
-    {code:"uk",name:"Українська"},{code:"ur",name:"اردو"},{code:"uz",name:"Oʻzbek"},
-    {code:"vi",name:"Tiếng Việt"},{code:"zh",name:"中文"},{code:"zh-TW",name:"繁體中文"},
+    {code:"no",name:"Norsk"},{code:"nso",name:"Sepedi"},{code:"ny",name:"Chichewa"},
+    {code:"pa",name:"ਪੰਜਾਬੀ"},{code:"pl",name:"Polski"},{code:"pt",name:"Português"},
+    {code:"ro",name:"Română"},{code:"ru",name:"Русский"},{code:"si",name:"සිංහල"},
+    {code:"sk",name:"Slovenčina"},{code:"sl",name:"Slovenščina"},{code:"sm",name:"Gagana Sāmoa"},
+    {code:"so",name:"Soomaali"},{code:"sq",name:"Shqip"},{code:"sr",name:"Српски"},
+    {code:"st",name:"Sesotho"},{code:"sv",name:"Svenska"},{code:"sw",name:"Kiswahili"},
+    {code:"ta",name:"தமிழ்"},{code:"te",name:"తెలుగు"},{code:"tg",name:"Тоҷикӣ"},
+    {code:"th",name:"ไทย"},{code:"ti",name:"ትግርኛ"},{code:"tk",name:"Türkmen"},
+    {code:"tl",name:"Filipino"},{code:"tr",name:"Türkçe"},{code:"uk",name:"Українська"},
+    {code:"ur",name:"اردو"},{code:"uz",name:"Oʻzbek"},{code:"vi",name:"Tiếng Việt"},
+    {code:"yi",name:"ייִדיש"},{code:"zh",name:"中文"},{code:"zh-TW",name:"繁體中文"},
     {code:"zu",name:"isiZulu"},
 ].sort((a,b) => a.name.localeCompare(b.name));
 
@@ -785,11 +787,13 @@ function _restoreTTLState() {
 // Security Questions Setup Modal (onboarding + privacy settings)
 // ══════════════════════════════════════════════════════════════════════════════
 
-const _DEFAULT_QUESTIONS = [
-    t('settings.sqQuestion1'),
-    t('settings.sqQuestion2'),
-    t('settings.sqQuestion3'),
-];
+function _getDefaultQuestions() {
+    return [
+        t('settings.sqQuestion1'),
+        t('settings.sqQuestion2'),
+        t('settings.sqQuestion3'),
+    ];
+}
 
 function _showSecurityQuestionsSetup() {
     let existing = document.getElementById('sq-setup-modal');
@@ -813,7 +817,7 @@ function _showSecurityQuestionsSetup() {
                 ${t('settings.sqSetupDesc')}
             </p>
             <div style="display:flex;flex-direction:column;gap:10px;" id="sq-setup-fields">
-                ${_DEFAULT_QUESTIONS.map((q, i) => `
+                ${_getDefaultQuestions().map((q, i) => `
                     <div>
                         <input class="form-input sq-setup-q" type="text" value="${q}" placeholder="${t('settings.sqQuestionPlaceholder', {n: i+1})}" style="margin-bottom:4px;font-size:12px;">
                         <input class="form-input sq-setup-a" type="text" placeholder="${t('settings.sqAnswerPlaceholder', {n: i+1})}" style="font-size:13px;">

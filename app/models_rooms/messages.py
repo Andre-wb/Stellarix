@@ -66,7 +66,7 @@ class Message(Base):
     scheduled_at      = Column(DateTime,          nullable=True)  # Когда доставить
     is_scheduled      = Column(Boolean,           default=False)
 
-    created_at        = Column(DateTime,          default=datetime.utcnow, index=True)
+    created_at        = Column(DateTime,          default=lambda: datetime.now(timezone.utc), index=True)
 
     room   = relationship("Room",    back_populates="messages", foreign_keys="[Message.room_id]")
     sender = relationship("User")
@@ -119,7 +119,7 @@ class FileTransfer(Base):
     file_hash      = Column(String(64),  nullable=False)   # SHA-256 зашифрованного контента
     is_available   = Column(Boolean,     default=True)
     download_count = Column(Integer,     default=0)
-    created_at     = Column(DateTime,    default=datetime.utcnow)
+    created_at     = Column(DateTime,    default=lambda: datetime.now(timezone.utc))
 
     room     = relationship("Room")
     uploader = relationship("User")

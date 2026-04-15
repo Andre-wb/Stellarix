@@ -15,7 +15,7 @@ class TestHealthEndpoints:
     def test_health_contains_version(self, client):
         data = client.get("/health").json()
         assert "version" in data
-        assert data["version"] == "5.0.0"
+        assert data["version"] == "1.0.0"
 
     def test_health_contains_crypto_info(self, client):
         data = client.get("/health").json()

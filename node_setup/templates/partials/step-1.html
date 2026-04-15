@@ -1,44 +1,44 @@
     <div class="step active" id="step-1">
-        <div class="step-title">Настройка <span>узла</span></div>
-        <div class="step-desc">Укажите имя устройства и порт. Эти данные будут видны другим участникам локальной сети.</div>
+        <div class="step-title" data-i18n="wizard.nodeTitle"><span>Node</span> Configuration</div>
+        <div class="step-desc" data-i18n="wizard.nodeDesc">Set the device name and port. This data will be visible to other nodes on the local network.</div>
 
         <div id="alert-s1" class="alert"></div>
 
         <div class="form-group">
-            <label class="form-label">Имя устройства</label>
+            <label class="form-label" data-i18n="wizard.deviceName">Device name</label>
             <input class="form-input" id="device-name" type="text"
                    placeholder="MacBook-Boris, Server-Home, Pi4..." autocomplete="off">
-            <div class="form-hint">Видно другим узлам в сети.</div>
+            <div class="form-hint" data-i18n="wizard.deviceNameHint">Visible to other nodes on the network.</div>
         </div>
 
         <div class="form-row">
             <div class="form-group">
-                <label class="form-label">Порт HTTP(S)</label>
+                <label class="form-label" data-i18n="wizard.httpPort">HTTP(S) Port</label>
                 <input class="form-input" id="node-port" type="number" value="8000" min="1024" max="65535">
-                <div class="form-hint" id="port-hint">Порт для веб-интерфейса</div>
+                <div class="form-hint" id="port-hint" data-i18n="wizard.httpPortHint">Port for web interface</div>
             </div>
             <div class="form-group">
-                <label class="form-label">UDP порт (P2P)</label>
+                <label class="form-label" data-i18n="wizard.udpPort">UDP Port (P2P)</label>
                 <input class="form-input" id="udp-port" type="number" value="4200" min="1024" max="65535">
-                <div class="form-hint">Обнаружение соседних узлов</div>
+                <div class="form-hint" data-i18n="wizard.udpPortHint">Neighbor node discovery</div>
             </div>
         </div>
 
         <div class="form-group">
-            <label class="form-label">Макс. размер файла (МБ)</label>
+            <label class="form-label" data-i18n="wizard.maxFileSize">Max file size (MB)</label>
             <input class="form-input" id="max-file" type="number" value="100" min="1" max="2048">
-            <div class="form-hint">Рекомендуется 100–500 МБ.</div>
+            <div class="form-hint" data-i18n="wizard.maxFileSizeHint">Recommended 100–500 MB.</div>
         </div>
 
         <div class="status-row">
             <div class="dot dot-yellow" id="ip-dot"></div>
-            <span id="ip-text" style="color:var(--text3);font-size:12px;">Определение IP...</span>
+            <span id="ip-text" style="color:var(--text3);font-size:12px;" data-i18n="wizard.detectingIp">Detecting IP...</span>
         </div>
 
         <div class="btn-row">
             <div class="spacer"></div>
-            <button class="btn btn-primary" id="btn-s1-next" onclick="step1Next()">
-                Продолжить →
+            <button class="btn btn-primary" id="btn-s1-next" onclick="step1Next()" data-i18n="wizard.continue">
+                Continue →
             </button>
         </div>
     </div>

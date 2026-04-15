@@ -1,57 +1,57 @@
     <div class="step" id="step-2">
-        <div class="step-title">Режим <span>сети</span></div>
-        <div class="step-desc">Выберите как будет работать ваш узел.</div>
+        <div class="step-title" data-i18n="wizard.networkTitle"><span>Network</span> Mode</div>
+        <div class="step-desc" data-i18n="wizard.networkDesc">Choose how your node will operate.</div>
 
         <div id="alert-s2-mode" class="alert"></div>
 
         <div class="ssl-options">
             <div class="ssl-option selected" id="opt-local" onclick="selectNetworkMode('local')">
                 <div class="ssl-icon">📡</div>
-                <div class="ssl-title">Локальный</div>
-                <div class="ssl-desc">Wi-Fi / LAN. Работает без интернета. Устройства находят друг друга автоматически.</div>
+                <div class="ssl-title" data-i18n="wizard.netLocal">Local</div>
+                <div class="ssl-desc" data-i18n="wizard.netLocalDesc">Wi-Fi / LAN. Works without internet. Devices find each other automatically.</div>
                 <div class="ssl-badge badge-recommended">
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:3px;"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-                    Для домашней сети
+                    <span data-i18n="wizard.netLocalBadge">For home network</span>
                 </div>
             </div>
             <div class="ssl-option" id="opt-global" onclick="selectNetworkMode('global')">
                 <div class="ssl-icon">🌍</div>
-                <div class="ssl-title">Глобальный</div>
-                <div class="ssl-desc">Через интернет. Cloudflare Tunnel + обфускация трафика. Доступ из любой точки мира.</div>
-                <div class="ssl-badge badge-internet">Требует cloudflared</div>
+                <div class="ssl-title" data-i18n="wizard.netGlobal">Global</div>
+                <div class="ssl-desc" data-i18n="wizard.netGlobalDesc">Via internet. Cloudflare Tunnel + traffic obfuscation. Access from anywhere in the world.</div>
+                <div class="ssl-badge badge-internet" data-i18n="wizard.netGlobalBadge">Requires cloudflared</div>
             </div>
         </div>
 
         <div id="global-details" style="display:none;margin-top:16px;">
-            <div class="alert alert-info show" id="cf-status">Проверка cloudflared...</div>
+            <div class="alert alert-info show" id="cf-status" data-i18n="wizard.checkingCf">Checking cloudflared...</div>
         </div>
 
         <div class="step-section" style="margin-top:20px;">
-            <div class="section-heading">Режим регистрации</div>
+            <div class="section-heading" data-i18n="wizard.regMode">Registration Mode</div>
             <div class="ssl-options">
                 <div class="ssl-option ssl-option--sm selected" id="opt-reg-open" onclick="selectRegMode('open')">
-                    <div class="ssl-title">Открытая</div>
-                    <div class="ssl-desc">Все могут зарегистрироваться</div>
+                    <div class="ssl-title" data-i18n="wizard.regOpen">Open</div>
+                    <div class="ssl-desc" data-i18n="wizard.regOpenDesc">Anyone can register</div>
                 </div>
                 <div class="ssl-option ssl-option--sm" id="opt-reg-invite" onclick="selectRegMode('invite')">
-                    <div class="ssl-title">По инвайт-коду</div>
-                    <div class="ssl-desc">Только по вашему приглашению</div>
+                    <div class="ssl-title" data-i18n="wizard.regInvite">Invite code</div>
+                    <div class="ssl-desc" data-i18n="wizard.regInviteDesc">By your invitation only</div>
                 </div>
                 <div class="ssl-option ssl-option--sm" id="opt-reg-closed" onclick="selectRegMode('closed')">
-                    <div class="ssl-title">Закрытая</div>
-                    <div class="ssl-desc">Регистрация отключена</div>
+                    <div class="ssl-title" data-i18n="wizard.regClosed">Closed</div>
+                    <div class="ssl-desc" data-i18n="wizard.regClosedDesc">Registration disabled</div>
                 </div>
             </div>
             <div id="invite-code-display" class="invite-display" style="display:none;">
-                <div class="invite-display-label">Ваш инвайт-код:</div>
+                <div class="invite-display-label" data-i18n="wizard.inviteLabel">Your invite code:</div>
                 <div id="generated-invite" class="invite-display-code"></div>
-                <div class="invite-display-note">Отправьте только тем кому доверяете</div>
+                <div class="invite-display-note" data-i18n="wizard.inviteNote">Share only with people you trust</div>
             </div>
         </div>
 
         <div class="btn-row">
-            <button class="btn btn-secondary" onclick="goStep(1)">← Назад</button>
+            <button class="btn btn-secondary" onclick="goStep(1)" data-i18n="wizard.back">&larr; Back</button>
             <div class="spacer"></div>
-            <button class="btn btn-primary" onclick="step2ModeNext()">Продолжить →</button>
+            <button class="btn btn-primary" onclick="step2ModeNext()" data-i18n="wizard.continue">Continue &rarr;</button>
         </div>
     </div>

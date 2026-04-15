@@ -60,6 +60,47 @@ window._blockUser = async function(userId) {
 };
 
 // =============================================================================
+// Bot DM tag — show BOT badge instead of "not in contacts"
+// =============================================================================
+
+export function _showBotTag() {
+    _hideNotContactBanner();
+    let tag = document.getElementById('bot-dm-tag');
+    if (tag) return;
+    tag = document.createElement('div');
+    tag.id = 'bot-dm-tag';
+    tag.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 16px;background:var(--bg3);border-bottom:1px solid var(--border);font-size:12px;color:var(--text2);';
+
+    var icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    icon.setAttribute('width', '16');
+    icon.setAttribute('height', '16');
+    icon.setAttribute('fill', 'var(--accent)');
+    icon.setAttribute('viewBox', '0 0 24 24');
+    var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', 'M20 9V7c0-1.1-.9-2-2-2h-3c0-1.66-1.34-3-3-3S9 3.34 9 5H6c-1.1 0-2 .9-2 2v2c-1.66 0-3 1.34-3 3s1.34 3 3 3v4c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-4c1.66 0 3-1.34 3-3s-1.34-3-3-3zM7 13H6v-2h1v2zm5 4c-1.1 0-2-.9-2-2h4c0 1.1-.9 2-2 2zm4-4h-1v-2h1v2zm-6-2v-2h4v2h-4z');
+    icon.appendChild(path);
+
+    var badge = document.createElement('span');
+    badge.style.cssText = 'font-weight:700;color:var(--accent);';
+    badge.textContent = 'BOT';
+
+    var label = document.createElement('span');
+    label.textContent = t('bots.botConversation');
+
+    tag.appendChild(icon);
+    tag.appendChild(badge);
+    tag.appendChild(label);
+
+    var mc = document.getElementById('messages-container');
+    if (mc) mc.parentNode.insertBefore(tag, mc);
+}
+
+export function _hideBotTag() {
+    var el = document.getElementById('bot-dm-tag');
+    if (el) el.remove();
+}
+
+// =============================================================================
 // DM Theme proposal banner
 // =============================================================================
 

@@ -64,7 +64,7 @@ def _register_node_via_handshake(
     url: str | None = None,
     code_hash: str | None = None,
     node_id: str | None = None,
-    version: str = '5.0.0',
+    version: str = '1.0.0',
 ) -> dict:
     """Register a fake node via handshake (no network probe)."""
     tag = random_str()
@@ -106,7 +106,7 @@ class TestMultiNodeConnection:
     def test_connect_nodes_with_different_versions(self, client: SyncASGIClient, logged_user: dict):
         """Узлы с разными версиями — все принимаются (hash совпадает)."""
         h = logged_user['headers']
-        for ver in ('5.0.0', '5.1.0', '6.0.0-beta'):
+        for ver in ('1.0.0', '1.1.0', '2.0.0-beta'):
             n = _register_node_via_handshake(client, h, version=ver)
             assert n['response']['accepted'] is True
 
@@ -336,7 +336,7 @@ class TestGossipProtocol:
             'node_id': secrets.token_hex(16),
             'url': f'https://gossip-new-{tag}.example.com:8443',
             'code_hash': _code_hash(client),
-            'version': '5.0.0',
+            'version': '1.0.0',
         }, headers=h)
         assert r.status_code == 200
         assert r.json()['status'] in ('added_as_pending', 'already_known')
@@ -351,7 +351,7 @@ class TestGossipProtocol:
             'node_id': nid,
             'url': url,
             'code_hash': _code_hash(client),
-            'version': '5.0.0',
+            'version': '1.0.0',
         }
         r1 = client.post('/api/federation/gossip/node-joined', json=payload, headers=h)
         r2 = client.post('/api/federation/gossip/node-joined', json=payload, headers=h)
@@ -378,7 +378,7 @@ class TestGossipProtocol:
         # Сначала добавляем
         client.post('/api/federation/gossip/node-joined', json={
             'node_id': nid, 'url': url,
-            'code_hash': _code_hash(client), 'version': '5.0.0',
+            'code_hash': _code_hash(client), 'version': '1.0.0',
         }, headers=h)
 
         # Затем удаляем через gossip
@@ -666,7 +666,7 @@ class TestFullFederationScenario:
             url = f'https://full-test-{i}-{tag}.example.com:8443'
             r = client.post('/api/federation/handshake', json={
                 'node_id': nid, 'url': url,
-                'code_hash': local_hash, 'version': '5.0.0',
+                'code_hash': local_hash, 'version': '1.0.0',
             }, headers=h)
             assert r.status_code == 200
             assert r.json()['accepted'] is True
@@ -704,7 +704,7 @@ class TestFullFederationScenario:
         gossip_url = f'https://gossip-full-{gossip_tag}.example.com:8443'
         r = client.post('/api/federation/gossip/node-joined', json={
             'node_id': gossip_nid, 'url': gossip_url,
-            'code_hash': local_hash, 'version': '5.0.0',
+            'code_hash': local_hash, 'version': '1.0.0',
         }, headers=h)
         assert r.status_code == 200
 

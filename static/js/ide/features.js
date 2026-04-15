@@ -145,7 +145,7 @@ async function ideSaveVersion() {
 
 async function ideRollback(version) {
     if (!IDE.current) return;
-    if (!confirm(`Restore version v${version}? Current code will be overwritten in-editor.`)) return;
+    if (!confirm((typeof t==='function'?t('ide.restoreVersionConfirm'):'Restore version') + ` v${version}?`)) return;
     const pid = _ideProjectId();
     try {
         const r = await fetch(`/api/ide/rollback/${pid}/${version}`, {

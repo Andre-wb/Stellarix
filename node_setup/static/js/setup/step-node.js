@@ -19,13 +19,13 @@ async function step1Next() {
     const udp  = parseInt(document.getElementById('udp-port').value);
     const mfmb = parseInt(document.getElementById('max-file').value);
 
-    if (!name) return showAlert('s1', 'Введите имя устройства', 'error');
+    if (!name) return showAlert('s1', 'Enter device name', 'error');
     if (isNaN(port) || port < 1024 || port > 65535)
-        return showAlert('s1', 'Неверный порт (1024–65535)', 'error');
+        return showAlert('s1', 'Invalid port (1024–65535)', 'error');
 
     const btn = document.getElementById('btn-s1-next');
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span> Проверка порта...';
+    btn.innerHTML = '<span class="spinner"></span> Checking port...';
 
     try {
         const r = await fetch(`/api/validate/port/${port}`);
@@ -33,13 +33,13 @@ async function step1Next() {
         if (!d.ok) {
             showAlert('s1', d.message, 'error');
             btn.disabled = false;
-            btn.textContent = 'Продолжить →';
+            btn.textContent = 'Continue →';
             return;
         }
-    } catch { /* порт недоступен для проверки — пропускаем */ }
+    } catch { /* port check unavailable — skip */ }
 
     btn.disabled = false;
-    btn.textContent = 'Продолжить →';
+    btn.textContent = 'Continue →';
     hideAlert('s1');
 
     state.config = { device_name: name, port, udp_port: udp, max_file_mb: mfmb };

@@ -219,6 +219,9 @@ export function handleTyping() {
     input.style.height = 'auto';
     input.style.height = Math.min(input.scrollHeight, 120) + 'px';
 
+    // Slash command menu
+    _checkSlashMenu(input);
+
     const S = window.AppState;
     if (!_typingActive && S.ws?.readyState === WebSocket.OPEN) {
         _typingActive = true;
@@ -240,6 +243,100 @@ export function handleTyping() {
     // @mention autocomplete
     _checkMentionAutocomplete(input);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Slash command menu — shows bot commands when typing "/"
+// ═══════════════════════════════════════════════════════════════════════════
+
+let _slashMenuEl = null;
+
+function _checkSlashMenu(input) {
+    const text = input.value;
+
+    // Show menu when text starts with "/" and is short
+    if (text.startsWith('/') && text.length < 30 && !text.includes(' ')) {
+        _showSlashMenu(text);
+    } else {
+        _closeSlashMenu();
+    }
+}
+
+async function _showSlashMenu(typed) {
+    const S = window.AppState;
+    if (!S.currentRoom) return;
+
+    // Get bot commands for this room
+    let commands = S._roomBotCommands;
+    if (!commands) {
+        try {
+            const { api } = await import('../utils.js');
+            const data = await api('GET', '/api/rooms/' + S.currentRoom.id + '/bot-commands');
+            commands = data.commands || [];
+            S._roomBotCommands = commands;
+        } catch { commands = []; S._roomBotCommands = []; }
+    }
+
+    if (!commands.length) { _closeSlashMenu(); return; }
+
+    // Filter by typed prefix
+    const query = typed.toLowerCase();
+    const filtered = commands.filter(function(c) {
+        return c.command.toLowerCase().startsWith(query);
+    });
+
+    if (!filtered.length) { _closeSlashMenu(); return; }
+
+    if (!_slashMenuEl) {
+        _slashMenuEl = document.createElement('div');
+        _slashMenuEl.id = 'slash-cmd-menu';
+        _slashMenuEl.className = 'slash-cmd-menu';
+        var inputArea = document.getElementById('input-area');
+        if (inputArea) inputArea.appendChild(_slashMenuEl);
+    }
+
+    _slashMenuEl.textContent = '';
+    filtered.forEach(function(cmd) {
+        var item = document.createElement('div');
+        item.className = 'slash-cmd-item';
+
+        var cmdSpan = document.createElement('span');
+        cmdSpan.className = 'slash-cmd-name';
+        cmdSpan.textContent = cmd.command;
+
+        var descSpan = document.createElement('span');
+        descSpan.className = 'slash-cmd-desc';
+        descSpan.textContent = cmd.description || '';
+
+        item.appendChild(cmdSpan);
+        item.appendChild(descSpan);
+
+        item.addEventListener('click', function() {
+            var input = document.getElementById('msg-input');
+            if (input) {
+                input.value = cmd.command + ' ';
+                input.focus();
+            }
+            _closeSlashMenu();
+        });
+
+        _slashMenuEl.appendChild(item);
+    });
+
+    _slashMenuEl.style.display = '';
+}
+
+function _closeSlashMenu() {
+    if (_slashMenuEl) {
+        _slashMenuEl.style.display = 'none';
+    }
+}
+
+// Clear cached commands when room changes
+window.addEventListener('message', function(e) {
+    if (e.data === 'room-changed') {
+        window.AppState._roomBotCommands = null;
+    }
+});
 
 // Expose on window so features.js can call window.sendMessage() and
 // window.sendStickerDirect() at runtime without a circular import.

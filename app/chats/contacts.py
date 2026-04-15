@@ -119,15 +119,17 @@ async def list_contacts(
     users_map = {usr.id: usr for usr in users_list}
 
     # Batch load: все DM комнаты одним запросом
+    my_dm_room_ids = (
+        db.query(RoomMember.room_id)
+        .join(Room, Room.id == RoomMember.room_id)
+        .filter(Room.is_dm == True, RoomMember.user_id == u.id)
+        .scalar_subquery()
+    )
     my_dm_rooms = (
         db.query(RoomMember.room_id, RoomMember.user_id)
         .join(Room, Room.id == RoomMember.room_id)
-        .filter(Room.is_dm == True, RoomMember.room_id.in_(
-            db.query(RoomMember.room_id)
-            .join(Room, Room.id == RoomMember.room_id)
-            .filter(Room.is_dm == True, RoomMember.user_id == u.id)
-            .subquery()
-        ), RoomMember.user_id.in_(contact_ids))
+        .filter(Room.is_dm == True, RoomMember.room_id.in_(my_dm_room_ids),
+                RoomMember.user_id.in_(contact_ids))
         .all()
     )
     dm_map = {row.user_id: row.room_id for row in my_dm_rooms}

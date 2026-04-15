@@ -136,7 +136,7 @@ async def answer_inline_query(body: InlineQueryResponse, request: Request,
     """Answer an inline query with results."""
     bot = _get_bot(request, db)
     # Store results for clients to fetch
-    _inline_handlers[bot.id] = [r.dict() for r in body.results]
+    _inline_handlers[bot.id] = [r.model_dump() for r in body.results]
     _inline_handlers.move_to_end(bot.id)
     while len(_inline_handlers) > _MAX_INLINE_BOTS:
         _inline_handlers.popitem(last=False)

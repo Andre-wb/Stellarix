@@ -220,7 +220,7 @@ window.openStickerPackDetail = async function(packId, isOwner) {
             renameBtn.className = 'sd-action-btn';
             renameBtn.textContent = '\u270F\uFE0F Rename pack';
             renameBtn.onclick = function() {
-                var newName = prompt('New pack name:', pack.name);
+                var newName = prompt((typeof t==='function'?t('stickers.newPackName'):'New pack name:'), pack.name);
                 if (newName && newName.trim()) _sdRenamePack(packId, newName.trim());
             };
             actions.appendChild(renameBtn);
@@ -230,7 +230,7 @@ window.openStickerPackDetail = async function(packId, isOwner) {
             descBtn.className = 'sd-action-btn';
             descBtn.textContent = '\uD83D\uDCDD Edit description';
             descBtn.onclick = function() {
-                var newDesc = prompt('Description:', pack.description || '');
+                var newDesc = prompt((typeof t==='function'?t('stickers.editDescription'):'Description:'), pack.description || '');
                 if (newDesc !== null) _sdUpdatePack(packId, { description: newDesc.trim() });
             };
             actions.appendChild(descBtn);
@@ -270,7 +270,7 @@ window._sdAddSticker = function(packId) {
     }, 2000);
 };
 window._sdDeletePack = async function(packId) {
-    if (!confirm('Delete entire sticker pack?')) return;
+    if (!confirm(typeof t==='function'?t('stickers.deletePackConfirm'):'Delete entire sticker pack?')) return;
     await deleteStickerPack(packId);
     document.querySelector('.sticker-detail-card')?.remove();
 };

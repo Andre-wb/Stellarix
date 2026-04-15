@@ -1,18 +1,18 @@
     <div class="step" id="step-4">
-        <div class="step-title">Вход и <span>аутентификация</span></div>
-        <div class="step-desc">Настройте способы входа для пользователей вашего узла. Можно пропустить и добавить позже через настройки.</div>
+        <div class="step-title" data-i18n="wizard.authTitle">Login & <span>Authentication</span></div>
+        <div class="step-desc" data-i18n="wizard.authDesc">Configure login methods for your node's users. You can skip this and add them later in settings.</div>
 
         <div id="alert-s4-sso" class="alert"></div>
 
-        <!-- Passkeys (WebAuthn) — без API ключей -->
+        <!-- Passkeys (WebAuthn) -->
         <div class="toggle-row feature-card">
             <div>
                 <div class="toggle-label">
                     <span style="margin-right:6px;">🔑</span>
                     Passkeys (WebAuthn / FIDO2)
-                    <span class="ssl-badge badge-recommended" style="margin-left:8px;vertical-align:middle;font-size:10px;">Без API ключей</span>
+                    <span class="ssl-badge badge-recommended" style="margin-left:8px;vertical-align:middle;font-size:10px;" data-i18n="wizard.noApiKeys">No API keys needed</span>
                 </div>
-                <div class="toggle-sub">Вход по биометрии, Touch ID или PIN. Не требует внешних сервисов — работает через браузер/ОС.</div>
+                <div class="toggle-sub" data-i18n="wizard.passkeysDesc">Login via biometrics, Touch ID or PIN. No external services required — works through browser/OS.</div>
             </div>
             <label class="toggle">
                 <input type="checkbox" id="passkeys-toggle" checked>
@@ -21,19 +21,19 @@
             </label>
         </div>
 
-        <!-- Список добавленных провайдеров -->
-        <div class="sso-section-label">OAuth / SSO провайдеры</div>
+        <!-- Provider list -->
+        <div class="sso-section-label" data-i18n="wizard.ssoProviders">OAuth / SSO Providers</div>
         <div id="sso-providers-list">
-            <div style="color:var(--text3);font-size:12px;padding:6px 0 14px;">Нет добавленных провайдеров</div>
+            <div style="color:var(--text3);font-size:12px;padding:6px 0 14px;" data-i18n="wizard.noProviders">No providers added</div>
         </div>
 
-        <!-- Панель добавления провайдера (скрыта по умолчанию) -->
+        <!-- Add provider panel (hidden by default) -->
         <div id="sso-add-panel" style="display:none;background:var(--bg3);border-radius:var(--radius);padding:20px;margin-bottom:16px;border:1px solid var(--border);">
-            <div style="font-weight:600;margin-bottom:14px;font-size:14px;">Добавить провайдер</div>
+            <div style="font-weight:600;margin-bottom:14px;font-size:14px;" data-i18n="wizard.addProvider">Add Provider</div>
             <div class="form-group">
-                <label class="form-label">Сервис</label>
+                <label class="form-label" data-i18n="wizard.service">Service</label>
                 <select class="form-input" id="sso-type-select" onchange="ssoTypeChanged()">
-                    <option value="">— выберите —</option>
+                    <option value="" data-i18n="wizard.selectProvider">— select —</option>
                     <option value="google">🔵  Google</option>
                     <option value="github">⚫  GitHub</option>
                     <option value="apple">⚪  Apple Sign In</option>
@@ -43,23 +43,23 @@
             </div>
             <div id="sso-dynamic-fields"></div>
             <div class="btn-row" style="margin-top:16px;">
-                <button class="btn btn-secondary" onclick="ssoHidePanel()">Отмена</button>
+                <button class="btn btn-secondary" onclick="ssoHidePanel()" data-i18n="wizard.cancel">Cancel</button>
                 <div class="spacer"></div>
-                <button class="btn btn-primary" onclick="ssoAddProvider()">Добавить</button>
+                <button class="btn btn-primary" onclick="ssoAddProvider()" data-i18n="wizard.add">Add</button>
             </div>
         </div>
 
-        <!-- Кнопка "+ Добавить провайдер" -->
+        <!-- "+ Add Provider" button -->
         <button class="btn btn-secondary" id="sso-add-btn" onclick="ssoShowPanel()"
-                style="width:100%;justify-content:center;margin-bottom:24px;">
+                style="width:100%;justify-content:center;margin-bottom:24px;" data-i18n="wizard.addProvider">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 24 24" style="margin-right:6px;vertical-align:middle;"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>
-            Добавить провайдер
+            Add Provider
         </button>
 
         <div class="btn-row">
-            <button class="btn btn-secondary" onclick="goStep(3)">← Назад</button>
+            <button class="btn btn-secondary" onclick="goStep(3)" data-i18n="wizard.back">&larr; Back</button>
             <div class="spacer"></div>
-            <button class="btn btn-secondary" onclick="ssoSkip()" style="margin-right:8px;">Пропустить</button>
-            <button class="btn btn-primary" onclick="ssoProceed()">Продолжить →</button>
+            <button class="btn btn-secondary" onclick="ssoSkip()" style="margin-right:8px;" data-i18n="wizard.skip">Skip</button>
+            <button class="btn btn-primary" onclick="ssoProceed()" data-i18n="wizard.continue">Continue &rarr;</button>
         </div>
     </div>

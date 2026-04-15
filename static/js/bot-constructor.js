@@ -300,7 +300,15 @@ window._saveBotConstructor = async function() {
     if (saveBtn) { saveBtn.disabled = true; var sp = saveBtn.querySelector('span'); if (sp) sp.textContent = t('botConstructor.deploying'); }
     try {
         await window.api('PUT', '/api/bots/' + _botId, {
-            commands_json: JSON.stringify(_blocks.filter(function(b) { return b.type === 'command'; }).map(function(b) { return { command: b.command || '/cmd', description: (b.response || '').slice(0, 50) }; }))
+            commands: JSON.stringify(
+                _blocks.filter(function(b) { return b.type === 'command' || b.type === 'welcome'; }).map(function(b) {
+                    return {
+                        command: b.type === 'welcome' ? '/start' : (b.command || '/cmd'),
+                        description: (b.response || '').slice(0, 80),
+                        response: b.response || '',
+                    };
+                })
+            )
         });
         try { await window.api('POST', '/api/ide/projects/' + _botId + '/save', { code: code }); } catch (e) { /* ok */ }
         if (window.showToast) window.showToast(t('botConstructor.deployed'), 'success');

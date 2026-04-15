@@ -156,7 +156,11 @@ class TestCompileCode:
     """Tests for async compile_code()."""
 
     def _run(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
 
     def test_binary_not_found_returns_error(self):
         import app.bots.ide_runner as runner
@@ -294,7 +298,11 @@ class TestPublishBot:
     """Tests for async publish_bot()."""
 
     def _run(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
 
     def _make_fake_proc(self, pid=12345, returncode=None):
         """Return a mock Popen process object."""
@@ -453,7 +461,11 @@ class TestStopBot:
     """Tests for async stop_bot()."""
 
     def _run(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
 
     def _make_fake_proc(self, running=True):
         proc = MagicMock(spec=subprocess.Popen)

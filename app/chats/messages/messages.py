@@ -240,6 +240,10 @@ async def handle_e2e_message(room_id: int, user: User, data: dict, db: Session) 
         msg.created_at = client_created_at
     db.add(msg)
     try:
+        # Update room's updated_at for sorting
+        _room_obj = db.query(Room).filter(Room.id == room_id).first()
+        if _room_obj:
+            _room_obj.updated_at = datetime.now(timezone.utc)
         db.commit()
         db.refresh(msg)
     except Exception as e:

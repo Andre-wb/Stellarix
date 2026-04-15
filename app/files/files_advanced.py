@@ -61,7 +61,7 @@ async def register_distributed_file(body: DistributedFileInfo,
         "filename": body.filename,
         "total_size": body.total_size,
         "chunk_count": body.chunk_count,
-        "chunks": [c.dict() for c in body.chunks],
+        "chunks": [c.model_dump() for c in body.chunks],
         "uploader_id": u.id,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }

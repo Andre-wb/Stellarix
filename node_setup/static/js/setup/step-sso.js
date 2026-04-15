@@ -11,7 +11,7 @@ const _SSO_FIELDS = {
                 { id: 'team_id',     label: 'Team ID',              ph: 'ABCD123456' },
                 { id: 'key_id',      label: 'Key ID',               ph: 'ABCDEF1234' },
                 { id: 'private_key', label: 'Private Key (.p8)',     ph: '-----BEGIN PRIVATE KEY-----\n...', ml: true }],
-    microsoft: [{ id: 'tenant_id',     label: 'Tenant ID',     ph: 'common или UUID тенанта' },
+    microsoft: [{ id: 'tenant_id',     label: 'Tenant ID',     ph: 'common or tenant UUID' },
                 { id: 'client_id',     label: 'Client ID',     ph: 'UUID...' },
                 { id: 'client_secret', label: 'Client Secret', ph: 'value...' }],
     oidc:      [{ id: 'discovery_url', label: 'Discovery URL', ph: 'https://keycloak.host/realms/main/.well-known/openid-configuration' },
@@ -50,9 +50,9 @@ function ssoHidePanel() {
 
 function ssoAddProvider() {
     const type = document.getElementById('sso-type-select').value;
-    if (!type) return showAlert('s4-sso', 'Выберите провайдер', 'error');
+    if (!type) return showAlert('s4-sso', 'Select a provider', 'error');
     if (_ssoProviders.find(p => p.type === type))
-        return showAlert('s4-sso', `${_SSO_LABELS[type]} уже добавлен`, 'error');
+        return showAlert('s4-sso', `${_SSO_LABELS[type]} already added`, 'error');
 
     const data   = { type };
     const fields = _SSO_FIELDS[type] || [];
@@ -60,7 +60,7 @@ function ssoAddProvider() {
         const el  = document.getElementById('sso-field-' + f.id);
         if (!el) continue;
         const val = el.value.trim();
-        if (!val) return showAlert('s4-sso', `Заполните поле: ${f.label}`, 'error');
+        if (!val) return showAlert('s4-sso', `Fill in the field: ${f.label}`, 'error');
         data[f.id] = val;
     }
     _ssoProviders.push(data);
@@ -77,7 +77,7 @@ function ssoRemoveProvider(type) {
 function _renderSsoList() {
     const list = document.getElementById('sso-providers-list');
     if (!_ssoProviders.length) {
-        list.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:6px 0 14px;">Нет добавленных провайдеров</div>';
+        list.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:6px 0 14px;">No providers added</div>';
         return;
     }
     list.innerHTML = _ssoProviders.map(p => `
@@ -89,7 +89,7 @@ function _renderSsoList() {
             </div>
             <button onclick="ssoRemoveProvider('${p.type}')"
                     style="background:none;border:none;color:var(--red,#f87171);cursor:pointer;padding:4px;line-height:0;"
-                    title="Удалить">
+                    title="Delete">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6zM19 4h-3.5l-1-1h-5l-1 1H5v2h14z"/></svg>
             </button>
         </div>
@@ -103,7 +103,7 @@ async function _saveSsoToServer() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ passkeys_enabled: passkeys, providers: _ssoProviders }),
     });
-    if (!r.ok) throw new Error('Ошибка сохранения SSO конфигурации');
+    if (!r.ok) throw new Error('Error saving SSO configuration');
 }
 
 async function ssoProceed() {

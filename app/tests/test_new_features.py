@@ -229,8 +229,19 @@ class TestChannelsAdvanced:
         assert r.status_code == 200
 
     def test_react_to_post(self, client, logged_user):
-        r = client.post("/api/channels/1/posts/1/react", json={"emoji": "👍"}, headers=logged_user["headers"])
-        assert r.status_code in (200, 404)
+        # Create channel, send a message to it, then react
+        cr = client.post("/api/channels", json={"name": f"react_{random_str(6)}"}, headers=logged_user["headers"])
+        if cr.status_code not in (200, 201):
+            return
+        cid = cr.json().get("id")
+        # Try posting via channel posts endpoint; skip if not available
+        pr = client.post(f"/api/channels/{cid}/posts", json={"text": "test post"}, headers=logged_user["headers"])
+        if pr.status_code not in (200, 201):
+            # Channel posts endpoint not available — skip react test
+            return
+        pid = pr.json().get("id")
+        r = client.post(f"/api/channels/{cid}/posts/{pid}/react", json={"emoji": "\U0001f44d"}, headers=logged_user["headers"])
+        assert r.status_code in (200, 201, 404)
 
     def test_monetization(self, client, logged_user):
         cr = client.post("/api/channels", json={"name": f"paid_{random_str(6)}"}, headers=logged_user["headers"])

@@ -231,6 +231,13 @@ async def send_history(room_id: int, user_id: int, db: Session) -> None:
                 Contact.contact_id == other_member.user_id,
             ).first() is not None
 
+    # Check if other user is a bot
+    other_user_is_bot = False
+    if other_user_id:
+        other_user_obj = db.query(User).filter(User.id == other_user_id).first()
+        if other_user_obj and getattr(other_user_obj, 'is_bot', False):
+            other_user_is_bot = True
+
     await manager.send_to_user(room_id, user_id, {
         "type":              "history",
         "messages":          history,
@@ -242,4 +249,5 @@ async def send_history(room_id: int, user_id: int, db: Session) -> None:
         "is_dm":               is_dm,
         "other_user_is_contact": is_contact_flag,
         "other_user_id":       other_user_id,
+        "other_user_is_bot":   other_user_is_bot,
     })

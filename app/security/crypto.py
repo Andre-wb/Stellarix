@@ -149,7 +149,13 @@ def encrypt_message(plaintext: bytes, key: bytes) -> bytes:
 def decrypt_message(data: bytes, key: bytes) -> bytes:
     """AES-256-GCM дешифрование."""
     if _RUST:
-        return bytes(_vc.decrypt_message(data, key))
+        try:
+            result = _vc.decrypt_message(data, key)
+            # Rust may return str (UTF-8 decoded) instead of bytes
+            return result.encode('utf-8') if isinstance(result, str) else bytes(result)
+        except ValueError:
+            # Rust fails on non-UTF-8 binary plaintext — fallback to Python
+            return _py_decrypt(data, key)
     return _py_decrypt(data, key)
 
 

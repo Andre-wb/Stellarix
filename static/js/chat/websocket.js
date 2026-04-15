@@ -24,7 +24,7 @@ import { decryptText, _saveRoomKeyToSession, _loadRoomKeyFromSession, _clearRoom
 import { _handleAck, _cancelAllPendingAcks, _flushOfflineQueue } from './ack.js';
 import { _updateOnlineMembersCache } from './mention.js';
 import { _showTyping, _showFileSending, _updateReaction, _showPinnedBar, _hidePinnedBar } from './indicators.js';
-import { _showNotContactBanner, _hideNotContactBanner, _showThemeProposalBanner } from './banners.js';
+import { _showNotContactBanner, _hideNotContactBanner, _showBotTag, _showThemeProposalBanner } from './banners.js';
 import { _updateAutoDeleteIndicator, _updateSlowModeIndicator, _startSlowModeCooldown } from './features.js';
 import { _updateThreadPanelCount, _appendToOpenThread } from './thread.js';
 import { queueHistoryMessage } from '../key_backup.js';
@@ -360,8 +360,11 @@ async function handleWsMessage(msg) {
                 _updateSlowModeIndicator(msg.slow_mode_seconds || 0);
             }
 
-            // Show "not in contacts" banner for DMs with non-contacts
-            if (msg.is_dm && msg.other_user_is_contact === false && msg.other_user_id) {
+            // Show "not in contacts" banner for DMs with non-contacts (skip for bots)
+            if (msg.is_dm && msg.other_user_is_bot) {
+                _hideNotContactBanner();
+                _showBotTag();
+            } else if (msg.is_dm && msg.other_user_is_contact === false && msg.other_user_id) {
                 _showNotContactBanner(msg.other_user_id);
             } else {
                 _hideNotContactBanner();
@@ -442,6 +445,9 @@ async function handleWsMessage(msg) {
                 if (existing) break; // уже отрендерено (оптимистично или ранее)
             }
             await _decryptAndAppend(msg);
+            // Update room's updated_at for sidebar sorting
+            { const _r = S.rooms?.find(r => r.id === S.currentRoom?.id); if (_r) _r.updated_at = new Date().toISOString(); }
+            if (typeof window.renderRoomsList === 'function') window.renderRoomsList();
             {
                 const _mc = document.getElementById('messages-container');
                 const _atBottom = _mc && (_mc.scrollHeight - _mc.scrollTop - _mc.clientHeight < 100);

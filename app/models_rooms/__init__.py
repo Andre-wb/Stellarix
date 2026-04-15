@@ -18,7 +18,7 @@ from app.models_rooms.analytics import (
     ChannelDonation, UserSlowmode,
 )
 from app.models_rooms.admin import AuditLog, SpaceEmoji
-from app.models_rooms.federation import PersistedFederatedRoom, Story
+from app.models_rooms.federation import PersistedFederatedRoom, Story, StoryKeyEnvelope
 from app.models_rooms.feeds import ChannelFeed
 
 __all__ = [
@@ -46,7 +46,7 @@ __all__ = [
     # admin
     "AuditLog", "SpaceEmoji",
     # federation
-    "PersistedFederatedRoom", "Story",
+    "PersistedFederatedRoom", "Story", "StoryKeyEnvelope",
     # feeds
     "ChannelFeed",
 ]

@@ -376,6 +376,28 @@ function _showRoomContextMenu(e, roomId) {
     items += `<div class="room-ctx-item" data-action="mark_unread">${t('rooms.markUnread')}</div>`;
     items += `<div class="room-ctx-item" data-action="clear_history" style="color:var(--red);">${t('rooms.clearHistory')}</div>`;
 
+    const _room = window.AppState?.rooms?.find(r => r.id === roomId);
+
+    // Uninstall for bot DMs
+    if (_room?.is_dm && _room?.dm_user?.is_bot) {
+        items += `<div class="room-ctx-item" data-action="uninstall_bot" style="color:var(--red);">${t('bots.uninstall')}</div>`;
+    }
+
+    // Delete DM (anyone can delete their own DM)
+    if (_room?.is_dm && !_room?.dm_user?.is_bot) {
+        items += `<div class="room-ctx-item" data-action="delete_chat" style="color:var(--red);">${t('app.delete')}</div>`;
+    }
+
+    // Leave / Delete room (groups, channels)
+    if (_room && !_room.is_dm) {
+        const myRole = _room.my_role || _room.role;
+        if (myRole === 'owner') {
+            items += `<div class="room-ctx-item" data-action="delete_room" style="color:var(--red);">${t('rooms.deleteConfirm').split('?')[0]}</div>`;
+        } else {
+            items += `<div class="room-ctx-item" data-action="leave_room" style="color:var(--red);">${t('rooms.leave')}</div>`;
+        }
+    }
+
     // Folder assignment submenu
     const folders = _getFolders();
     if (folders.length > 0) {
@@ -429,6 +451,56 @@ function _showRoomContextMenu(e, roomId) {
             if (S.currentRoom?.id === roomId) {
                 const mc = document.getElementById('messages-container');
                 if (mc) { while (mc.firstChild) mc.removeChild(mc.firstChild); }
+            }
+        }
+        if (action === 'uninstall_bot') {
+            try {
+                await api('DELETE', '/api/rooms/' + roomId + '/leave');
+                const S = window.AppState;
+                S.rooms = S.rooms.filter(r => r.id !== roomId);
+                if (S.currentRoom?.id === roomId) {
+                    S.currentRoom = null;
+                    if (window.showWelcome) window.showWelcome();
+                }
+                renderRoomsList();
+                if (window.showToast) window.showToast(t('bots.uninstalled'), 'success');
+            } catch (e) {
+                if (window.showToast) window.showToast(t('errors.generic') + ': ' + e.message, 'error');
+            }
+        }
+
+        if (action === 'delete_chat') {
+            try {
+                await api('DELETE', '/api/rooms/' + roomId + '/leave');
+                const S = window.AppState;
+                S.rooms = S.rooms.filter(r => r.id !== roomId);
+                if (S.currentRoom?.id === roomId) { S.currentRoom = null; if (window.showWelcome) window.showWelcome(); }
+                renderRoomsList();
+            } catch (e) {
+                if (window.showToast) window.showToast(t('errors.generic') + ': ' + e.message, 'error');
+            }
+        }
+        if (action === 'leave_room') {
+            try {
+                await api('DELETE', '/api/rooms/' + roomId + '/leave');
+                const S = window.AppState;
+                S.rooms = S.rooms.filter(r => r.id !== roomId);
+                if (S.currentRoom?.id === roomId) { S.currentRoom = null; if (window.showWelcome) window.showWelcome(); }
+                renderRoomsList();
+            } catch (e) {
+                if (window.showToast) window.showToast(t('errors.generic') + ': ' + e.message, 'error');
+            }
+        }
+        if (action === 'delete_room') {
+            if (!confirm(t('rooms.deleteConfirm'))) return;
+            try {
+                await api('DELETE', '/api/rooms/' + roomId);
+                const S = window.AppState;
+                S.rooms = S.rooms.filter(r => r.id !== roomId);
+                if (S.currentRoom?.id === roomId) { S.currentRoom = null; if (window.showWelcome) window.showWelcome(); }
+                renderRoomsList();
+            } catch (e) {
+                if (window.showToast) window.showToast(t('errors.generic') + ': ' + e.message, 'error');
             }
         }
 
@@ -656,15 +728,127 @@ function _renderArchivePanel() {
 
 function _updateArchiveBadge() {
     const btn = document.getElementById('archive-rooms-btn');
-    if (!btn) return;
-    const count = _getArchivedRoomIds().length;
-    btn.style.display = count > 0 ? '' : 'none';
+    if (btn) {
+        const count = _getArchivedRoomIds().length;
+        btn.style.display = count > 0 ? '' : 'none';
+    }
+    // Update reveal badge count
+    const countEl = document.getElementById('cs-archived-count');
+    if (countEl) {
+        const count = _getArchivedRoomIds().length;
+        countEl.textContent = count > 0 ? count : '';
+        countEl.style.display = count > 0 ? '' : 'none';
+    }
 }
+
+// Overscroll reveal for archive
+(function() {
+    var _overscrollActive = false;
+    var _touchStartY = 0;
+
+    function _initArchiveReveal() {
+        var list = document.getElementById('rooms-list');
+        if (!list || list._archiveRevealInit) return;
+        list._archiveRevealInit = true;
+
+        list.addEventListener('scroll', function() {
+            // Hide when scrolled down
+            if (list.scrollTop > 5) _hideArchiveReveal();
+        });
+
+        // Wheel overscroll at top
+        list.addEventListener('wheel', function(e) {
+            if (list.scrollTop <= 0 && e.deltaY < 0) {
+                _showArchiveReveal();
+            } else if (e.deltaY > 0) {
+                _hideArchiveReveal();
+            }
+        }, { passive: true });
+
+        // Touch overscroll
+        list.addEventListener('touchstart', function(e) {
+            _touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+
+        list.addEventListener('touchmove', function(e) {
+            var dy = e.touches[0].clientY - _touchStartY;
+            if (list.scrollTop <= 0 && dy > 30) {
+                _showArchiveReveal();
+            } else if (dy < -10) {
+                _hideArchiveReveal();
+            }
+        }, { passive: true });
+    }
+
+    function _showArchiveReveal() {
+        if (_getArchivedRoomIds().length === 0) return;
+        if (_overscrollActive) return;
+        _overscrollActive = true;
+        var reveal = document.getElementById('cs-archive-reveal');
+        if (reveal) reveal.classList.add('visible');
+        // Haptic feedback
+        if (window.Haptic?.light) window.Haptic.light();
+        else if (navigator.vibrate) navigator.vibrate(10);
+    }
+
+    function _hideArchiveReveal() {
+        if (!_overscrollActive) return;
+        _overscrollActive = false;
+        var reveal = document.getElementById('cs-archive-reveal');
+        if (reveal) reveal.classList.remove('visible');
+    }
+
+    // Init after DOM ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', _initArchiveReveal);
+    } else {
+        setTimeout(_initArchiveReveal, 500);
+    }
+    // Re-init after renderRoomsList
+    var _origRender = window.renderRoomsList;
+    if (_origRender) {
+        window.renderRoomsList = function() {
+            _origRender.apply(this, arguments);
+            _initArchiveReveal();
+        };
+    }
+})();
 
 window.showArchivePanel = showArchivePanel;
 window.closeArchivePanel = closeArchivePanel;
 
 // ── Avatar helpers ───────────────────────────────────────────────────────────
+
+function _renderRoomItem(r, S, pinnedIds) {
+    if (r.is_dm) {
+        const u = r.dm_user || {};
+        const isBot = u.is_bot;
+        const avatar = isBot
+            ? `<div class="room-avatar-sidebar" style="background:linear-gradient(135deg,var(--accent),#3b82f6);color:#fff;display:flex;align-items:center;justify-content:center;border-radius:10px;width:36px;height:36px;flex-shrink:0;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="#fff" viewBox="0 0 24 24"><path d="M20 9V7c0-1.1-.9-2-2-2h-3c0-1.66-1.34-3-3-3S9 3.34 9 5H6c-1.1 0-2 .9-2 2v2c-1.66 0-3 1.34-3 3s1.34 3 3 3v4c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-4c1.66 0 3-1.34 3-3s-1.34-3-3-3z"/></svg></div>`
+            : _avatarEl(u);
+        const badge = isBot ? '<span class="msg-bot-badge" style="margin-left:4px;">BOT</span>' : '';
+        const name = esc(u.display_name || u.username || t('chat.dm'));
+        return `<div class="room-item ${S.currentRoom?.id === r.id ? 'active' : ''}" onclick="window.openRoom(${r.id})" data-room="${r.id}">
+            ${avatar}
+            <div class="room-body"><div class="room-name">${_pinIcon(r.id, pinnedIds)}${name}${badge}</div>
+            ${isBot ? '' : `<div class="room-meta">${esc(u.custom_status || t('rooms.dm'))}</div>`}</div>
+            ${_unreadBadge(r.id, r.unread_count)}
+            ${r.online_count > 0 ? '<div class="online-dot"></div>' : ''}
+        </div>`;
+    }
+    // Group/channel/voice
+    const roomAvatarHtml = r.avatar_url
+        ? `<div class="room-avatar-sidebar"><img src="${esc(r.avatar_url)}"></div>`
+        : (r.avatar_emoji ? `<div class="room-avatar-sidebar">${esc(r.avatar_emoji)}</div>` : `<div class="room-icon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg></div>`);
+    const typeTag = r.is_channel ? `<span class="msg-bot-badge" style="margin-left:4px;background:rgba(59,130,246,.15);color:#60a5fa;">${t('shortcuts.typeChannel')}</span>` : '';
+    return `<div class="room-item ${S.currentRoom?.id === r.id ? 'active' : ''}" onclick="window.openRoom(${r.id})" data-room="${r.id}">
+        ${roomAvatarHtml}
+        <div class="room-body"><div class="room-name">${_pinIcon(r.id, pinnedIds)}${esc(r.name)}${typeTag}</div>
+        <div class="room-meta">${r.member_count || 0} ${t('rooms.membersShort')}</div></div>
+        ${r.is_muted ? '<span class="room-muted-icon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M20 18.69L7.84 6.14 5.27 3.49 4 4.76l2.8 2.8v.01c-.52.99-.8 2.16-.8 3.42v5l-2 2v1h13.73l2 2L21 19.72l-1-1.03z"/></svg></span>' : ''}
+        ${_unreadBadge(r.id, r.unread_count)}
+    </div>`;
+}
 
 function _avatarEl(obj) {
     const presence = obj.presence || 'online';
@@ -832,12 +1016,32 @@ export function renderRoomsList() {
         return ap - bp;
     };
 
-    const dms      = visible.filter(r => r.is_dm).sort(pinSort);
-    const channels = visible.filter(r => r.is_channel).sort(pinSort);
-    const voiceChannels = visible.filter(r => r.is_voice).sort(pinSort);
-    const groups   = visible.filter(r => !r.is_dm && !r.is_channel && !r.is_voice).sort(pinSort);
+    const grouped = localStorage.getItem('vortex_chat_grouped') !== 'false';
+
+    // Sort by last activity (updated_at or created_at)
+    const byActivity = (a, b) => {
+        const pinA = pinnedIds.includes(a.id) ? 0 : 1;
+        const pinB = pinnedIds.includes(b.id) ? 0 : 1;
+        if (pinA !== pinB) return pinA - pinB;
+        const tA = new Date(a.updated_at || a.created_at || 0).getTime();
+        const tB = new Date(b.updated_at || b.created_at || 0).getTime();
+        return tB - tA;
+    };
 
     let html = '';
+
+    if (!grouped) {
+        // ── Unified list: all chats sorted by last activity ──
+        const all = visible.slice().sort(byActivity);
+        html += all.map(r => _renderRoomItem(r, S, pinnedIds)).join('');
+    } else {
+    // ── Grouped by type ──
+    const allDms   = visible.filter(r => r.is_dm);
+    const botDms   = allDms.filter(r => r.dm_user?.is_bot).sort(byActivity);
+    const dms      = allDms.filter(r => !r.dm_user?.is_bot).sort(byActivity);
+    const channels = visible.filter(r => r.is_channel).sort(byActivity);
+    const voiceChannels = visible.filter(r => r.is_voice).sort(byActivity);
+    const groups   = visible.filter(r => !r.is_dm && !r.is_channel && !r.is_voice).sort(byActivity);
 
     if (dms.length) {
         html += `<div class="rooms-section-label">${t('rooms.dms')}</div>`;
@@ -860,8 +1064,27 @@ export function renderRoomsList() {
         }).join('');
     }
 
+    if (botDms.length) {
+        html += `<div class="rooms-section-label">${t('tabs.bots')}</div>`;
+        html += botDms.map(r => {
+            const u = r.dm_user || {};
+            return `
+            <div class="room-item ${S.currentRoom?.id === r.id ? 'active' : ''}"
+                 onclick="window.openRoom(${r.id})" data-room="${r.id}">
+              <div class="room-avatar-sidebar" style="background:linear-gradient(135deg,var(--accent),#3b82f6);color:#fff;display:flex;align-items:center;justify-content:center;border-radius:10px;width:36px;height:36px;font-size:16px;flex-shrink:0;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="#fff" viewBox="0 0 24 24"><path d="M20 9V7c0-1.1-.9-2-2-2h-3c0-1.66-1.34-3-3-3S9 3.34 9 5H6c-1.1 0-2 .9-2 2v2c-1.66 0-3 1.34-3 3s1.34 3 3 3v4c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-4c1.66 0 3-1.34 3-3s-1.34-3-3-3zM7 13H6v-2h1v2zm5 4c-1.1 0-2-.9-2-2h4c0 1.1-.9 2-2 2zm4-4h-1v-2h1v2zm-6-2v-2h4v2h-4z"/></svg>
+              </div>
+              <div class="room-body">
+                <div class="room-name">${esc(u.display_name || u.username || 'Bot')}<span class="msg-bot-badge" style="margin-left:6px;">BOT</span></div>
+                ${_draftPreview(r.id) || ''}
+              </div>
+              ${_unreadBadge(r.id, r.unread_count)}
+            </div>`;
+        }).join('');
+    }
+
     if (groups.length) {
-        if (dms.length) html += `<div class="rooms-section-label">${t('rooms.rooms')}</div>`;
+        if (dms.length || botDms.length) html += `<div class="rooms-section-label">${t('rooms.rooms')}</div>`;
         html += groups.map(r => {
             const isFed  = r.is_federated;
             // Room avatar: use avatar_url or avatar_emoji, fallback to icon
@@ -961,6 +1184,7 @@ export function renderRoomsList() {
             </div>`;
         }).join('');
     }
+    } // end grouped else
 
     if (!html) {
         html = _activeFolder !== null

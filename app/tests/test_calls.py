@@ -160,9 +160,13 @@ class TestStartCall:
     def test_start_call_with_room_id(self, client):
         _, h1 = _register_and_login(client)
 
+        # Create a room first so FK constraint is satisfied
+        room_resp = client.post("/api/rooms", json={"name": "call-test-room"}, headers=h1)
+        room_id = room_resp.json().get("id") or room_resp.json().get("room", {}).get("id")
+
         r = client.post("/api/calls/start", json={
             "call_type": "group_audio",
-            "room_id": 1,
+            "room_id": room_id,
         }, headers=h1)
         assert r.status_code == 201
 

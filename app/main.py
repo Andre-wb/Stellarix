@@ -78,7 +78,7 @@ if _SENTRY_DSN:
         sentry_sdk.init(
             dsn=_SENTRY_DSN,
             environment=os.getenv("SENTRY_ENVIRONMENT", Config.ENVIRONMENT),
-            release=f"vortex@5.0.0",
+            release=f"vortex@1.0.0",
             traces_sample_rate=float(os.getenv("SENTRY_TRACES_RATE", "0.1")),
             profiles_sample_rate=float(os.getenv("SENTRY_PROFILES_RATE", "0.1")),
             integrations=[
@@ -429,6 +429,32 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.debug("Stream schedule checker init: %s", e)
 
+    # ── Stealth transport startup ──────────────────────────────────────────
+    try:
+        from app.transport.auto_stealth import start_auto_stealth
+        await start_auto_stealth()
+    except Exception as e:
+        logger.debug("Auto-stealth init: %s", e)
+
+    try:
+        from app.transport.advanced_stealth import advanced_stealth
+        await advanced_stealth.start()
+    except Exception as e:
+        logger.debug("Advanced stealth init: %s", e)
+
+    try:
+        from app.transport.stealth_level3 import stealth_l3
+        site_url = f"https://{Config.HOST}:{Config.PORT}" if hasattr(Config, "HOST") else ""
+        await stealth_l3.start(site_url=site_url)
+    except Exception as e:
+        logger.debug("Stealth L3 init: %s", e)
+
+    try:
+        from app.transport.stealth_level4 import stealth_l4
+        await stealth_l4.start()
+    except Exception as e:
+        logger.debug("Stealth L4 init: %s", e)
+
     startup_duration = time.monotonic() - _startup_time
     logger.info("Vortex started in %.2fs (mode=%s, peers=%d)",
                 startup_duration, Config.NETWORK_MODE, len(registry.active()))
@@ -467,6 +493,28 @@ async def lifespan(app: FastAPI):
     if Config.TOR_HIDDEN_SERVICE:
         from app.security.tor_hidden_service import tor_hidden_service
         await tor_hidden_service.stop()
+
+    # Stop stealth transports
+    try:
+        from app.transport.auto_stealth import stop_auto_stealth
+        await stop_auto_stealth()
+    except Exception:
+        pass
+    try:
+        from app.transport.advanced_stealth import advanced_stealth
+        advanced_stealth.stop()
+    except Exception:
+        pass
+    try:
+        from app.transport.stealth_level3 import stealth_l3
+        stealth_l3.stop()
+    except Exception:
+        pass
+    try:
+        from app.transport.stealth_level4 import stealth_l4
+        stealth_l4.stop()
+    except Exception:
+        pass
 
     # Close Redis
     from app.peer.redis_pubsub import close_redis
@@ -817,47 +865,7 @@ if Config.OBFUSCATION_ENABLED:
     app.add_middleware(ObfuscationMiddleware)
     logger.info("Obfuscation middleware enabled (all modes)")
 
-# ── Auto-Stealth startup ────────────────────────────────────────────────
-@app.on_event("startup")
-async def _start_stealth():
-    from app.transport.auto_stealth import start_auto_stealth
-    await start_auto_stealth()
-
-@app.on_event("startup")
-async def _start_advanced_stealth():
-    from app.transport.advanced_stealth import advanced_stealth
-    await advanced_stealth.start()
-
-@app.on_event("shutdown")
-async def _stop_stealth():
-    from app.transport.auto_stealth import stop_auto_stealth
-    await stop_auto_stealth()
-
-@app.on_event("shutdown")
-async def _stop_advanced_stealth():
-    from app.transport.advanced_stealth import advanced_stealth
-    advanced_stealth.stop()
-
-@app.on_event("startup")
-async def _start_stealth_l3():
-    from app.transport.stealth_level3 import stealth_l3
-    site_url = f"https://{Config.HOST}:{Config.PORT}" if hasattr(Config, "HOST") else ""
-    await stealth_l3.start(site_url=site_url)
-
-@app.on_event("shutdown")
-async def _stop_stealth_l3():
-    from app.transport.stealth_level3 import stealth_l3
-    stealth_l3.stop()
-
-@app.on_event("startup")
-async def _start_stealth_l4():
-    from app.transport.stealth_level4 import stealth_l4
-    await stealth_l4.start()
-
-@app.on_event("shutdown")
-async def _stop_stealth_l4():
-    from app.transport.stealth_level4 import stealth_l4
-    stealth_l4.stop()
+## Stealth startup/shutdown moved to lifespan (above)
 
 
 # ── Static Files ─────────────────────────────────────────────────────────────
@@ -929,7 +937,7 @@ async def health():
     from app.peer.redis_pubsub import is_redis_available, get_instance_id
     result = {
         "status": "ok",
-        "version": "5.0.0",
+        "version": "1.0.0",
         "instance_id": get_instance_id() or "single",
         "crypto_backend": "rust" if rust_available() else "python",
         "key_exchange": "X25519+Kyber768+HKDF-SHA256" if get_pq_status()["available"] else "X25519+HKDF-SHA256",

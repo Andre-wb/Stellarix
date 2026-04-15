@@ -17,6 +17,7 @@ import { getAccounts } from './auth.js';
  * Скрывает чат, сбрасывает currentRoom, перерисовывает список комнат.
  */
 export function showWelcome() {
+    document.body.classList.remove('chat-open');
     const welcome    = $('welcome-screen');
     const chat       = $('chat-screen');
     const navWelcome = $('nav-welcome');
@@ -98,6 +99,7 @@ export function openRoom(id) {
     if (oldBanner) oldBanner.remove();
 
     cleanupUnreadDivider();
+    document.body.classList.add('chat-open');
     showChatScreen();
     const msgContainer = $('messages-container');
     // Clear messages container safely

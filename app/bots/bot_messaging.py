@@ -408,3 +408,71 @@ async def notify_bots_in_room(
             update["args"] = args
 
         await enqueue_bot_update(bot_user_id, update)
+
+        # Fallback: Constructor bot responds from saved commands
+        if is_command:
+            await _constructor_bot_respond(bot_user_id, room_id, command, sender_display_name, db)
+
+
+async def _constructor_bot_respond(bot_user_id, room_id, command, sender_name, db):
+    """
+    If a bot was created via Constructor (commands stored as JSON),
+    respond automatically without Gravitix runtime.
+    """
+    import json as _json
+    from app.bots.bot_crud import Bot
+    from app.models_rooms import Message, MessageType
+    from app.peer.connection_manager import manager
+
+    bot = db.query(Bot).filter(Bot.user_id == bot_user_id).first()
+    if not bot or not bot.commands:
+        return
+
+    cmds = bot.commands
+    if isinstance(cmds, str):
+        try:
+            cmds = _json.loads(cmds)
+        except Exception:
+            return
+
+    if not isinstance(cmds, list):
+        return
+
+    # Find matching command
+    cmd_lower = command.lower().strip()
+    response = None
+    for c in cmds:
+        if isinstance(c, dict) and c.get("command", "").lower() == cmd_lower:
+            response = c.get("response") or c.get("description") or c.get("command")
+            break
+
+    if not response:
+        return
+
+    # Replace template variables
+    response = response.replace("{ctx.first_name}", sender_name or "User")
+
+    # Send as bot message (plaintext — bots don't use E2E)
+    try:
+        msg = Message(
+            room_id=room_id,
+            sender_id=bot_user_id,
+            msg_type=MessageType.TEXT,
+            content_encrypted=b"\x00" * 28,
+        )
+        db.add(msg)
+        db.commit()
+        db.refresh(msg)
+
+        await manager.broadcast_to_room(room_id, {
+            "type": "message",
+            "msg_id": msg.id,
+            "sender_id": bot_user_id,
+            "sender": bot.name,
+            "display_name": bot.name,
+            "is_bot": True,
+            "plaintext": response,
+            "created_at": msg.created_at.isoformat() if msg.created_at else "",
+        })
+    except Exception as e:
+        logger.warning(f"Constructor bot respond error: {e}")

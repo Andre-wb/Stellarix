@@ -536,11 +536,11 @@ export async function sendPendingFile() {
         _finishPendingBubble(pendingEl);
     } catch (err) {
         _failPendingBubble(pendingEl, err.message);
+    } finally {
+        _sendingInProgress = false;
         if (S.ws?.readyState === WebSocket.OPEN) {
             try { S.ws.send(JSON.stringify({ action: 'stop_file_sending' })); } catch {}
         }
-    } finally {
-        _sendingInProgress = false;
     }
 }
 

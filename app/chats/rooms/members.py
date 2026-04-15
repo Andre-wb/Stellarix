@@ -327,3 +327,57 @@ async def set_member_permissions(
     })
 
     return {"ok": True, "permissions": cleaned}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Bot commands in room — for slash command autocomplete
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.get("/{room_id}/bot-commands")
+async def get_room_bot_commands(
+    room_id: int,
+    u: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return all bot commands available in this room."""
+    import json as _json
+    from app.bots.bot_crud import Bot
+
+    # Get bot user_ids in this room
+    bot_members = db.query(RoomMember.user_id).filter(
+        RoomMember.room_id == room_id,
+    ).all()
+    bot_user_ids = [m[0] for m in bot_members]
+
+    # Find bots among members
+    bots = db.query(Bot).filter(Bot.user_id.in_(bot_user_ids)).all() if bot_user_ids else []
+
+    # Also include bots if this is a DM with a bot
+    if not bots:
+        other = db.query(RoomMember).filter(
+            RoomMember.room_id == room_id,
+            RoomMember.user_id != u.id,
+        ).first()
+        if other:
+            bot = db.query(Bot).filter(Bot.user_id == other.user_id).first()
+            if bot:
+                bots = [bot]
+
+    commands = []
+    for bot in bots:
+        cmds = bot.commands
+        if isinstance(cmds, str):
+            try:
+                cmds = _json.loads(cmds)
+            except Exception:
+                cmds = []
+        if isinstance(cmds, list):
+            for c in cmds:
+                if isinstance(c, dict) and c.get("command"):
+                    commands.append({
+                        "command": c["command"],
+                        "description": c.get("description", ""),
+                        "bot_name": bot.name,
+                    })
+
+    return {"commands": commands}

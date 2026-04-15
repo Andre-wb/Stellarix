@@ -131,7 +131,7 @@ function ideFolderAddFolder() {
 function ideFolderRename() {
     const folder = IDE.ctxFolder; _closeFolderCtx();
     if (!folder || !IDE.current) return;
-    const newName = prompt('Rename folder:', folder);
+    const newName = prompt((typeof t==='function'?t('ide.renameFolder'):'Rename folder:'), folder);
     if (!newName || newName === folder) return;
     // Rename folder in list
     const idx = IDE.current.folders.indexOf(folder);
@@ -164,7 +164,7 @@ function ideFolderCopy() {
 function ideFolderDelete() {
     const folder = IDE.ctxFolder; _closeFolderCtx();
     if (!folder || !IDE.current) return;
-    if (!confirm(`Delete folder "${folder}" and all its files?`)) return;
+    if (!confirm((typeof t==='function'?t('ide.deleteFolderConfirm'):'Delete folder') + ` "${folder}"?`)) return;
     IDE.current.folders = IDE.current.folders.filter(f => f !== folder);
     Object.keys(IDE.current.files).forEach(k => {
         if (k.startsWith(folder + '/')) delete IDE.current.files[k];

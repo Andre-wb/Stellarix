@@ -8,11 +8,11 @@ function checkMkcert() {
     const opt   = document.getElementById('opt-mkcert');
     const badge = document.getElementById('mkcert-badge');
     if (avail) {
-        badge.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:3px;"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Установлен';
+        badge.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor" viewBox="0 0 24 24" style="vertical-align:middle;margin-right:3px;"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Installed';
         badge.className = 'ssl-badge badge-recommended';
     } else {
         opt.classList.add('unavailable');
-        badge.textContent = 'Не установлен';
+        badge.textContent = 'Not installed';
         badge.className   = 'ssl-badge badge-advanced';
     }
 }
@@ -33,7 +33,7 @@ function selectSSL(mode) {
     document.getElementById('detail-' + mode).classList.add('active');
 
     document.getElementById('btn-ssl-gen').textContent =
-        mode === 'skip' ? 'Пропустить SSL →' : 'Сгенерировать →';
+        mode === 'skip' ? 'Skip SSL →' : 'Generate →';
 }
 
 /**
@@ -46,7 +46,7 @@ async function generateSSL() {
     const terminal = document.getElementById('ssl-terminal');
 
     btn.disabled  = true;
-    btn.innerHTML = '<span class="spinner"></span> Генерация...';
+    btn.innerHTML = '<span class="spinner"></span> Generating...';
     block.style.display = 'block';
     terminal.innerHTML  = '';
 
@@ -59,7 +59,7 @@ async function generateSSL() {
         switch (state.sslMode) {
 
             case 'skip': {
-                log('⚡ SSL пропущен. Узел будет работать по HTTP.', 'line-warn');
+                log('⚡ SSL skipped. Node will run on HTTP.', 'line-warn');
                 state.sslDone    = true;
                 state.sslSkipped = true;
                 _setStep(4);
@@ -67,16 +67,16 @@ async function generateSSL() {
             }
 
             case 'self': {
-                log('⚡ Генерация CA и серверного сертификата...', 'line-info');
+                log('⚡ Generating CA and server certificate...', 'line-info');
                 const installCa = document.getElementById('install-ca').checked;
                 const pwdEl = document.getElementById('admin-password');
                 const adminPwd = (pwdEl && pwdEl.value) || '';
 
                 // Валидация: если хочет установить CA — пароль обязателен
                 if (installCa && !adminPwd) {
-                    showAlert('s3', 'Введите пароль администратора для установки CA', 'error');
+                    showAlert('s3', 'Enter administrator password to install CA', 'error');
                     btn.disabled = false;
-                    btn.textContent = 'Сгенерировать →';
+                    btn.textContent = 'Generate →';
                     return;
                 }
 
@@ -101,8 +101,8 @@ async function generateSSL() {
                 log(`✓ CERT: ${d.cert}`, 'line-ok');
                 log(`✓ KEY:  ${d.key}`,  'line-ok');
                 log(d.trusted
-                        ? '✓ CA установлен в системное хранилище — перезапустите браузер'
-                        : '✓ Сертификат создан (CA не устанавливался)',
+                        ? '✓ CA installed in system trust store — restart your browser'
+                        : '✓ Certificate created (CA was not installed)',
                     d.trusted ? 'line-ok' : 'line-info');
 
                 state.caCmd   = '';
@@ -112,7 +112,7 @@ async function generateSSL() {
             }
 
             case 'mkcert': {
-                log('⚡ Запуск mkcert...', 'line-info');
+                log('⚡ Starting mkcert...', 'line-info');
                 const r = await fetch('/api/ssl/mkcert', { method: 'POST' });
                 const d = await r.json();
                 if (!r.ok) throw new Error(d.detail || d.message);
@@ -126,10 +126,10 @@ async function generateSSL() {
                 const domain  = document.getElementById('le-domain').value.trim();
                 const email   = document.getElementById('le-email').value.trim();
                 const staging = document.getElementById('le-staging').checked;
-                if (!domain) { showAlert('s3', 'Введите домен', 'error'); return; }
-                if (!email)  { showAlert('s3', 'Введите email', 'error'); return; }
+                if (!domain) { showAlert('s3', 'Enter domain', 'error'); return; }
+                if (!email)  { showAlert('s3', 'Enter email', 'error'); return; }
 
-                log(`⚡ certbot: получение сертификата для ${domain}...`, 'line-info');
+                log(`⚡ certbot: obtaining certificate for ${domain}...`, 'line-info');
                 const r = await fetch('/api/ssl/letsencrypt', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -145,11 +145,11 @@ async function generateSSL() {
         }
 
     } catch (e) {
-        log(`✗ Ошибка: ${e.message}`, 'line-err');
+        log(`✗ Error: ${e.message}`, 'line-err');
         showAlert('s3', e.message, 'error');
 
     } finally {
         btn.disabled    = false;
-        btn.textContent = state.sslMode === 'skip' ? 'Пропустить SSL →' : 'Сгенерировать →';
+        btn.textContent = state.sslMode === 'skip' ? 'Skip SSL →' : 'Generate →';
     }
 }

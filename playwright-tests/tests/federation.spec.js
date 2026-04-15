@@ -201,7 +201,7 @@ test.describe('Federation — Trusted Nodes', () => {
                 url: `https://gossip-join-${randomStr(6)}.example.com`,
                 node_id: `node_${randomStr(8)}`,
                 code_hash: randomStr(64),
-                version: '5.0.0',
+                version: '1.0.0',
             },
         });
         expect(res.status()).toBeLessThan(500);

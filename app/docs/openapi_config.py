@@ -98,7 +98,7 @@ def get_openapi_config() -> dict:
             "- WebAuthn/Passkey support\n"
             "- TOTP 2FA\n"
         ),
-        "version": "2.0.0",
+        "version": "1.0.0",
         "contact": {"name": "Vortex Team"},
         "license_info": {"name": "MIT", "url": "https://opensource.org/licenses/MIT"},
         "openapi_tags": OPENAPI_TAGS,

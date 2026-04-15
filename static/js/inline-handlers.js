@@ -3541,23 +3541,7 @@ window.mpBackToList = function() {
     document.getElementById('mp-detail-view').style.display = 'none';
 };
 
-window.mpInstallBot = async function(botId) {
-    var sel = document.getElementById('mp-install-room');
-    if (!sel || !sel.value) {
-        alert(window.t?.('errors.selectRoom')||'Select a room');
-        return;
-    }
-    try {
-        var resp = await window.api('POST', '/api/marketplace/' + botId + '/install/' + sel.value);
-        if (resp.message) {
-            alert(resp.message);
-        } else {
-            alert(window.t?.('notifications.botInstalledInRoom')||'Bot installed!');
-        }
-    } catch (e) {
-        alert((window.t?.('errors.generic')||'Error')+': '+(e.message||e));
-    }
-};
+// mpInstallBot defined in settings/bots.js
 
 var _mpSelectedRating = 0;
 
