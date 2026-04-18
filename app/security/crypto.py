@@ -36,7 +36,7 @@ try:
 except ImportError:
     _RUST = False
     logger.warning("⚠️  vortex_chat не найден — Python fallback активен")
-    logger.warning("   Скомпилируйте: cd rust_src && maturin develop --release")
+    logger.warning("   Скомпилируйте: cd rust_utils && maturin develop --release")
 
 
 # ══════════════════════════════════════════════════════════════════════════════

@@ -28,8 +28,12 @@ pub const MAX_METADATA_LEN: usize = 512;
 pub const NODE_PUBKEY_LEN: usize = 32;
 pub const CODE_HASH_LEN: usize = 32;
 
-pub const PEER_SEED:   &[u8] = b"peer";
-pub const CONFIG_SEED: &[u8] = b"config";
+pub const PEER_SEED:          &[u8] = b"peer";
+pub const CONFIG_SEED:        &[u8] = b"config";
+pub const SUBSCRIPTION_SEED:  &[u8] = b"subscription";
+pub const STAKE_SEED:         &[u8] = b"stake";
+pub const REWARDS_VAULT_SEED: &[u8] = b"rewards_vault";
+pub const REWARD_SEED:        &[u8] = b"reward";
 
 /// Default register fee (1 SOL). Admin can change it at runtime via
 /// ``update_config``; this constant is only the initial value.
@@ -37,6 +41,46 @@ pub const DEFAULT_REGISTER_FEE_LAMPORTS: u64 = 1_000_000_000;
 
 /// Hard upper bound so a compromised admin key cannot weaponise the fee.
 pub const MAX_REGISTER_FEE_LAMPORTS: u64 = 10_000_000_000; // 10 SOL
+
+/// ≈$5/month @ $150/SOL. Admin re-prices via ``update_config`` to track
+/// the SOL/USD rate until an on-chain oracle is wired in.
+pub const DEFAULT_PREMIUM_PRICE_LAMPORTS: u64 = 33_333_333; // ~0.033 SOL
+
+/// Safety cap — admin cannot accidentally charge more than 1 SOL per
+/// month of premium (~$150 at today's rate).
+pub const MAX_PREMIUM_PRICE_LAMPORTS: u64 = 1_000_000_000;
+
+/// Number of months buyable in a single ``subscribe_premium`` tx.
+/// Prevents a typo (``3600``) draining a wallet and caps PDA rent.
+pub const MAX_PREMIUM_MONTHS_PER_TX: u8 = 36;
+
+/// Fixed-length "month" used by on-chain accounting. Keeping it constant
+/// lets both the contract and off-chain indexers compute end_timestamp
+/// deterministically without calendar arithmetic.
+pub const SECONDS_PER_MONTH: i64 = 30 * 86_400;
+
+/// ── Phase C: staking ───────────────────────────────────────────────────
+
+/// Minimum active stake per node. Discourages dust-sized sybils
+/// while letting hobby operators participate.
+pub const MIN_STAKE_LAMPORTS: u64 = 100_000_000; // 0.1 SOL
+
+/// Absolute cap on a single node's stake. Prevents accidental giant
+/// deposits (misplaced zero) and interacts cleanly with the rewards
+/// formula's cap in Phase D.
+pub const MAX_STAKE_LAMPORTS: u64 = 10_000 * 1_000_000_000; // 10,000 SOL
+
+/// Time a requested unstake sits in pending before it can be claimed.
+/// Gives the off-chain accounting a window to settle rewards owed and
+/// reduces churn that would otherwise let stakers game the distribution.
+pub const UNSTAKE_COOLDOWN_SECONDS: i64 = 7 * 86_400;
+
+/// ── Phase D: rewards ──────────────────────────────────────────────────
+
+/// Hard safety cap per reward entry. A credit above this fails —
+/// defence against a typo like `1_000_000_000_000` draining the vault
+/// into a single operator.
+pub const MAX_REWARD_PER_ENTRY_LAMPORTS: u64 = 1_000 * 1_000_000_000; // 1,000 SOL
 
 #[program]
 pub mod vortex_registry {
@@ -175,6 +219,9 @@ pub mod vortex_registry {
         cfg.register_fee_lamports = DEFAULT_REGISTER_FEE_LAMPORTS;
         cfg.total_fees_collected = 0;
         cfg.registrations_count = 0;
+        cfg.premium_price_per_month_lamports = DEFAULT_PREMIUM_PRICE_LAMPORTS;
+        cfg.total_premium_revenue_lamports = 0;
+        cfg.subscription_tx_count = 0;
         cfg.bump = ctx.bumps.config;
         Ok(())
     }
@@ -188,6 +235,7 @@ pub mod vortex_registry {
         ctx: Context<UpdateConfig>,
         new_treasury: Option<Pubkey>,
         new_fee_lamports: Option<u64>,
+        new_premium_price_lamports: Option<u64>,
     ) -> Result<()> {
         let cfg = &mut ctx.accounts.config;
         require!(cfg.admin == ctx.accounts.admin.key(), VortexError::NotOwner);
@@ -198,6 +246,10 @@ pub mod vortex_registry {
         if let Some(f) = new_fee_lamports {
             require!(f <= MAX_REGISTER_FEE_LAMPORTS, VortexError::FeeAboveCap);
             cfg.register_fee_lamports = f;
+        }
+        if let Some(p) = new_premium_price_lamports {
+            require!(p <= MAX_PREMIUM_PRICE_LAMPORTS, VortexError::PremiumPriceAboveCap);
+            cfg.premium_price_per_month_lamports = p;
         }
         Ok(())
     }
@@ -268,6 +320,403 @@ pub mod vortex_registry {
             owner: ctx.accounts.owner.key(),
             treasury: ctx.accounts.treasury.key(),
             amount_lamports: fee,
+            at: clock.unix_timestamp,
+        });
+        Ok(())
+    }
+
+    // ── Phase B: premium subscriptions ─────────────────────────────────
+
+    /// Buy or extend a premium subscription by ``months`` months.
+    ///
+    /// The user pays ``months × config.premium_price_per_month_lamports``
+    /// lamports to the treasury in a single CPI transfer, and the
+    /// subscription PDA's ``end_timestamp`` advances by
+    /// ``months × 30 days`` — stacking on top of any remaining time
+    /// rather than resetting.
+    ///
+    /// We don't split revenue here. Phase D will add a distribution
+    /// instruction that pulls from treasury into the rewards pool using
+    /// the 70/20/10 formula. Until then every lamport sits in treasury
+    /// and counts toward ``total_premium_revenue_lamports``.
+    pub fn subscribe_premium(
+        ctx: Context<SubscribePremium>,
+        months: u8,
+    ) -> Result<()> {
+        require!(months >= 1, VortexError::InvalidMonths);
+        require!(months <= MAX_PREMIUM_MONTHS_PER_TX, VortexError::InvalidMonths);
+
+        let cfg = &ctx.accounts.config;
+        require!(
+            ctx.accounts.treasury.key() == cfg.treasury,
+            VortexError::WrongTreasury,
+        );
+
+        let per_month = cfg.premium_price_per_month_lamports;
+        let total = (per_month as u128)
+            .checked_mul(months as u128)
+            .and_then(|v| u64::try_from(v).ok())
+            .ok_or(error!(VortexError::FeeOverflow))?;
+
+        // Transfer first so a failing payment aborts the whole tx before
+        // any subscription state is mutated.
+        if total > 0 {
+            let cpi_ctx = CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                system_program::Transfer {
+                    from: ctx.accounts.user.to_account_info(),
+                    to:   ctx.accounts.treasury.to_account_info(),
+                },
+            );
+            system_program::transfer(cpi_ctx, total)?;
+        }
+
+        let clock = Clock::get()?;
+        let now = clock.unix_timestamp;
+        let sub = &mut ctx.accounts.subscription;
+
+        // If the subscription is brand-new or already expired, start
+        // accruing from ``now``; otherwise stack new months on top of
+        // the remaining time so prepaying is never punished.
+        let base = core::cmp::max(sub.end_timestamp, now);
+        let added_seconds = SECONDS_PER_MONTH
+            .checked_mul(months as i64)
+            .ok_or(error!(VortexError::FeeOverflow))?;
+        sub.end_timestamp = base
+            .checked_add(added_seconds)
+            .ok_or(error!(VortexError::FeeOverflow))?;
+
+        sub.user = ctx.accounts.user.key();
+        sub.months_total_paid =
+            sub.months_total_paid.saturating_add(months as u32);
+        sub.lifetime_lamports_paid =
+            sub.lifetime_lamports_paid.saturating_add(total);
+        sub.bump = ctx.bumps.subscription;
+
+        // Update global counters on config.
+        let cfg_mut = &mut ctx.accounts.config;
+        cfg_mut.total_premium_revenue_lamports =
+            cfg_mut.total_premium_revenue_lamports.saturating_add(total);
+        cfg_mut.subscription_tx_count =
+            cfg_mut.subscription_tx_count.saturating_add(1);
+
+        emit!(SubscriptionPaid {
+            user: ctx.accounts.user.key(),
+            treasury: ctx.accounts.treasury.key(),
+            months,
+            amount_lamports: total,
+            end_timestamp: sub.end_timestamp,
+            at: now,
+        });
+        Ok(())
+    }
+
+    // ── Phase C: staking ───────────────────────────────────────────────
+
+    /// Deposit SOL into a per-node stake PDA.
+    ///
+    /// The PDA (seeds ``["stake", node_pubkey]``) physically holds the
+    /// lamports. On first stake the account is initialized; further
+    /// stake calls by the same owner just top it up. New stake is
+    /// added to ``staked_amount`` — it does not disturb any lamports
+    /// that are already in the pending-unstake bucket.
+    pub fn stake(
+        ctx: Context<StakeOp>,
+        node_pubkey: [u8; NODE_PUBKEY_LEN],
+        amount: u64,
+    ) -> Result<()> {
+        require!(amount > 0, VortexError::InvalidStakeAmount);
+
+        let acc = &mut ctx.accounts.stake_account;
+
+        // First-time init vs top-up — either way the owner has to be the
+        // same signer on every call so stolen-account scenarios are out.
+        let is_new = acc.owner == Pubkey::default();
+        if is_new {
+            acc.owner = ctx.accounts.owner.key();
+            acc.node_pubkey = node_pubkey;
+            acc.bump = ctx.bumps.stake_account;
+        } else {
+            require!(acc.owner == ctx.accounts.owner.key(), VortexError::NotOwner);
+            require!(acc.node_pubkey == node_pubkey, VortexError::WrongNode);
+        }
+
+        let new_total = acc.staked_amount
+            .checked_add(amount)
+            .ok_or(error!(VortexError::FeeOverflow))?;
+        require!(new_total >= MIN_STAKE_LAMPORTS, VortexError::InvalidStakeAmount);
+        require!(new_total <= MAX_STAKE_LAMPORTS, VortexError::InvalidStakeAmount);
+
+        // CPI transfer owner → PDA.
+        let cpi_ctx = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            system_program::Transfer {
+                from: ctx.accounts.owner.to_account_info(),
+                to:   acc.to_account_info(),
+            },
+        );
+        system_program::transfer(cpi_ctx, amount)?;
+
+        acc.staked_amount = new_total;
+
+        emit!(Staked {
+            node_pubkey,
+            owner: ctx.accounts.owner.key(),
+            amount_lamports: amount,
+            new_total_staked: new_total,
+            at: Clock::get()?.unix_timestamp,
+        });
+        Ok(())
+    }
+
+    /// Move up to ``amount`` lamports from active stake into pending.
+    ///
+    /// The lamports stay in the PDA — they only move between buckets
+    /// accounting-wise. ``cooldown_end`` restarts every time this is
+    /// called. To keep bookkeeping simple, a second unstake request
+    /// while a previous one is still pending is rejected: the operator
+    /// must wait out the cooldown and claim before queuing more.
+    pub fn request_unstake(
+        ctx: Context<StakeOp>,
+        _node_pubkey: [u8; NODE_PUBKEY_LEN],
+        amount: u64,
+    ) -> Result<()> {
+        require!(amount > 0, VortexError::InvalidStakeAmount);
+
+        let acc = &mut ctx.accounts.stake_account;
+        require!(acc.owner == ctx.accounts.owner.key(), VortexError::NotOwner);
+        require!(
+            amount <= acc.staked_amount,
+            VortexError::InsufficientStake,
+        );
+        require!(
+            acc.pending_unstake == 0,
+            VortexError::CooldownActive,
+        );
+
+        acc.staked_amount = acc.staked_amount.saturating_sub(amount);
+        acc.pending_unstake = amount;
+        let clock = Clock::get()?;
+        acc.cooldown_end = clock
+            .unix_timestamp
+            .checked_add(UNSTAKE_COOLDOWN_SECONDS)
+            .ok_or(error!(VortexError::FeeOverflow))?;
+
+        emit!(UnstakeRequested {
+            node_pubkey: acc.node_pubkey,
+            owner: acc.owner,
+            amount_lamports: amount,
+            cooldown_end: acc.cooldown_end,
+            at: clock.unix_timestamp,
+        });
+        Ok(())
+    }
+
+    /// Pay out ``pending_unstake`` lamports to the owner once the
+    /// cooldown has elapsed. Moves lamports by direct mutation of
+    /// ``AccountInfo.lamports`` (legal because the PDA is owned by this
+    /// program) while verifying the PDA remains rent-exempt.
+    pub fn claim_unstake(
+        ctx: Context<StakeOp>,
+        _node_pubkey: [u8; NODE_PUBKEY_LEN],
+    ) -> Result<()> {
+        let acc = &mut ctx.accounts.stake_account;
+        require!(acc.owner == ctx.accounts.owner.key(), VortexError::NotOwner);
+        require!(acc.pending_unstake > 0, VortexError::NoPendingUnstake);
+
+        let clock = Clock::get()?;
+        require!(
+            clock.unix_timestamp >= acc.cooldown_end,
+            VortexError::CooldownActive,
+        );
+
+        let payout = acc.pending_unstake;
+        let acc_info = acc.to_account_info();
+        let rent_min = Rent::get()?.minimum_balance(acc_info.data_len());
+        let current = acc_info.lamports();
+        let remaining = current
+            .checked_sub(payout)
+            .ok_or(error!(VortexError::FeeOverflow))?;
+        require!(remaining >= rent_min, VortexError::RentViolation);
+
+        // Direct lamport move — safe because the PDA is owned by this
+        // program and has no data constraints on balance besides rent.
+        **acc_info.try_borrow_mut_lamports()? = remaining;
+        **ctx.accounts.owner.to_account_info().try_borrow_mut_lamports()? = ctx
+            .accounts
+            .owner
+            .to_account_info()
+            .lamports()
+            .checked_add(payout)
+            .ok_or(error!(VortexError::FeeOverflow))?;
+
+        acc.pending_unstake = 0;
+        acc.cooldown_end = 0;
+
+        emit!(UnstakeClaimed {
+            node_pubkey: acc.node_pubkey,
+            owner: acc.owner,
+            amount_lamports: payout,
+            at: clock.unix_timestamp,
+        });
+        Ok(())
+    }
+
+    // ── Phase D: rewards distribution ──────────────────────────────────
+    //
+    // Split between on-chain enforcement and off-chain computation:
+    //
+    //   OFF-CHAIN (admin / oracle):
+    //     * Reads usage attestations (premium-users per node)
+    //     * Reads on-chain stake amounts (StakeAccount.staked_amount)
+    //     * Computes each operator's share via the 70% usage + 30% stake
+    //       formula documented on /security
+    //     * Submits the resulting (node, amount) list via credit_reward
+    //
+    //   ON-CHAIN (this program):
+    //     * Enforces that only ``config.admin`` can credit entries
+    //     * Prevents double-claim via RewardEntry.claimed
+    //     * Guarantees payouts come from the pre-funded vault, not a
+    //       user-supplied account
+    //     * Records events so explorers can audit every credit/claim
+    //
+    // Future upgrade: replace admin with an on-chain computation once a
+    // merkle-tree of usage attestations is implementable.
+
+    /// One-shot initialisation of the rewards vault. Admin-only.
+    pub fn initialize_rewards_vault(ctx: Context<InitializeRewardsVault>) -> Result<()> {
+        require!(
+            ctx.accounts.config.admin == ctx.accounts.admin.key(),
+            VortexError::NotOwner,
+        );
+        let vault = &mut ctx.accounts.rewards_vault;
+        vault.admin = ctx.accounts.admin.key();
+        vault.total_funded_lamports = 0;
+        vault.total_claimed_lamports = 0;
+        vault.bump = ctx.bumps.rewards_vault;
+        Ok(())
+    }
+
+    /// Deposit lamports into the rewards vault. Any account may fund —
+    /// typically the treasury-owner moves a slice of the protocol's
+    /// accumulated revenue into here at the end of each epoch.
+    pub fn fund_rewards_vault(ctx: Context<FundRewardsVault>, amount: u64) -> Result<()> {
+        require!(amount > 0, VortexError::InvalidStakeAmount);
+
+        let cpi_ctx = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            system_program::Transfer {
+                from: ctx.accounts.funder.to_account_info(),
+                to:   ctx.accounts.rewards_vault.to_account_info(),
+            },
+        );
+        system_program::transfer(cpi_ctx, amount)?;
+
+        let vault = &mut ctx.accounts.rewards_vault;
+        vault.total_funded_lamports =
+            vault.total_funded_lamports.saturating_add(amount);
+
+        emit!(RewardsFunded {
+            funder: ctx.accounts.funder.key(),
+            amount_lamports: amount,
+            new_total_funded: vault.total_funded_lamports,
+            at: Clock::get()?.unix_timestamp,
+        });
+        Ok(())
+    }
+
+    /// Record a payout owed to ``node_pubkey`` for ``epoch``.
+    /// Admin-only. Creates a RewardEntry PDA — subsequent crediting of
+    /// the same (node, epoch) tuple fails at the account level (init).
+    ///
+    /// The ``owner`` parameter is cached into the entry so ``claim_reward``
+    /// can verify the signer cheaply. Admin must pass the actual owner
+    /// stored on the Peer / Stake account for that node — off-chain
+    /// tools know both.
+    pub fn credit_reward(
+        ctx: Context<CreditReward>,
+        _node_pubkey: [u8; NODE_PUBKEY_LEN],
+        epoch: u32,
+        owner: Pubkey,
+        amount: u64,
+    ) -> Result<()> {
+        require!(
+            ctx.accounts.config.admin == ctx.accounts.admin.key(),
+            VortexError::NotOwner,
+        );
+        require!(amount > 0, VortexError::InvalidStakeAmount);
+        require!(
+            amount <= MAX_REWARD_PER_ENTRY_LAMPORTS,
+            VortexError::RewardAboveCap,
+        );
+
+        let clock = Clock::get()?;
+        let entry = &mut ctx.accounts.reward_entry;
+        entry.node_pubkey = _node_pubkey;
+        entry.owner = owner;
+        entry.epoch = epoch;
+        entry.amount_lamports = amount;
+        entry.claimed = false;
+        entry.credited_at = clock.unix_timestamp;
+        entry.claimed_at = 0;
+        entry.bump = ctx.bumps.reward_entry;
+
+        emit!(RewardCredited {
+            node_pubkey: _node_pubkey,
+            owner,
+            epoch,
+            amount_lamports: amount,
+            at: clock.unix_timestamp,
+        });
+        Ok(())
+    }
+
+    /// Node's owner withdraws a credited reward. One-shot per entry.
+    pub fn claim_reward(
+        ctx: Context<ClaimReward>,
+        _node_pubkey: [u8; NODE_PUBKEY_LEN],
+        _epoch: u32,
+    ) -> Result<()> {
+        let entry = &mut ctx.accounts.reward_entry;
+        require!(!entry.claimed, VortexError::RewardAlreadyClaimed);
+        require!(
+            entry.owner == ctx.accounts.owner.key(),
+            VortexError::NotOwner,
+        );
+
+        let payout = entry.amount_lamports;
+
+        let vault_info = ctx.accounts.rewards_vault.to_account_info();
+        let rent_min = Rent::get()?.minimum_balance(vault_info.data_len());
+        let current = vault_info.lamports();
+        let remaining = current
+            .checked_sub(payout)
+            .ok_or(error!(VortexError::VaultUnderfunded))?;
+        require!(remaining >= rent_min, VortexError::VaultUnderfunded);
+
+        // Direct lamport movement — vault is program-owned.
+        **vault_info.try_borrow_mut_lamports()? = remaining;
+        **ctx.accounts.owner.to_account_info().try_borrow_mut_lamports()? = ctx
+            .accounts
+            .owner
+            .to_account_info()
+            .lamports()
+            .checked_add(payout)
+            .ok_or(error!(VortexError::FeeOverflow))?;
+
+        let clock = Clock::get()?;
+        entry.claimed = true;
+        entry.claimed_at = clock.unix_timestamp;
+
+        let vault = &mut ctx.accounts.rewards_vault;
+        vault.total_claimed_lamports =
+            vault.total_claimed_lamports.saturating_add(payout);
+
+        emit!(RewardClaimed {
+            node_pubkey: entry.node_pubkey,
+            owner: entry.owner,
+            epoch: entry.epoch,
+            amount_lamports: payout,
             at: clock.unix_timestamp,
         });
         Ok(())
@@ -370,6 +819,121 @@ pub struct RegisterWithFee<'info> {
     pub system_program: Program<'info, System>,
 }
 
+#[derive(Accounts)]
+pub struct InitializeRewardsVault<'info> {
+    #[account(seeds = [CONFIG_SEED], bump = config.bump)]
+    pub config: Account<'info, Config>,
+
+    #[account(
+        init,
+        payer = admin,
+        space = RewardsVault::SIZE,
+        seeds = [REWARDS_VAULT_SEED],
+        bump,
+    )]
+    pub rewards_vault: Account<'info, RewardsVault>,
+
+    #[account(mut)]
+    pub admin: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct FundRewardsVault<'info> {
+    #[account(mut, seeds = [REWARDS_VAULT_SEED], bump = rewards_vault.bump)]
+    pub rewards_vault: Account<'info, RewardsVault>,
+
+    #[account(mut)]
+    pub funder: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(node_pubkey: [u8; NODE_PUBKEY_LEN], epoch: u32)]
+pub struct CreditReward<'info> {
+    #[account(seeds = [CONFIG_SEED], bump = config.bump)]
+    pub config: Account<'info, Config>,
+
+    #[account(
+        init,
+        payer = admin,
+        space = RewardEntry::SIZE,
+        seeds = [REWARD_SEED, node_pubkey.as_ref(), &epoch.to_le_bytes()],
+        bump,
+    )]
+    pub reward_entry: Account<'info, RewardEntry>,
+
+    #[account(mut)]
+    pub admin: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+#[instruction(node_pubkey: [u8; NODE_PUBKEY_LEN], epoch: u32)]
+pub struct ClaimReward<'info> {
+    #[account(
+        mut,
+        seeds = [REWARD_SEED, node_pubkey.as_ref(), &epoch.to_le_bytes()],
+        bump = reward_entry.bump,
+    )]
+    pub reward_entry: Account<'info, RewardEntry>,
+
+    #[account(mut, seeds = [REWARDS_VAULT_SEED], bump = rewards_vault.bump)]
+    pub rewards_vault: Account<'info, RewardsVault>,
+
+    #[account(mut)]
+    pub owner: Signer<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(node_pubkey: [u8; NODE_PUBKEY_LEN])]
+pub struct StakeOp<'info> {
+    /// Per-node stake PDA. ``init_if_needed`` covers the first stake
+    /// call; subsequent calls leave the account intact. Re-initialisation
+    /// is guarded by checking ``owner == signer`` inside each instruction
+    /// (a fresh PDA has ``owner == Pubkey::default()``).
+    #[account(
+        init_if_needed,
+        payer = owner,
+        space = StakeAccount::SIZE,
+        seeds = [STAKE_SEED, node_pubkey.as_ref()],
+        bump,
+    )]
+    pub stake_account: Account<'info, StakeAccount>,
+
+    #[account(mut)]
+    pub owner: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct SubscribePremium<'info> {
+    #[account(mut, seeds = [CONFIG_SEED], bump = config.bump)]
+    pub config: Account<'info, Config>,
+
+    #[account(
+        init_if_needed,
+        payer = user,
+        space = Subscription::SIZE,
+        seeds = [SUBSCRIPTION_SEED, user.key().as_ref()],
+        bump,
+    )]
+    pub subscription: Account<'info, Subscription>,
+
+    #[account(mut)]
+    pub user: Signer<'info>,
+
+    /// CHECK: validated against ``config.treasury`` in the handler.
+    #[account(mut)]
+    pub treasury: UncheckedAccount<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
 /// On-chain record for one Vortex node.
 #[account]
 pub struct Peer {
@@ -430,6 +994,18 @@ pub struct Config {
     pub total_fees_collected: u64,
     pub registrations_count: u64,
     pub bump: u8,
+    // ── Phase B (premium subscriptions) ───────────────────────────────
+    /// Current per-month price in lamports. Admin re-prices over time to
+    /// track SOL/USD drift.
+    pub premium_price_per_month_lamports: u64,
+    /// Lifetime lamports received from ``subscribe_premium`` — lets the
+    /// off-chain dashboard show cumulative premium inflow without
+    /// scanning every subscription account.
+    pub total_premium_revenue_lamports: u64,
+    /// Number of ``subscribe_premium`` transactions executed. Not the
+    /// number of distinct users — one wallet that top-ups monthly
+    /// increments this every month.
+    pub subscription_tx_count: u64,
 }
 
 impl Config {
@@ -439,7 +1015,112 @@ impl Config {
         + 8   // register_fee_lamports
         + 8   // total_fees_collected
         + 8   // registrations_count
+        + 1   // bump
+        + 8   // premium_price_per_month_lamports
+        + 8   // total_premium_revenue_lamports
+        + 8;  // subscription_tx_count
+}
+
+/// Per-user premium subscription record at PDA ``["subscription", user]``.
+///
+/// ``end_timestamp`` is the single source of truth — clients check
+/// ``now < end_timestamp`` to decide whether to unlock premium features.
+/// Re-subscribing before expiry stacks; re-subscribing after expiry
+/// restarts from ``now``.
+#[account]
+pub struct Subscription {
+    pub user: Pubkey,
+    pub end_timestamp: i64,
+    pub months_total_paid: u32,
+    pub lifetime_lamports_paid: u64,
+    pub bump: u8,
+}
+
+impl Subscription {
+    pub const SIZE: usize = 8   // discriminator
+        + 32  // user
+        + 8   // end_timestamp
+        + 4   // months_total_paid
+        + 8   // lifetime_lamports_paid
         + 1;  // bump
+}
+
+/// Per-node staking account at PDA ``["stake", node_pubkey]``.
+///
+/// The account itself **physically holds the staked lamports**. Two
+/// logical buckets are tracked:
+///   * ``staked_amount`` — active, earning rewards
+///   * ``pending_unstake`` — in cooldown, not earning, waiting for claim
+///
+/// Total lamports held by the PDA = rent_exempt_minimum +
+/// staked_amount + pending_unstake.
+#[account]
+pub struct StakeAccount {
+    pub owner: Pubkey,
+    pub node_pubkey: [u8; NODE_PUBKEY_LEN],
+    pub staked_amount: u64,
+    pub pending_unstake: u64,
+    pub cooldown_end: i64,
+    pub bump: u8,
+}
+
+impl StakeAccount {
+    pub const SIZE: usize = 8   // discriminator
+        + 32                 // owner
+        + NODE_PUBKEY_LEN
+        + 8                  // staked_amount
+        + 8                  // pending_unstake
+        + 8                  // cooldown_end
+        + 1;                 // bump
+}
+
+/// Singleton PDA ``["rewards_vault"]`` that physically holds lamports
+/// earmarked for operator payouts. ``fund_rewards_vault`` tops it up;
+/// ``claim_reward`` pays out from it.
+#[account]
+pub struct RewardsVault {
+    pub admin: Pubkey,
+    pub total_funded_lamports: u64,
+    pub total_claimed_lamports: u64,
+    pub bump: u8,
+}
+
+impl RewardsVault {
+    pub const SIZE: usize = 8   // discriminator
+        + 32  // admin
+        + 8   // total_funded_lamports
+        + 8   // total_claimed_lamports
+        + 1;  // bump
+}
+
+/// Per-node, per-epoch payout record at
+/// PDA ``["reward", node_pubkey, epoch.to_le_bytes()]``.
+///
+/// The PDA derivation doubles as dedupe — the same (node, epoch) pair
+/// can only be credited once. A fresh epoch number is needed to top-up
+/// the same node.
+#[account]
+pub struct RewardEntry {
+    pub node_pubkey: [u8; NODE_PUBKEY_LEN],
+    pub owner: Pubkey,
+    pub epoch: u32,
+    pub amount_lamports: u64,
+    pub claimed: bool,
+    pub credited_at: i64,
+    pub claimed_at: i64,
+    pub bump: u8,
+}
+
+impl RewardEntry {
+    pub const SIZE: usize = 8   // discriminator
+        + NODE_PUBKEY_LEN    // node_pubkey
+        + 32                 // owner
+        + 4                  // epoch
+        + 8                  // amount_lamports
+        + 1                  // claimed
+        + 8                  // credited_at
+        + 8                  // claimed_at
+        + 1;                 // bump
 }
 
 #[event]
@@ -466,6 +1147,68 @@ pub struct RegisterFeePaid {
     pub at: i64,
 }
 
+#[event]
+pub struct SubscriptionPaid {
+    pub user: Pubkey,
+    pub treasury: Pubkey,
+    pub months: u8,
+    pub amount_lamports: u64,
+    pub end_timestamp: i64,
+    pub at: i64,
+}
+
+#[event]
+pub struct Staked {
+    pub node_pubkey: [u8; NODE_PUBKEY_LEN],
+    pub owner: Pubkey,
+    pub amount_lamports: u64,
+    pub new_total_staked: u64,
+    pub at: i64,
+}
+
+#[event]
+pub struct UnstakeRequested {
+    pub node_pubkey: [u8; NODE_PUBKEY_LEN],
+    pub owner: Pubkey,
+    pub amount_lamports: u64,
+    pub cooldown_end: i64,
+    pub at: i64,
+}
+
+#[event]
+pub struct UnstakeClaimed {
+    pub node_pubkey: [u8; NODE_PUBKEY_LEN],
+    pub owner: Pubkey,
+    pub amount_lamports: u64,
+    pub at: i64,
+}
+
+#[event]
+pub struct RewardsFunded {
+    pub funder: Pubkey,
+    pub amount_lamports: u64,
+    pub new_total_funded: u64,
+    pub at: i64,
+}
+
+#[event]
+pub struct RewardCredited {
+    pub node_pubkey: [u8; NODE_PUBKEY_LEN],
+    pub owner: Pubkey,
+    pub epoch: u32,
+    pub amount_lamports: u64,
+    pub at: i64,
+}
+
+#[event]
+pub struct RewardClaimed {
+    pub node_pubkey: [u8; NODE_PUBKEY_LEN],
+    pub owner: Pubkey,
+    pub epoch: u32,
+    pub amount_lamports: u64,
+    pub at: i64,
+}
+
 #[error_code]
 pub enum VortexError {
     #[msg("endpoints list must not be empty")]
@@ -488,4 +1231,28 @@ pub enum VortexError {
     WrongTreasury,
     #[msg("register fee exceeds the hard-coded safety cap (10 SOL)")]
     FeeAboveCap,
+    #[msg("premium price exceeds the hard-coded safety cap (1 SOL/month)")]
+    PremiumPriceAboveCap,
+    #[msg("months must be between 1 and 36 per transaction")]
+    InvalidMonths,
+    #[msg("arithmetic overflow computing the fee amount")]
+    FeeOverflow,
+    #[msg("stake amount is zero or outside [0.1, 10000] SOL bounds")]
+    InvalidStakeAmount,
+    #[msg("pending unstake is still in cooldown")]
+    CooldownActive,
+    #[msg("no pending unstake to claim")]
+    NoPendingUnstake,
+    #[msg("cannot unstake more than the active staked amount")]
+    InsufficientStake,
+    #[msg("operation would leave the account below rent-exempt minimum")]
+    RentViolation,
+    #[msg("node_pubkey does not match the one stored in this stake PDA")]
+    WrongNode,
+    #[msg("reward above the per-entry safety cap (1000 SOL)")]
+    RewardAboveCap,
+    #[msg("reward entry has already been claimed")]
+    RewardAlreadyClaimed,
+    #[msg("rewards vault does not have enough lamports to pay this claim")]
+    VaultUnderfunded,
 }

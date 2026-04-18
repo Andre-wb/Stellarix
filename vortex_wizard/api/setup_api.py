@@ -345,10 +345,26 @@ async def start_tunnel(body: dict) -> dict:
                 _tunnel_proc.kill()
         _tunnel_url = None
 
-        _tunnel_proc = await _asyncio.create_subprocess_exec(
+        # Pick http vs https to match how the node is actually bound —
+        # the node launcher switches to HTTPS when a cert file is present,
+        # and cloudflared must forward with the same scheme or the origin
+        # drops the connection and we get a 502 at the edge.
+        origin_scheme = "https" if (Path("certs") / "vortex.crt").is_file() else "http"
+        cloudflared_args = [
             bin_path, "tunnel",
-            "--url", f"http://localhost:{port}",
+            "--url", f"{origin_scheme}://localhost:{port}",
+            # http2 avoids QUIC — more robust through NAT/firewall
+            "--protocol", "http2",
             "--no-autoupdate",
+        ]
+        if origin_scheme == "https":
+            # Node uses a self-signed cert; skip TLS verification so the
+            # tunnel actually connects. The outer Cloudflare-to-client
+            # leg stays genuinely TLS-terminated.
+            cloudflared_args.append("--no-tls-verify")
+
+        _tunnel_proc = await _asyncio.create_subprocess_exec(
+            *cloudflared_args,
             stdout=_asyncio.subprocess.PIPE,
             stderr=_asyncio.subprocess.STDOUT,
         )

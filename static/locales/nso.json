@@ -3210,7 +3210,7 @@
     "adminPasswordHint": "E hlokahala bakeng sa CA tlhomamiso ka tsamaiso trust lebenkele. Password e šomišwa gatee gomme ga e bolokwe.",
     "adminPasswordPlaceholder": "Phasewete ya tshepedišo (macOS/Linux) .",
     "mkcertInfo": "mkcert e hlola disetifikeiti tše di tshepšago ka mo nageng ntle le ditemošo tša sephephediši. Ka ho feletseng mahala, sebetsa ntle le inthanete.",
-    "domain": "Domain",
+    "domain": "Selete",
     "domainHint": "Domain e swanetše go šupa go IP ya seva ye .",
     "leEmail": "Imeile ya tsebišo",
     "staging": "Mokgwa wa teko (staging) .",

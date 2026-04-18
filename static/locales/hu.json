@@ -3108,7 +3108,7 @@
       "h2": "float",
       "h3": "bool",
       "h4": "str",
-      "h5": "list&lt;T&gt;",
+      "h5": "lista&lt;T&gt;",
       "h6": "térkép&lt;K, V&gt;",
       "h7": "void",
       "h8": "null",

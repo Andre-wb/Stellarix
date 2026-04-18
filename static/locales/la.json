@@ -1912,7 +1912,7 @@
     "generating": "Generare...",
     "saving": "Salvis...",
     "launchNode": "Duc nodi",
-    "redirectCountdown": "Redirecting in {secs} seconds..."
+    "redirectCountdown": "Redirecting in {secs} secundis..."
   },
   "ssl": {
     "skippedHttp": "⚡ SSL exsultaverunt. Node percurret HTTP.",

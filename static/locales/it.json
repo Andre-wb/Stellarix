@@ -2641,7 +2641,7 @@
       "cc17": "trova √2",
       "cc2": "La derivata seconda di x² è 2 (curvatura costante)",
       "cc3": "Velocità dai dati di posizione",
-      "cc4": "x = 50t²",
+      "cc4": "x = 50 t²",
       "cc5": "velocità in ogni punto",
       "cc6": "velocità ≈ [5.0, 10.0, 15.0, 20.0, ...]",
       "cc7": "Gradiente di f(x,y) = x² + y²",
