@@ -36,6 +36,7 @@ from fastapi.staticfiles import StaticFiles
 from . import VERSION
 from .controller_crypto import ControllerKey
 from .endpoints import admin as admin_ep
+from .endpoints import backup as backup_ep
 from .endpoints import entries as entries_ep
 from .endpoints import health as health_ep
 from .endpoints import integrity as integrity_ep
@@ -139,6 +140,7 @@ def create_app(
     app.include_router(integrity_ep.router)
     app.include_router(health_ep.router)
     app.include_router(admin_ep.router)
+    app.include_router(backup_ep.router)
 
     # Static website — multi-page
     web_dir = Path(__file__).parent / "web"

@@ -289,6 +289,22 @@
                 </div>
             </div>
 
+            <!-- Cross-node replication (owner only, never for DM) -->
+            <div class="room-info-section" id="rss-replication-section" style="display:none; margin-top:12px;">
+                <div class="room-info-section-title" data-i18n="room.replicationTitle">Репликация на всю сеть</div>
+                <label class="switch-row">
+                    <span>
+                        <span data-i18n="room.replicationEnable">Хранить копии на других нодах</span>
+                        <span id="room-info-replication-status" class="hint" style="display:block; font-size:11px; color:var(--text2);"></span>
+                    </span>
+                    <input type="checkbox" id="room-info-replication-toggle" onchange="window._roomInfoReplicationToggle()">
+                </label>
+                <div class="room-info-hint" style="font-size:11px; line-height:1.5; color:var(--yellow, #f59e0b); margin-top:6px;"
+                     data-i18n="room.replicationWarn">
+                    Содержимое остаётся зашифрованным, но операторы других нод увидят метаданные: кто с кем в комнате и когда пишет. Бэкфилл старых сообщений не производится — реплицируются только новые.
+                </div>
+            </div>
+
             <div class="room-info-section" style="margin-top:12px;">
                 <button class="btn btn-primary" style="width:100%;" onclick="window._roomInfoSave()" data-i18n="room.saveSettings">Сохранить настройки</button>
             </div>

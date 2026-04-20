@@ -200,11 +200,30 @@ async def save_config(cfg: SetupConfig, request: Request) -> dict:
         # subsequent launches.
         lines += ["", "# Wizard completion marker", "NODE_INITIALIZED=true"]
 
-        env_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        # Write + fsync so the NODE_INITIALIZED marker is definitely on
+        # disk before we return. Without fsync, the browser's reload
+        # might hit _current_mode() microseconds too early and read an
+        # unsynced .env that still lacks the marker → SPA falls back to
+        # setup, looking like "setup keeps looping".
+        payload = "\n".join(lines) + "\n"
+        with open(env_file, "w", encoding="utf-8") as f:
+            f.write(payload)
+            f.flush()
+            try: os.fsync(f.fileno())
+            except OSError: pass
         try:
             os.chmod(env_file, 0o600)
         except OSError:
             pass
+        # Sanity — re-read and confirm the marker made it. If not, fail
+        # loudly so the caller knows the mode won't flip.
+        try:
+            written = env_file.read_text(encoding="utf-8")
+            if "NODE_INITIALIZED=true" not in written:
+                raise RuntimeError("NODE_INITIALIZED=true not found in .env after write")
+        except Exception as e:
+            logger.exception("save: post-write verification failed")
+            raise HTTPException(500, f"env write verification failed: {e}")
     except PermissionError as e:
         logger.exception("save: permission denied at %s", env_file)
         raise HTTPException(500, f"cannot write to {env_file}: permission denied")
@@ -215,7 +234,28 @@ async def save_config(cfg: SetupConfig, request: Request) -> dict:
         logger.exception("save: unexpected failure")
         raise HTTPException(500, f"internal error: {e.__class__.__name__}: {e}")
 
-    return {"ok": True, "path": str(env_file)}
+    # Auto-start the node right after save so the operator never has to
+    # open a second terminal. Delegates to the admin_api lifecycle
+    # handler — any spawn error is reported back but doesn't block the
+    # save itself (config is still written).
+    node_started = False
+    node_error: Optional[str] = None
+    try:
+        from . import admin_api
+        resp = await admin_api.node_start(request)
+        node_started = bool(resp.get("ok"))
+    except HTTPException as e:
+        node_error = e.detail if isinstance(e.detail, str) else str(e.detail)
+    except Exception as e:
+        node_error = f"{e.__class__.__name__}: {e}"
+        logger.exception("save: autostart failed")
+
+    return {
+        "ok":           True,
+        "path":         str(env_file),
+        "node_started": node_started,
+        "node_error":   node_error,
+    }
 
 
 @router.get("/resolve-sns")
@@ -305,11 +345,46 @@ def _get_tunnel_lock() -> _asyncio.Lock:
     return _tunnel_lock
 
 
+def _find_cloudflared() -> Optional[str]:
+    """Locate the cloudflared binary even when PATH is stripped.
+
+    PyInstaller-built .app bundles launched from Finder inherit a bare
+    ``PATH=/usr/bin:/bin:/usr/sbin:/sbin``. Homebrew lives under
+    ``/opt/homebrew/bin`` (Apple Silicon) or ``/usr/local/bin`` (Intel
+    Mac), neither of which is in that default path — so the usual
+    ``shutil.which`` misses a perfectly good install.
+
+    We first try the normal PATH lookup, then fall back to the handful
+    of well-known install locations for each platform.
+    """
+    hit = _shutil.which("cloudflared")
+    if hit:
+        return hit
+    candidates = [
+        "/opt/homebrew/bin/cloudflared",      # Homebrew on Apple Silicon
+        "/usr/local/bin/cloudflared",         # Homebrew on Intel, generic /usr/local
+        "/opt/local/bin/cloudflared",         # MacPorts
+        "/snap/bin/cloudflared",              # Linux snap
+        "/usr/bin/cloudflared",               # apt / dnf / pacman
+        # Windows winget default — also handled by shutil.which normally but
+        # a stripped-cmd environment can miss it.
+        r"C:\Program Files (x86)\cloudflared\cloudflared.exe",
+        r"C:\Program Files\cloudflared\cloudflared.exe",
+    ]
+    for c in candidates:
+        try:
+            if os.path.isfile(c) and os.access(c, os.X_OK):
+                return c
+        except OSError:
+            continue
+    return None
+
+
 @router.get("/tunnel-status")
 async def tunnel_status() -> dict:
     """Whether cloudflared is installed and if there's a live tunnel."""
     return {
-        "installed": bool(_shutil.which("cloudflared")),
+        "installed": bool(_find_cloudflared()),
         "url": _tunnel_url,
         "running": _tunnel_proc is not None and _tunnel_proc.returncode is None,
     }
@@ -324,7 +399,7 @@ async def start_tunnel(body: dict) -> dict:
     if not (1024 <= port <= 65535):
         raise HTTPException(400, "port out of range")
 
-    bin_path = _shutil.which("cloudflared")
+    bin_path = _find_cloudflared()
     if not bin_path:
         return {
             "ok": False,

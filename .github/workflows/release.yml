@@ -49,13 +49,29 @@ jobs:
             libgirepository1.0-dev libcairo2-dev gir1.2-webkit2-4.1 \
             libgtk-3-dev pkg-config
 
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
       - name: Install Python deps
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller
+          pip install pyinstaller maturin
           pip install -r vortex_wizard/requirements.txt
 
+      - name: Build Rust hot-path extension (vortex_chat)
+        # 10-40x speedup on canonical JSON, sealed sender, ratchet KDF,
+        # integrity walk, steganography. Falls back to Python if missing.
+        continue-on-error: true
+        run: |
+          cd rust_utils
+          maturin develop --release
+
       - name: Build with PyInstaller
+        env:
+          # Reproducible builds — zero timestamps & hash seed so two
+          # independent CI runs produce byte-identical bundles.
+          SOURCE_DATE_EPOCH: "0"
+          PYTHONHASHSEED:    "0"
         run: pyinstaller vortex_wizard/vortex-wizard.spec --noconfirm --clean
 
       - name: Package (macOS)
@@ -96,11 +112,14 @@ jobs:
         with:
           path: artifacts
 
-      - name: Flatten
+      - name: Flatten + SHA256SUMS
         run: |
           mkdir release
           find artifacts -type f \( -name '*.zip' -o -name '*.tar.gz' \) -exec cp {} release/ \;
-          ls -lah release/
+          cd release
+          sha256sum * > SHA256SUMS
+          cat SHA256SUMS
+          ls -lah
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2

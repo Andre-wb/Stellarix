@@ -176,6 +176,25 @@ window._bulkForwardTo = function(msgIds, targetRoomId) {
     _exitSelectionMode();
 };
 
+// Single-message forward — called from the message context menu ("Forward").
+// Shares the same modal as bulk forward; we just stage one id into
+// _selectedMsgIds and reuse _bulkForward() for rendering, then wipe the
+// staging so the selection UI doesn't show a lingering "1 selected" badge.
+window.showForwardModal = function(msgId) {
+    if (!msgId) return;
+    _selectedMsgIds.clear();
+    _selectedMsgIds.add(msgId);
+    _bulkForward();
+    // Keep the id in the set so _bulkForwardTo still has something to read;
+    // clear it after the modal closes (on any target click or Cancel).
+    const modal = document.getElementById('bulk-forward-modal');
+    if (modal) {
+        const cleanup = () => { _selectedMsgIds.clear(); };
+        modal.querySelectorAll('.forward-room-item, .btn-secondary')
+            .forEach(el => el.addEventListener('click', cleanup, { once: true }));
+    }
+};
+
 /**
  * Вешает long-press (500 мс) и Shift+click на .msg-group для входа в режим выбора.
  * Вызывается из appendMessage и appendFileMessage сразу после создания элемента.

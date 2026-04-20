@@ -24,7 +24,7 @@ import { decryptText, _saveRoomKeyToSession, _loadRoomKeyFromSession, _clearRoom
 import { _handleAck, _cancelAllPendingAcks, _flushOfflineQueue } from './ack.js';
 import { _updateOnlineMembersCache } from './mention.js';
 import { _showTyping, _showFileSending, _updateReaction, _showPinnedBar, _hidePinnedBar } from './indicators.js';
-import { _showNotContactBanner, _hideNotContactBanner, _showBotTag, _showThemeProposalBanner } from './banners.js';
+import { _showNotContactBanner, _hideNotContactBanner, _showBotTag, _showThemeProposalBanner, _showReplicationBanner, _hideReplicationBanner } from './banners.js';
 import { _updateAutoDeleteIndicator, _updateSlowModeIndicator, _startSlowModeCooldown } from './features.js';
 import { _updateThreadPanelCount, _appendToOpenThread } from './thread.js';
 import { queueHistoryMessage } from '../key_backup.js';
@@ -368,6 +368,29 @@ async function handleWsMessage(msg) {
                 _showNotContactBanner(msg.other_user_id);
             } else {
                 _hideNotContactBanner();
+            }
+
+            // Replication warning banner for federated rooms (never for DMs)
+            if (S.currentRoom && !S.currentRoom.is_dm && S.currentRoom.replication_mode === 'federated') {
+                _showReplicationBanner(S.currentRoom);
+            } else {
+                _hideReplicationBanner();
+            }
+            break;
+        }
+
+        case 'room_replication_changed': {
+            const S_r = window.AppState;
+            if (S_r.currentRoom && msg.room_id === S_r.currentRoom.id) {
+                S_r.currentRoom.replication_mode = msg.replication_mode;
+                if (msg.replication_mode === 'federated') {
+                    // New policy — clear any previous dismissal so every
+                    // member sees the warning at least once.
+                    try { localStorage.removeItem(`vx_rep_banner_dismissed:${msg.room_id}`); } catch (_) {}
+                    _showReplicationBanner(S_r.currentRoom);
+                } else {
+                    _hideReplicationBanner();
+                }
             }
             break;
         }

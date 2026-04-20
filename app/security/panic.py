@@ -41,7 +41,7 @@ from sqlalchemy.orm import Session
 
 from app.security.auth_jwt import get_current_user
 from app.database import get_db
-from app.models import Bot, RefreshToken, User
+from app.models import Bot, RefreshToken, User, UserDevice
 from app.models.contact import Contact
 from app.models_rooms import (
     EncryptedRoomKey, Message, PendingKeyRequest, Room, RoomMember,
@@ -322,6 +322,14 @@ async def panic_wipe(
 
         # ── RefreshTokens (нет FK constraint) ───────────────────────────────
         db.query(RefreshToken).filter(RefreshToken.user_id == user_id).delete(synchronize_session=False)
+
+        # ── UserDevice rows — must go explicitly. The FK is ON DELETE CASCADE
+        # at the DB level, but the SQLAlchemy relationship User.devices
+        # defaults to passive_deletes=False, so on db.delete(user) the ORM
+        # runs UPDATE user_devices SET user_id=NULL which fails against the
+        # NOT NULL constraint (sqlite3.IntegrityError NOT NULL constraint
+        # failed: user_devices.user_id). Delete them up front.
+        db.query(UserDevice).filter(UserDevice.user_id == user_id).delete(synchronize_session=False)
 
         # ── Ключи шифрования — зачищаем в памяти перед удалением ────────────
         doomed_keys = db.query(EncryptedRoomKey).filter(EncryptedRoomKey.user_id == user_id).all()

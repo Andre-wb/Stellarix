@@ -203,6 +203,23 @@ export async function openRoomInfo() {
             // Delete button — owner only
             const _ds = $('room-info-delete-section'); if (_ds) _ds.style.display = isOwner ? '' : 'none';
 
+            // Cross-node replication — owner only, never for DM
+            const _rs = $('rss-replication-section');
+            if (_rs) {
+                if (isOwner && !room.is_dm) {
+                    _rs.style.display = '';
+                    const _rt = $('room-info-replication-toggle');
+                    const _rst = $('room-info-replication-status');
+                    const mode = room.replication_mode || 'none';
+                    if (_rt) _rt.checked = (mode === 'federated');
+                    if (_rst) _rst.textContent = (mode === 'federated')
+                        ? (t('room.replicationOn') || 'Включено · метаданные видны другим нодам')
+                        : (t('room.replicationOff') || 'Выключено · только на этой ноде');
+                } else {
+                    _rs.style.display = 'none';
+                }
+            }
+
             // Autoposting section — channels only
             const autopostEl = $('channel-autopost-section');
             if (autopostEl) {
@@ -492,6 +509,39 @@ window._startChannelStream = function() {
     if (typeof window.openStreamSettings === 'function') {
         window.openStreamSettings(S.currentRoom.id);
     }
+};
+
+// Cross-node replication toggle (owner only, never for DM)
+window._roomInfoReplicationToggle = async function() {
+    const S = window.AppState;
+    if (!S.currentRoom) return;
+    const _rt = $('room-info-replication-toggle');
+    if (!_rt) return;
+    const desired = _rt.checked ? 'federated' : 'none';
+    const wasChecked = !_rt.checked;  // previous state (we just flipped)
+    _rt.disabled = true;
+    try {
+        const res = await api('PATCH',
+            `/api/rooms/${S.currentRoom.id}/replication`,
+            { mode: desired });
+        S.currentRoom.replication_mode = res.replication_mode;
+        const _rst = $('room-info-replication-status');
+        if (_rst) _rst.textContent = (res.replication_mode === 'federated')
+            ? (t('room.replicationOn') || 'Включено · метаданные видны другим нодам')
+            : (t('room.replicationOff') || 'Выключено · только на этой ноде');
+        if (window.showToast) {
+            window.showToast(
+                res.replication_mode === 'federated'
+                    ? (t('room.replicationEnabledToast') || 'Репликация включена')
+                    : (t('room.replicationDisabledToast') || 'Репликация выключена'),
+                'success');
+        }
+    } catch (e) {
+        console.error('Replication toggle failed:', e);
+        _rt.checked = wasChecked;  // revert
+        if (window.showToast) window.showToast(String(e), 'error');
+    }
+    _rt.disabled = false;
 };
 
 // Discussion toggle

@@ -25,3 +25,4 @@ from app.peer.peer_discovery import start_discovery  # noqa: F401
 import app.peer.peer_routes       # noqa: F401
 import app.peer.peer_p2p          # noqa: F401
 import app.peer.peer_federation   # noqa: F401
+import app.peer.peer_public_keys  # noqa: F401

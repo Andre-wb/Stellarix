@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="page.title">vortexx.sol — Vortex Controller</title>
+    <link rel="icon" href="/favicon.ico">
+    <link rel="stylesheet" href="/static/main.css">
+</head>
+<body>
+
+<nav class="topbar">
+    <a href="/" class="brand">
+        <img src="/static/logo.png" alt="Vortex" class="brand-ico" width="28" height="28">
+        VORTEX
+    </a>
+    <div class="nav-links">
+        <a href="/"          data-nav="home"     data-i18n="nav.home">Home</a>
+        <a href="/nodes"     data-nav="nodes"    data-i18n="nav.nodes">Nodes</a>
+        <a href="/entries"   data-nav="entries"  data-i18n="nav.entries">Entry URLs</a>
+        <a href="/mirrors"   data-nav="mirrors"  data-i18n="nav.mirrors">Mirrors</a>
+        <a href="/security"  data-nav="security" data-i18n="nav.security">Security</a>
+    </div>
+    <div class="nav-right">
+        <div class="lang-switch">
+            <button class="lang-btn" id="lang-btn" title="Language">
+                <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0 0 14.07 6H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg>
+                <span id="lang-current">EN</span>
+            </button>
+            <div class="lang-menu" id="lang-menu"></div>
+        </div>
+    </div>
+</nav>
+
+<main class="container fade-in">
+
+    <section class="hero">
+        <div class="hero-logo">
+            <img src="/static/logo.png" alt="Vortex" width="56" height="56">
+        </div>
+        <h1>vortexx.sol</h1>
+        <p class="lede" data-i18n="home.lede">Discovery &amp; verification controller for the Vortex peer-to-peer network.</p>
+        <div class="hero-badges">
+            <span class="badge badge-ok" id="hero-status">● online</span>
+            <span class="badge badge-muted" id="hero-version">v—</span>
+        </div>
+    </section>
+
+    <div class="stats-grid" id="stats-grid">
+        <!-- populated by home.js -->
+    </div>
+
+    <div class="card card-lg">
+        <div class="card-title" data-i18n="home.fingerprintTitle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V5l-8-3Z"/></svg>
+            Controller fingerprint
+        </div>
+        <p class="lede" style="font-size:13px; margin-bottom:14px;" data-i18n="home.fingerprintDesc">
+            Pin this public key in your Vortex client. Every response from the controller is signed with it — a mismatch means someone is tampering.
+        </p>
+        <div class="pubkey-box">
+            <code id="pubkey-text" data-i18n="common.loading">loading…</code>
+            <button class="btn-icon" data-copy="#pubkey-text" title="Copy">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M16 1H4C2.9 1 2 1.9 2 3v14h2V3h12V1m3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2m0 16H8V7h11v14z"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="card card-lg">
+        <div class="card-title" data-i18n="home.howTitle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            How to connect
+        </div>
+        <ol style="padding-left:18px; color:var(--text2); font-size:13px; line-height:1.9;">
+            <li data-i18n="home.step1">Install Vortex on your device.</li>
+            <li data-i18n="home.step2">Pick the <strong>Global</strong> network mode in the setup wizard.</li>
+            <li data-i18n="home.step3">Paste the controller URL (auto-resolved via SNS) or an entry URL from this site.</li>
+            <li data-i18n="home.step4">Verify the pubkey in your app matches the fingerprint above.</li>
+            <li data-i18n="home.step5">You're connected. Everything else (node list, signatures) is handled automatically.</li>
+        </ol>
+    </div>
+
+    <div class="page-links">
+        <a href="/nodes" class="page-link">
+            <div class="page-link-ico">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="1.5"/><rect x="3" y="13" width="18" height="7" rx="1.5"/><path d="M7 7.5h.01M7 16.5h.01"/></svg>
+            </div>
+            <div class="page-link-body">
+                <div class="page-link-title" data-i18n="nav.nodes">Nodes</div>
+                <div class="page-link-desc" data-i18n="home.nodesDesc">All registered peers, their weights, endpoints, and verification sources.</div>
+            </div>
+        </a>
+        <a href="/entries" class="page-link">
+            <div class="page-link-ico">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/></svg>
+            </div>
+            <div class="page-link-body">
+                <div class="page-link-title" data-i18n="nav.entries">Entry URLs</div>
+                <div class="page-link-desc" data-i18n="home.entriesDesc">Bootstrap URLs for first-time clients — Cloudflare tunnels, Tor, IPFS, direct.</div>
+            </div>
+        </a>
+        <a href="/mirrors" class="page-link">
+            <div class="page-link-ico">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 19v2M16 19v2M3 9h18"/></svg>
+            </div>
+            <div class="page-link-body">
+                <div class="page-link-title" data-i18n="nav.mirrors">Mirrors</div>
+                <div class="page-link-desc" data-i18n="home.mirrorsDesc">Alternative hosts serving this same signed content in case of censorship.</div>
+            </div>
+        </a>
+        <a href="/security" class="page-link">
+            <div class="page-link-ico">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V5l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+            </div>
+            <div class="page-link-body">
+                <div class="page-link-title" data-i18n="nav.security">Security model</div>
+                <div class="page-link-desc" data-i18n="home.securityDesc">Full breakdown of what's cryptographically verified, what's not, and why.</div>
+            </div>
+        </a>
+    </div>
+
+</main>
+
+<footer class="footer">
+    <div><span id="foot-version">Vortex Controller</span></div>
+    <div>
+        <a href="/security" data-i18n="nav.security">Security</a>
+    </div>
+</footer>
+
+<script src="/static/i18n.js"></script>
+<script src="/static/common.js"></script>
+<script src="/static/home.js"></script>
+</body>
+</html>

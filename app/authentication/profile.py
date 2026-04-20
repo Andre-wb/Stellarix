@@ -59,6 +59,11 @@ class UpdateProfileBody(BaseModel):
     profile_icon: str | None = None
     reply_color:  str | None = None
     reply_icon:   str | None = None
+    # Solana wallet (base58) to link for Vortex Premium. Set to empty
+    # string to unlink. No on-chain ownership check here — production
+    # must require a signed challenge. See premium_check.link_wallet for
+    # the upgrade path.
+    wallet_pubkey: str | None = None
 
 
 _BIRTH_RE_NO_YEAR = re.compile(r'^--\d{2}-\d{2}$')
@@ -88,6 +93,19 @@ async def update_profile(body: UpdateProfileBody, u: User = Depends(get_current_
         u.reply_color = body.reply_color[:20] or None
     if body.reply_icon is not None:
         u.reply_icon = body.reply_icon[:10] or None
+    if body.wallet_pubkey is not None:
+        # Wallet linking moved to a signed-challenge flow to prove the
+        # caller actually controls the wallet. Keeping this field
+        # write-through would let anyone "steal" someone else's premium
+        # by copying their public address into their own profile.
+        raise HTTPException(
+            410,
+            {
+                "error": "wallet_pubkey_linking_moved",
+                "message": "Use GET /api/premium/challenge + POST /api/premium/link-wallet.",
+                "doc": "Sign the returned challenge with Phantom and POST the signature.",
+            },
+        )
     db.commit()
     return {
         "ok": True,

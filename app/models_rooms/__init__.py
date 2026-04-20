@@ -8,6 +8,7 @@ from app.models_rooms.enums import RoomRole, MessageType
 from app.models_rooms.spaces import Space, SpaceMember, SpaceCategory
 from app.models_rooms.rooms import Room, RoomMember
 from app.models_rooms.encryption import EncryptedRoomKey, PendingKeyRequest, PendingNotification, SealedKeyPackage
+from app.models_rooms.public_keys import PublicRoomKey
 from app.models_rooms.messages import Message, FileTransfer, MessageReaction, MessageEditHistory
 from app.models_rooms.collections import RoomTask, SavedMessage
 from app.models_rooms.stickers import StickerPack, Sticker, UserFavoritePack, SavedGif
@@ -18,7 +19,7 @@ from app.models_rooms.analytics import (
     ChannelDonation, UserSlowmode,
 )
 from app.models_rooms.admin import AuditLog, SpaceEmoji
-from app.models_rooms.federation import PersistedFederatedRoom, Story, StoryKeyEnvelope
+from app.models_rooms.federation import PersistedFederatedRoom, Story, StoryKeyEnvelope, FederatedEnvelope
 from app.models_rooms.feeds import ChannelFeed
 
 __all__ = [
@@ -30,6 +31,7 @@ __all__ = [
     "Room", "RoomMember",
     # encryption
     "EncryptedRoomKey", "PendingKeyRequest", "PendingNotification", "SealedKeyPackage",
+    "PublicRoomKey",
     # messages
     "Message", "FileTransfer", "MessageReaction", "MessageEditHistory",
     # collections
@@ -46,7 +48,7 @@ __all__ = [
     # admin
     "AuditLog", "SpaceEmoji",
     # federation
-    "PersistedFederatedRoom", "Story", "StoryKeyEnvelope",
+    "PersistedFederatedRoom", "Story", "StoryKeyEnvelope", "FederatedEnvelope",
     # feeds
     "ChannelFeed",
 ]

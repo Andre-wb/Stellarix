@@ -456,12 +456,21 @@ export function appendMessage(msg) {
             textEl.innerHTML = _renderBotMarkdown(msg.text);
         }
     }
+    else if (msg.text && window.vxArticle && msg.text.startsWith(window.vxArticle.PREFIX)) {
+        // Full Markdown + LaTeX article (already passes through a strict
+        // whitelist sanitizer inside renderArticleInto).
+        window.vxArticle.renderArticleInto(textEl, msg.text);
+    }
     else if (msg.is_bot && msg.text) {
         // Bot messages support simple markdown: **bold**, _italic_, `code`, [text](url)
         textEl.innerHTML = _renderBotMarkdown(msg.text);
     }
     else {
         _renderTextWithMentions(textEl, msg.text || '', isOwn);
+        // Post-pass: inline $math$ / $$block$$ rendering via KaTeX.
+        if (window.vxArticle && msg.text && msg.text.includes('$')) {
+            try { _mathifyTextNodes(textEl); } catch (_) {}
+        }
     }
     bubble.appendChild(textEl);
 

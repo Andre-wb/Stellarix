@@ -1,0 +1,285 @@
+# Production Linux build — outputs AppImage + .deb + .rpm + tarball.
+#
+# Debian Bookworm base (glibc 2.36) → AppImage runs on any distro
+# with glibc 2.28+ (Ubuntu 22.04+, Debian 12+, Fedora 38+, RHEL 9+,
+# Arch, openSUSE 15.5+).
+#
+# Build from project root:
+#   bash scripts/build-linux.sh              # arm64 (native on Apple Silicon)
+#   TARGET_ARCH=amd64 bash scripts/build-linux.sh  # x86_64 via QEMU
+#
+# Outputs (in dist-linux/):
+#   vortex-wizard-linux-<date>-<arch>.AppImage     (universal, self-contained)
+#   vortex-wizard_<date>_<arch>.deb                 (Debian / Ubuntu)
+#   vortex-wizard-<date>-1.<arch>.rpm               (RHEL / Fedora / SUSE)
+#   vortex-wizard-linux-<date>-<arch>.tar.gz        (manual install)
+#   SHA256SUMS
+#   install.sh                                      (universal installer wrapper)
+
+FROM debian:bookworm-slim
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    SOURCE_DATE_EPOCH=0 \
+    PYTHONHASHSEED=0 \
+    APPIMAGE_EXTRACT_AND_RUN=1
+
+# System deps. Includes squashfs-tools (for AppImage packing without
+# FUSE), ruby for fpm (makes .deb + .rpm from a single spec), and GTK/
+# WebKit for pywebview's Linux backend.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3 python3-dev python3-venv python3-pip \
+        build-essential cmake pkg-config git curl wget file \
+        libssl-dev libffi-dev libjpeg-dev zlib1g-dev libbz2-dev liblzma-dev \
+        libsqlite3-dev \
+        libgtk-3-dev libwebkit2gtk-4.1-dev gir1.2-webkit2-4.1 \
+        libcairo2-dev libgirepository1.0-dev \
+        libgmp-dev ninja-build \
+        ca-certificates \
+        squashfs-tools desktop-file-utils \
+        ruby ruby-dev rubygems rpm \
+        xz-utils patchelf \
+    && rm -rf /var/lib/apt/lists/*
+
+# fpm packs .deb and .rpm from a common specification. Ruby gem — the
+# only sane multi-format packager for a stable Debian base.
+RUN gem install --no-document fpm
+
+# Rust for vortex_chat (maturin build)
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+    | sh -s -- -y --default-toolchain stable --profile minimal
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+WORKDIR /src
+COPY . /src/
+
+# Fresh venv — avoids host's .venv dylibs.
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:${PATH}"
+
+RUN pip install --upgrade pip \
+ && pip install --no-cache-dir \
+        pyinstaller maturin \
+        -r requirements.txt
+
+# Rust extension (optional — Python fallbacks exist for every hot path).
+RUN if [ -d rust_utils ]; then \
+        (cd rust_utils && maturin develop --release) \
+            || echo "warn: rust_utils build failed — Python fallbacks active"; \
+    fi
+
+RUN pyinstaller vortex_wizard/vortex-wizard.spec --clean --noconfirm
+
+# ── Production packaging entrypoint ───────────────────────────────────
+
+RUN cat > /build-entry.sh <<'ENTRY'
+#!/usr/bin/env bash
+set -euo pipefail
+# fpm + rpmbuild refuse SOURCE_DATE_EPOCH=0 (they want epoch >= 1980-01-01).
+# We still want a deterministic timestamp — pin to the date var below.
+unset SOURCE_DATE_EPOCH
+mkdir -p /out
+DATE="$(date +%Y%m%d)"
+ARCH="$(uname -m)"
+[ "$ARCH" = "aarch64" ] && ARCH="arm64"
+[ "$ARCH" = "x86_64"  ] && ARCH="amd64"
+STAGE="/tmp/vortex-stage"
+VERSION="0.1.0"
+
+# ── 1. Raw tarball ───────────────────────────────────────────────────
+cp -a dist/vortex-wizard /out/
+cd /out
+tar -czf "vortex-wizard-linux-${DATE}-${ARCH}.tar.gz" vortex-wizard
+echo "=== tarball: $(ls -lh vortex-wizard-linux-${DATE}-${ARCH}.tar.gz) ==="
+
+# ── 2. Lay out a filesystem skeleton we can hand to fpm and AppImage ──
+rm -rf "$STAGE"
+mkdir -p "$STAGE/opt/vortex" \
+         "$STAGE/usr/bin" \
+         "$STAGE/usr/share/applications" \
+         "$STAGE/usr/share/icons/hicolor/512x512/apps" \
+         "$STAGE/usr/share/icons/hicolor/192x192/apps"
+
+cp -a /out/vortex-wizard/. "$STAGE/opt/vortex/"
+# Convenience launcher on PATH
+cat > "$STAGE/usr/bin/vortex-wizard" <<'LAUNCHER'
+#!/usr/bin/env bash
+exec /opt/vortex/vortex-wizard "$@"
+LAUNCHER
+chmod +x "$STAGE/usr/bin/vortex-wizard"
+
+# Icons (real PNGs taken from the wizard UI).
+if [ -f /src/vortex_wizard/web/assets/logo.png ]; then
+    cp /src/vortex_wizard/web/assets/logo.png \
+        "$STAGE/usr/share/icons/hicolor/512x512/apps/vortex-wizard.png"
+fi
+if [ -f /src/vortex_wizard/web/assets/logo-small.png ]; then
+    cp /src/vortex_wizard/web/assets/logo-small.png \
+        "$STAGE/usr/share/icons/hicolor/192x192/apps/vortex-wizard.png"
+fi
+
+# Desktop entry for menu integration.
+cat > "$STAGE/usr/share/applications/vortex-wizard.desktop" <<'DESKTOP'
+[Desktop Entry]
+Type=Application
+Name=Vortex Wizard
+GenericName=P2P Messenger Node
+Comment=Privacy-first P2P messenger node management
+Exec=vortex-wizard
+Icon=vortex-wizard
+Terminal=false
+Categories=Network;InstantMessaging;
+StartupNotify=true
+StartupWMClass=vortex-wizard
+Keywords=vortex;messenger;p2p;chat;privacy;
+DESKTOP
+
+# ── 3. .deb (Debian / Ubuntu / Mint / PopOS / ...) ───────────────────
+echo "=== Building .deb ==="
+fpm --input-type dir --output-type deb \
+    --name vortex-wizard \
+    --version "$VERSION" \
+    --iteration "1.${DATE}" \
+    --architecture "$ARCH" \
+    --license "AGPL-3.0" \
+    --maintainer "Vortex <noreply@vortexx.sol>" \
+    --description "Privacy-first P2P messenger node, with built-in wizard." \
+    --url "https://vortexx.sol" \
+    --depends libgtk-3-0 \
+    --depends libwebkit2gtk-4.1-0 \
+    --depends libssl3 \
+    --deb-no-default-config-files \
+    --package "/out/vortex-wizard_${VERSION}-1.${DATE}_${ARCH}.deb" \
+    --chdir "$STAGE" \
+    . || echo "warn: deb build failed"
+
+# ── 4. .rpm (Fedora / RHEL / openSUSE) ───────────────────────────────
+# Debian's rpmbuild fails on the `aarch64-unknown-linux` target fpm
+# auto-selects. Workaround: set macros so rpmbuild accepts a plain
+# "aarch64" / "x86_64" arch without querying /usr/lib/rpm/platform.
+echo "=== Building .rpm ==="
+RPM_ARCH="x86_64"; [ "$ARCH" = "arm64" ] && RPM_ARCH="aarch64"
+mkdir -p "$HOME/.rpmmacros.d"
+cat > "$HOME/.rpmmacros" <<RPMMACROS
+%_target_cpu      ${RPM_ARCH}
+%_target_os       linux
+%_target          ${RPM_ARCH}-linux
+%_arch            ${RPM_ARCH}
+%_build_arch      ${RPM_ARCH}
+%_host_cpu        ${RPM_ARCH}
+%_topdir          %(pwd)/rpmbuild
+RPMMACROS
+fpm --input-type dir --output-type rpm \
+    --name vortex-wizard \
+    --version "$VERSION" \
+    --iteration "${DATE}" \
+    --architecture "$RPM_ARCH" \
+    --license "AGPL-3.0" \
+    --maintainer "Vortex <noreply@vortexx.sol>" \
+    --description "Privacy-first P2P messenger node, with built-in wizard." \
+    --url "https://vortexx.sol" \
+    --depends gtk3 \
+    --depends "webkit2gtk4.1 >= 2.40" \
+    --rpm-os linux \
+    --rpm-user root \
+    --rpm-group root \
+    --package "/out/vortex-wizard-${VERSION}-${DATE}.${RPM_ARCH}.rpm" \
+    --chdir "$STAGE" \
+    . \
+    2>&1 | tail -5 \
+    || echo "warn: rpm build failed (non-fatal — AppImage + .deb cover Linux)"
+
+# ── 5. AppImage (universal, single-file) ─────────────────────────────
+echo "=== Building AppImage ==="
+APPDIR="/tmp/Vortex-Wizard.AppDir"
+rm -rf "$APPDIR"
+mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/share/applications" \
+         "$APPDIR/usr/share/icons/hicolor/512x512/apps"
+
+cp -a /out/vortex-wizard/. "$APPDIR/usr/bin/"
+cp "$STAGE/usr/share/applications/vortex-wizard.desktop" \
+    "$APPDIR/vortex-wizard.desktop"
+cp "$STAGE/usr/share/icons/hicolor/512x512/apps/vortex-wizard.png" \
+    "$APPDIR/vortex-wizard.png"
+cp "$APPDIR/vortex-wizard.png" "$APPDIR/.DirIcon" || true
+
+cat > "$APPDIR/AppRun" <<'APPRUN'
+#!/bin/sh
+HERE="$(dirname "$(readlink -f "${0}")")"
+export PATH="${HERE}/usr/bin:${PATH}"
+export LD_LIBRARY_PATH="${HERE}/usr/bin:${LD_LIBRARY_PATH:-}"
+export GI_TYPELIB_PATH="${HERE}/usr/bin:${GI_TYPELIB_PATH:-}"
+exec "${HERE}/usr/bin/vortex-wizard" "$@"
+APPRUN
+chmod +x "$APPDIR/AppRun"
+
+# Download appimagetool with the target arch.
+APPTOOL_ARCH="x86_64"; [ "$ARCH" = "arm64" ] && APPTOOL_ARCH="aarch64"
+APPTOOL="/usr/local/bin/appimagetool-${APPTOOL_ARCH}"
+if [ ! -f "$APPTOOL" ]; then
+    wget -q -O "$APPTOOL" \
+        "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-${APPTOOL_ARCH}.AppImage" \
+        || wget -q -O "$APPTOOL" \
+        "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-${APPTOOL_ARCH}.AppImage"
+    chmod +x "$APPTOOL"
+fi
+
+# APPIMAGE_EXTRACT_AND_RUN=1 means appimagetool unpacks itself into a
+# tmpfs and runs natively — no FUSE required inside the container.
+# --comp zstd → default compressor in Debian Bookworm's mksquashfs,
+# faster than xz with similar compression ratio.
+APPIMAGE_EXTRACT_AND_RUN=1 "$APPTOOL" \
+    --no-appstream \
+    --comp zstd \
+    "$APPDIR" \
+    "/out/vortex-wizard-${DATE}-${APPTOOL_ARCH}.AppImage" \
+    && chmod +x "/out/vortex-wizard-${DATE}-${APPTOOL_ARCH}.AppImage" \
+    || echo "warn: AppImage build failed"
+
+# ── 6. Universal install script ──────────────────────────────────────
+cat > /out/install.sh <<'INSTALL'
+#!/usr/bin/env bash
+# Universal Vortex installer — detects your distro and picks the right
+# package format.
+set -euo pipefail
+cd "$(dirname "$(readlink -f "$0")")"
+
+die(){ echo "error: $*" >&2; exit 1; }
+
+ARCH="$(uname -m)"; [ "$ARCH" = "x86_64" ] && ARCH="amd64"; [ "$ARCH" = "aarch64" ] && ARCH="arm64"
+
+if command -v dpkg >/dev/null 2>&1 && ls vortex-wizard_*_"${ARCH}".deb >/dev/null 2>&1; then
+    sudo dpkg -i vortex-wizard_*_"${ARCH}".deb || sudo apt-get install -f -y
+    echo "✓ installed via dpkg"; exit 0
+fi
+RPM_ARCH="$ARCH"; [ "$ARCH" = "amd64" ] && RPM_ARCH="x86_64"; [ "$ARCH" = "arm64" ] && RPM_ARCH="aarch64"
+if command -v rpm >/dev/null 2>&1 && ls vortex-wizard-*."${RPM_ARCH}".rpm >/dev/null 2>&1; then
+    sudo rpm -Uvh vortex-wizard-*."${RPM_ARCH}".rpm
+    echo "✓ installed via rpm"; exit 0
+fi
+if ls vortex-wizard-*.AppImage >/dev/null 2>&1; then
+    chmod +x vortex-wizard-*.AppImage
+    echo "✓ AppImage ready. Run:"; ls vortex-wizard-*.AppImage
+    exit 0
+fi
+die "No supported package format for arch $ARCH in this directory."
+INSTALL
+chmod +x /out/install.sh
+
+# ── 7. Hashes ────────────────────────────────────────────────────────
+# Hash only files (exclude the raw vortex-wizard/ directory).
+cd /out
+sha256sum install.sh > SHA256SUMS
+for f in vortex-wizard-linux-*.tar.gz vortex-wizard_*.deb \
+         vortex-wizard-*.rpm vortex-wizard-*.AppImage; do
+    [ -f "$f" ] && sha256sum "$f" >> SHA256SUMS
+done
+echo "=== All artifacts ==="
+ls -lh /out/
+echo "=== SHA256SUMS ==="
+cat SHA256SUMS
+ENTRY
+RUN chmod +x /build-entry.sh
+
+CMD ["/build-entry.sh"]

@@ -21,6 +21,8 @@ import * as ui          from './ui.js';
 import * as chat        from './chat/chat.js';
 import * as fileUpload  from './chat/file-upload.js';
 import './chat/page-builder.js';
+import './chat/article.js';
+import './chat/chat-ux.js';
 import './sticker-manager.js';
 import { startBMP, registerBMPHandler, registerRoomSecret, MSG } from './bmp-client.js';
 import * as imageViewer from './chat/image-viewer.js';

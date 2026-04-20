@@ -20,7 +20,7 @@ use anchor_lang::system_program;
 // `anchor build` so the deployed binary's pubkey matches. The existing
 // value must still be a valid 32-byte base58 pubkey for the Rust crate
 // to compile.
-declare_id!("Vor1exReg1111111111111111111111111111111111");
+declare_id!("8iNKGfNtAwZY8VLnoxardTstm5FFSePR5mN7LUyH4TRR");
 
 pub const MAX_ENDPOINT_LEN: usize = 256;
 pub const MAX_ENDPOINTS: usize = 8;
@@ -42,17 +42,27 @@ pub const DEFAULT_REGISTER_FEE_LAMPORTS: u64 = 1_000_000_000;
 /// Hard upper bound so a compromised admin key cannot weaponise the fee.
 pub const MAX_REGISTER_FEE_LAMPORTS: u64 = 10_000_000_000; // 10 SOL
 
-/// ≈$5/month @ $150/SOL. Admin re-prices via ``update_config`` to track
-/// the SOL/USD rate until an on-chain oracle is wired in.
-pub const DEFAULT_PREMIUM_PRICE_LAMPORTS: u64 = 33_333_333; // ~0.033 SOL
+/// Supported subscription plan durations in months, index-aligned with
+/// ``Config.tier_prices``: [1, 3, 6, 12].
+pub const PLAN_DURATIONS_MONTHS: [u8; 4] = [1, 3, 6, 12];
 
-/// Safety cap — admin cannot accidentally charge more than 1 SOL per
-/// month of premium (~$150 at today's rate).
-pub const MAX_PREMIUM_PRICE_LAMPORTS: u64 = 1_000_000_000;
+/// Default per-plan price at ≈$150/SOL. Pricing is monotone and
+/// rewards longer commitments:
+///   1mo  $5    full price (anchors the "per-month" benchmark)
+///   3mo  $12   20% off  ($4.00/mo)
+///   6mo  $20   33% off  ($3.33/mo)
+///   12mo $38   37% off  ($3.17/mo)   — cheaper than 2× 6-month ($40)
+///                                      so the yearly plan stays attractive.
+pub const DEFAULT_TIER_PRICES_LAMPORTS: [u64; 4] = [
+    33_333_333,     // 1mo  ≈ $5
+    80_000_000,     // 3mo  ≈ $12
+    133_333_333,    // 6mo  ≈ $20
+    253_333_333,    // 12mo ≈ $38
+];
 
-/// Number of months buyable in a single ``subscribe_premium`` tx.
-/// Prevents a typo (``3600``) draining a wallet and caps PDA rent.
-pub const MAX_PREMIUM_MONTHS_PER_TX: u8 = 36;
+/// Hard cap per plan — admin cannot accidentally charge more than
+/// ~$900 (6 SOL) for the yearly tier even if SOL moons.
+pub const MAX_TIER_PRICE_LAMPORTS: u64 = 6_000_000_000;
 
 /// Fixed-length "month" used by on-chain accounting. Keeping it constant
 /// lets both the contract and off-chain indexers compute end_timestamp
@@ -219,7 +229,7 @@ pub mod vortex_registry {
         cfg.register_fee_lamports = DEFAULT_REGISTER_FEE_LAMPORTS;
         cfg.total_fees_collected = 0;
         cfg.registrations_count = 0;
-        cfg.premium_price_per_month_lamports = DEFAULT_PREMIUM_PRICE_LAMPORTS;
+        cfg.tier_prices_lamports = DEFAULT_TIER_PRICES_LAMPORTS;
         cfg.total_premium_revenue_lamports = 0;
         cfg.subscription_tx_count = 0;
         cfg.bump = ctx.bumps.config;
@@ -235,7 +245,7 @@ pub mod vortex_registry {
         ctx: Context<UpdateConfig>,
         new_treasury: Option<Pubkey>,
         new_fee_lamports: Option<u64>,
-        new_premium_price_lamports: Option<u64>,
+        new_tier_prices: Option<[u64; 4]>,
     ) -> Result<()> {
         let cfg = &mut ctx.accounts.config;
         require!(cfg.admin == ctx.accounts.admin.key(), VortexError::NotOwner);
@@ -247,9 +257,14 @@ pub mod vortex_registry {
             require!(f <= MAX_REGISTER_FEE_LAMPORTS, VortexError::FeeAboveCap);
             cfg.register_fee_lamports = f;
         }
-        if let Some(p) = new_premium_price_lamports {
-            require!(p <= MAX_PREMIUM_PRICE_LAMPORTS, VortexError::PremiumPriceAboveCap);
-            cfg.premium_price_per_month_lamports = p;
+        if let Some(tp) = new_tier_prices {
+            for price in tp.iter() {
+                require!(
+                    *price <= MAX_TIER_PRICE_LAMPORTS,
+                    VortexError::PremiumPriceAboveCap,
+                );
+            }
+            cfg.tier_prices_lamports = tp;
         }
         Ok(())
     }
@@ -325,59 +340,66 @@ pub mod vortex_registry {
         Ok(())
     }
 
-    // ── Phase B: premium subscriptions ─────────────────────────────────
+    // ── Phase B: premium tier subscriptions ────────────────────────────
 
-    /// Buy or extend a premium subscription by ``months`` months.
+    /// Buy or extend premium for ``beneficiary`` at a chosen plan tier.
     ///
-    /// The user pays ``months × config.premium_price_per_month_lamports``
-    /// lamports to the treasury in a single CPI transfer, and the
-    /// subscription PDA's ``end_timestamp`` advances by
-    /// ``months × 30 days`` — stacking on top of any remaining time
-    /// rather than resetting.
+    /// Plans:
+    ///   tier 0 → 1 month
+    ///   tier 1 → 3 months
+    ///   tier 2 → 6 months
+    ///   tier 3 → 12 months
     ///
-    /// We don't split revenue here. Phase D will add a distribution
-    /// instruction that pulls from treasury into the rewards pool using
-    /// the 70/20/10 formula. Until then every lamport sits in treasury
-    /// and counts toward ``total_premium_revenue_lamports``.
-    pub fn subscribe_premium(
-        ctx: Context<SubscribePremium>,
-        months: u8,
+    /// Price per plan is driven by ``config.tier_prices_lamports`` —
+    /// admin-adjusted, separate from a linear per-month multiplier so
+    /// longer plans can carry discounts (6mo and 12mo typically do).
+    ///
+    /// ``beneficiary`` is the account that receives the premium service,
+    /// NOT necessarily the payer. Passing a different beneficiary is the
+    /// gifting flow — ``last_gift_from`` captures who paid for it so
+    /// clients can render "gifted by X".
+    pub fn subscribe_tier(
+        ctx: Context<SubscribeTier>,
+        tier: u8,
+        beneficiary: Pubkey,
     ) -> Result<()> {
-        require!(months >= 1, VortexError::InvalidMonths);
-        require!(months <= MAX_PREMIUM_MONTHS_PER_TX, VortexError::InvalidMonths);
+        require!(
+            (tier as usize) < PLAN_DURATIONS_MONTHS.len(),
+            VortexError::InvalidTier,
+        );
 
         let cfg = &ctx.accounts.config;
         require!(
             ctx.accounts.treasury.key() == cfg.treasury,
             VortexError::WrongTreasury,
         );
+        require!(
+            ctx.accounts.subscription.key() == expected_subscription_pda(
+                beneficiary,
+                ctx.program_id,
+            ),
+            VortexError::WrongBeneficiary,
+        );
 
-        let per_month = cfg.premium_price_per_month_lamports;
-        let total = (per_month as u128)
-            .checked_mul(months as u128)
-            .and_then(|v| u64::try_from(v).ok())
-            .ok_or(error!(VortexError::FeeOverflow))?;
+        let months = PLAN_DURATIONS_MONTHS[tier as usize];
+        let price = cfg.tier_prices_lamports[tier as usize];
+        require!(price > 0, VortexError::InvalidTier);
 
         // Transfer first so a failing payment aborts the whole tx before
         // any subscription state is mutated.
-        if total > 0 {
-            let cpi_ctx = CpiContext::new(
-                ctx.accounts.system_program.to_account_info(),
-                system_program::Transfer {
-                    from: ctx.accounts.user.to_account_info(),
-                    to:   ctx.accounts.treasury.to_account_info(),
-                },
-            );
-            system_program::transfer(cpi_ctx, total)?;
-        }
+        let cpi_ctx = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            system_program::Transfer {
+                from: ctx.accounts.payer.to_account_info(),
+                to:   ctx.accounts.treasury.to_account_info(),
+            },
+        );
+        system_program::transfer(cpi_ctx, price)?;
 
         let clock = Clock::get()?;
         let now = clock.unix_timestamp;
         let sub = &mut ctx.accounts.subscription;
 
-        // If the subscription is brand-new or already expired, start
-        // accruing from ``now``; otherwise stack new months on top of
-        // the remaining time so prepaying is never punished.
         let base = core::cmp::max(sub.end_timestamp, now);
         let added_seconds = SECONDS_PER_MONTH
             .checked_mul(months as i64)
@@ -386,26 +408,36 @@ pub mod vortex_registry {
             .checked_add(added_seconds)
             .ok_or(error!(VortexError::FeeOverflow))?;
 
-        sub.user = ctx.accounts.user.key();
+        sub.beneficiary = beneficiary;
         sub.months_total_paid =
             sub.months_total_paid.saturating_add(months as u32);
         sub.lifetime_lamports_paid =
-            sub.lifetime_lamports_paid.saturating_add(total);
+            sub.lifetime_lamports_paid.saturating_add(price);
+        // Only record the gift relationship when payer and beneficiary
+        // actually differ; otherwise it stays at default (Pubkey::default)
+        // so clients can ignore it on self-purchases.
+        sub.last_gift_from = if ctx.accounts.payer.key() == beneficiary {
+            Pubkey::default()
+        } else {
+            ctx.accounts.payer.key()
+        };
         sub.bump = ctx.bumps.subscription;
 
-        // Update global counters on config.
         let cfg_mut = &mut ctx.accounts.config;
         cfg_mut.total_premium_revenue_lamports =
-            cfg_mut.total_premium_revenue_lamports.saturating_add(total);
+            cfg_mut.total_premium_revenue_lamports.saturating_add(price);
         cfg_mut.subscription_tx_count =
             cfg_mut.subscription_tx_count.saturating_add(1);
 
         emit!(SubscriptionPaid {
-            user: ctx.accounts.user.key(),
+            beneficiary,
+            payer: ctx.accounts.payer.key(),
             treasury: ctx.accounts.treasury.key(),
+            tier,
             months,
-            amount_lamports: total,
+            amount_lamports: price,
             end_timestamp: sub.end_timestamp,
+            is_gift: ctx.accounts.payer.key() != beneficiary,
             at: now,
         });
         Ok(())
@@ -723,6 +755,13 @@ pub mod vortex_registry {
     }
 }
 
+fn expected_subscription_pda(beneficiary: Pubkey, program_id: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(
+        &[SUBSCRIPTION_SEED, beneficiary.as_ref()],
+        program_id,
+    ).0
+}
+
 fn validate_endpoints(endpoints: &Vec<String>) -> Result<()> {
     require!(!endpoints.is_empty(), VortexError::EmptyEndpoints);
     require!(endpoints.len() <= MAX_ENDPOINTS, VortexError::TooManyEndpoints);
@@ -911,21 +950,28 @@ pub struct StakeOp<'info> {
 }
 
 #[derive(Accounts)]
-pub struct SubscribePremium<'info> {
+#[instruction(tier: u8, beneficiary: Pubkey)]
+pub struct SubscribeTier<'info> {
     #[account(mut, seeds = [CONFIG_SEED], bump = config.bump)]
     pub config: Account<'info, Config>,
 
+    /// Subscription PDA is keyed on ``beneficiary``, not the payer —
+    /// gifting works by passing a ``beneficiary`` that differs from the
+    /// signing wallet. Anchor would normally derive this from the
+    /// provided seeds; we pass ``beneficiary`` via instruction args and
+    /// re-check the PDA inside the handler (in case a caller crafts a
+    /// mismatched account manually).
     #[account(
         init_if_needed,
-        payer = user,
+        payer = payer,
         space = Subscription::SIZE,
-        seeds = [SUBSCRIPTION_SEED, user.key().as_ref()],
+        seeds = [SUBSCRIPTION_SEED, beneficiary.as_ref()],
         bump,
     )]
     pub subscription: Account<'info, Subscription>,
 
     #[account(mut)]
-    pub user: Signer<'info>,
+    pub payer: Signer<'info>,
 
     /// CHECK: validated against ``config.treasury`` in the handler.
     #[account(mut)]
@@ -994,54 +1040,62 @@ pub struct Config {
     pub total_fees_collected: u64,
     pub registrations_count: u64,
     pub bump: u8,
-    // ── Phase B (premium subscriptions) ───────────────────────────────
-    /// Current per-month price in lamports. Admin re-prices over time to
-    /// track SOL/USD drift.
-    pub premium_price_per_month_lamports: u64,
-    /// Lifetime lamports received from ``subscribe_premium`` — lets the
+    // ── Phase B (premium tier subscriptions) ──────────────────────────
+    /// Per-plan price in lamports, index-aligned with
+    /// ``PLAN_DURATIONS_MONTHS`` = [1, 3, 6, 12]. Admin re-prices to
+    /// track the SOL/USD rate via ``update_config``.
+    pub tier_prices_lamports: [u64; 4],
+    /// Lifetime lamports received from ``subscribe_tier`` — lets the
     /// off-chain dashboard show cumulative premium inflow without
     /// scanning every subscription account.
     pub total_premium_revenue_lamports: u64,
-    /// Number of ``subscribe_premium`` transactions executed. Not the
-    /// number of distinct users — one wallet that top-ups monthly
-    /// increments this every month.
+    /// Number of ``subscribe_tier`` transactions executed (not distinct
+    /// users — one wallet topping up monthly increments each time).
     pub subscription_tx_count: u64,
 }
 
 impl Config {
     pub const SIZE: usize = 8   // discriminator
-        + 32  // admin
-        + 32  // treasury
-        + 8   // register_fee_lamports
-        + 8   // total_fees_collected
-        + 8   // registrations_count
-        + 1   // bump
-        + 8   // premium_price_per_month_lamports
-        + 8   // total_premium_revenue_lamports
-        + 8;  // subscription_tx_count
+        + 32       // admin
+        + 32       // treasury
+        + 8        // register_fee_lamports
+        + 8        // total_fees_collected
+        + 8        // registrations_count
+        + 1        // bump
+        + 8 * 4    // tier_prices_lamports [u64; 4]
+        + 8        // total_premium_revenue_lamports
+        + 8;       // subscription_tx_count
 }
 
-/// Per-user premium subscription record at PDA ``["subscription", user]``.
+/// Per-beneficiary premium subscription at
+/// PDA ``["subscription", beneficiary]``.
 ///
 /// ``end_timestamp`` is the single source of truth — clients check
 /// ``now < end_timestamp`` to decide whether to unlock premium features.
 /// Re-subscribing before expiry stacks; re-subscribing after expiry
 /// restarts from ``now``.
+///
+/// ``last_gift_from`` is non-default only when the most recent top-up
+/// was paid by someone other than the beneficiary (gifting). A client
+/// can show "Premium gifted by X" when this field differs from
+/// beneficiary.
 #[account]
 pub struct Subscription {
-    pub user: Pubkey,
+    pub beneficiary: Pubkey,
     pub end_timestamp: i64,
     pub months_total_paid: u32,
     pub lifetime_lamports_paid: u64,
+    pub last_gift_from: Pubkey,
     pub bump: u8,
 }
 
 impl Subscription {
     pub const SIZE: usize = 8   // discriminator
-        + 32  // user
+        + 32  // beneficiary
         + 8   // end_timestamp
         + 4   // months_total_paid
         + 8   // lifetime_lamports_paid
+        + 32  // last_gift_from
         + 1;  // bump
 }
 
@@ -1149,11 +1203,14 @@ pub struct RegisterFeePaid {
 
 #[event]
 pub struct SubscriptionPaid {
-    pub user: Pubkey,
+    pub beneficiary: Pubkey,
+    pub payer: Pubkey,
     pub treasury: Pubkey,
+    pub tier: u8,
     pub months: u8,
     pub amount_lamports: u64,
     pub end_timestamp: i64,
+    pub is_gift: bool,
     pub at: i64,
 }
 
@@ -1231,10 +1288,12 @@ pub enum VortexError {
     WrongTreasury,
     #[msg("register fee exceeds the hard-coded safety cap (10 SOL)")]
     FeeAboveCap,
-    #[msg("premium price exceeds the hard-coded safety cap (1 SOL/month)")]
+    #[msg("tier price exceeds the hard-coded safety cap (6 SOL)")]
     PremiumPriceAboveCap,
-    #[msg("months must be between 1 and 36 per transaction")]
-    InvalidMonths,
+    #[msg("tier id must be 0..=3 and the price must be set")]
+    InvalidTier,
+    #[msg("subscription PDA does not match the supplied beneficiary")]
+    WrongBeneficiary,
     #[msg("arithmetic overflow computing the fee amount")]
     FeeOverflow,
     #[msg("stake amount is zero or outside [0.1, 10000] SOL bounds")]

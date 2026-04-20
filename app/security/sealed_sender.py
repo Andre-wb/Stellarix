@@ -114,16 +114,27 @@ def _get_secret() -> bytes:
 
 # ── Core functions ────────────────────────────────────────────────────────────
 
+try:
+    import vortex_chat as _vc_rust
+    _HAS_RUST_PSEUDO = hasattr(_vc_rust, "compute_sender_pseudo")
+except ImportError:
+    _HAS_RUST_PSEUDO = False
+
+
 def compute_sender_pseudo(room_id: int, user_id: int) -> str:
     """
     Compute a per-room pseudonym for user_id.
 
-    The same (room_id, user_id) pair always returns the same pseudo within
-    one server deployment. Different rooms yield unrelated pseudonyms.
+    Same (room_id, user_id) → same pseudo within a deployment. Different
+    rooms yield unrelated pseudonyms. Returns 64-char lowercase hex.
 
-    Returns: 64-character lowercase hex string (32 bytes).
+    Hot path — called for every outgoing message. Prefers Rust
+    (blake2 crate, ~1 µs) with a Python fallback that preserves byte-
+    for-byte output.
     """
-    key  = _get_secret()
+    key = _get_secret()
+    if _HAS_RUST_PSEUDO:
+        return _vc_rust.compute_sender_pseudo(key, room_id, user_id)
     data = room_id.to_bytes(8, "big") + user_id.to_bytes(8, "big")
     return hashlib.blake2b(data, key=key, digest_size=32).digest().hex()
 

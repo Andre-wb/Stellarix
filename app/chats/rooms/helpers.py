@@ -45,6 +45,14 @@ class RoomCreate(BaseModel):
         ...,
         description="room_key(32 bytes), encrypted with ECIES using the creator's X25519 public key"
     )
+    # Variant-B plaintext copy — used ONLY for is_private=False rooms so the
+    # server can hand the key to new joiners without a round-trip to an
+    # online member. Ignored for private rooms. If omitted on a public
+    # room the server generates its own key server-side.
+    public_room_key_hex: Optional[str] = Field(
+        None, min_length=64, max_length=64,
+        description="Plaintext 32-byte AES-256 room key (hex). Public rooms only."
+    )
 
 
 class ProvideKeyRequest(BaseModel):
@@ -117,6 +125,8 @@ def _room_dict(r: Room) -> dict:
         "silent_default":      getattr(r, "silent_default", False) or False,
         "join_approval":       getattr(r, "join_approval", False) or False,
         "hashtags_enabled":    getattr(r, "hashtags_enabled", True) if hasattr(r, "hashtags_enabled") else True,
+        "replication_mode":    getattr(r, "replication_mode", "none") or "none",
+        "is_dm":               bool(getattr(r, "is_dm", False)),
     }
     # Add voice participants for voice channels
     if d["is_voice"]:

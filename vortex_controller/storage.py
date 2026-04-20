@@ -28,6 +28,8 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     Index,
+    Integer,
+    LargeBinary,
     String,
     func,
     select,
@@ -54,6 +56,30 @@ _JSONType = _SAJson().with_variant(JSONB(), "postgresql")
 
 class Base(DeclarativeBase):
     pass
+
+
+class EncryptedBackup(Base):
+    """Opaque encrypted DB snapshot stored on behalf of a node.
+
+    The controller never sees plaintext. The blob is encrypted client-side
+    with a key derived from the node's 24-word seed phrase (same seed that
+    owns ``pubkey_hex``). Ownership is proved by the client signing a
+    request envelope with its Ed25519 node key before each upload/fetch.
+
+    The controller only stores:
+      - `pubkey_hex` of the owning node
+      - ciphertext blob (opaque)
+      - sha256 of ciphertext for tamper-detection
+      - size and timestamps for dashboards
+    """
+    __tablename__ = "encrypted_backups"
+
+    pubkey_hex: Mapped[str] = mapped_column(String(128), primary_key=True)
+    blob:       Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    sha256_hex: Mapped[str]   = mapped_column(String(64),  nullable=False)
+    byte_size:  Mapped[int]   = mapped_column(Integer,     nullable=False)
+    created_at: Mapped[int]   = mapped_column(BigInteger,  nullable=False)
+    updated_at: Mapped[int]   = mapped_column(BigInteger,  nullable=False)
 
 
 class Node(Base):
@@ -236,6 +262,85 @@ class Storage:
             weights.pop(idx)
         return [_to_dict(r) for r in rows]
 
+    # ── Encrypted backups (opaque blobs) ──────────────────────────────────
+
+    # Hard cap on blob size to stop a node from occupying unbounded storage
+    # on the controller. Real-world backups should compress far under this
+    # (a 50MB sqlite db gzips to ~10MB, AES-GCM adds 28B overhead).
+    MAX_BACKUP_BYTES = 64 * 1024 * 1024  # 64 MiB
+
+    async def put_backup(self, pubkey_hex: str, blob: bytes, sha256_hex: str) -> dict:
+        size = len(blob)
+        if size == 0:
+            raise ValueError("empty blob")
+        if size > self.MAX_BACKUP_BYTES:
+            raise ValueError(f"blob exceeds {self.MAX_BACKUP_BYTES} bytes")
+
+        now = int(time.time())
+        async with self._session_maker() as s:
+            existing = await s.get(EncryptedBackup, pubkey_hex)
+            if existing:
+                existing.blob       = blob
+                existing.sha256_hex = sha256_hex
+                existing.byte_size  = size
+                existing.updated_at = now
+                created = existing.created_at
+            else:
+                s.add(EncryptedBackup(
+                    pubkey_hex = pubkey_hex,
+                    blob       = blob,
+                    sha256_hex = sha256_hex,
+                    byte_size  = size,
+                    created_at = now,
+                    updated_at = now,
+                ))
+                created = now
+            await s.commit()
+        return {
+            "pubkey_hex": pubkey_hex,
+            "sha256":     sha256_hex,
+            "byte_size":  size,
+            "created_at": created,
+            "updated_at": now,
+        }
+
+    async def get_backup(self, pubkey_hex: str) -> Optional[dict]:
+        async with self._session_maker() as s:
+            row = await s.get(EncryptedBackup, pubkey_hex)
+            if not row:
+                return None
+            return {
+                "pubkey_hex": row.pubkey_hex,
+                "blob":       bytes(row.blob),
+                "sha256":     row.sha256_hex,
+                "byte_size":  int(row.byte_size),
+                "created_at": int(row.created_at),
+                "updated_at": int(row.updated_at),
+            }
+
+    async def get_backup_meta(self, pubkey_hex: str) -> Optional[dict]:
+        """Return metadata without the blob — useful for 'have you backed up?' UI."""
+        async with self._session_maker() as s:
+            row = await s.get(EncryptedBackup, pubkey_hex)
+            if not row:
+                return None
+            return {
+                "pubkey_hex": row.pubkey_hex,
+                "sha256":     row.sha256_hex,
+                "byte_size":  int(row.byte_size),
+                "created_at": int(row.created_at),
+                "updated_at": int(row.updated_at),
+            }
+
+    async def delete_backup(self, pubkey_hex: str) -> bool:
+        async with self._session_maker() as s:
+            row = await s.get(EncryptedBackup, pubkey_hex)
+            if not row:
+                return False
+            await s.delete(row)
+            await s.commit()
+            return True
+
     async def stats(self) -> dict[str, Any]:
         cutoff = int(time.time()) - ONLINE_WINDOW_SEC
         async with self._session_maker() as s:
@@ -257,15 +362,37 @@ class Storage:
 
 
 def _to_dict(node: Node) -> dict:
+    meta = dict(node.node_metadata or {})
+    w = _freshness_weight(node.last_heartbeat) * _capability_weight(meta)
     return {
         "pubkey_hex": node.pubkey_hex,
         "endpoints": list(node.endpoints or []),
-        "metadata": dict(node.node_metadata or {}),
+        "metadata": meta,
         "registered_at": node.registered_at,
         "last_heartbeat": node.last_heartbeat,
         "approved": bool(node.approved),
-        "weight": _freshness_weight(node.last_heartbeat),
+        "weight": round(w, 4),
     }
+
+
+# Penalty applied to node weight when capabilities are missing. Lower
+# weight = fewer users get routed to this node through /v1/nodes/random.
+_CAP_PENALTY = {
+    "ai_capable": 0.15,   # nodes without local AI lose ~15% of weight
+}
+
+
+def _capability_weight(meta: dict) -> float:
+    """Multiply base freshness weight by a capability factor.
+
+    Reads flags from the node's self-reported metadata (set when it
+    registers / heartbeats). A missing flag is treated as disabled.
+    """
+    mul = 1.0
+    for flag, penalty in _CAP_PENALTY.items():
+        if not bool(meta.get(flag)):
+            mul *= (1.0 - penalty)
+    return mul
 
 
 def _freshness_weight(last_heartbeat: int, now: Optional[int] = None) -> float:

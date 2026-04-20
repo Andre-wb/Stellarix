@@ -1,0 +1,233 @@
+/* Vortex Premium modal — single-file styles.
+ * All selectors prefixed `vx-premium-` / `vx-` to avoid collisions with the
+ * host page's own classes. No @import — paste this <link> tag on any page
+ * that includes premium.js.
+ */
+
+.vx-premium-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(8px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    animation: vxFadeIn 0.18s ease-out;
+}
+@keyframes vxFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.vx-premium-modal {
+    position: relative;
+    max-width: 760px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    background: #12121a;
+    border: 1px solid rgba(124, 58, 237, 0.3);
+    border-radius: 16px;
+    padding: 32px 28px 24px;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+.vx-premium-close {
+    position: absolute;
+    top: 12px; right: 14px;
+    width: 32px; height: 32px;
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 26px;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 8px;
+}
+.vx-premium-close:hover { color: #fff; background: rgba(255,255,255,0.08); }
+
+.vx-premium-title {
+    margin: 0 0 4px;
+    font-size: 24px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #c084fc, #7c3aed);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.vx-premium-sub {
+    margin: 0 0 20px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.6);
+    line-height: 1.5;
+}
+
+/* Wallet strip */
+.vx-premium-wallet {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    margin-bottom: 14px;
+}
+.vx-wallet-addr {
+    font-family: 'SF Mono', Menlo, monospace;
+    font-size: 13px;
+    color: #e0e0e0;
+    flex: 1;
+}
+.vx-wallet-tag {
+    padding: 3px 9px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+}
+.vx-tag-active {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+    border: 1px solid rgba(34, 197, 94, 0.35);
+}
+.vx-tag-free {
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* Gift row */
+.vx-premium-gift {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 18px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.7);
+    flex-wrap: wrap;
+}
+.vx-premium-gift input[type="checkbox"] { accent-color: #7c3aed; }
+.vx-gift-input {
+    flex: 1;
+    min-width: 200px;
+    padding: 8px 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: #fff;
+    font-family: 'SF Mono', Menlo, monospace;
+    font-size: 12px;
+}
+.vx-gift-input:focus {
+    outline: none;
+    border-color: #7c3aed;
+}
+
+/* Plan grid */
+.vx-premium-plans {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 18px;
+}
+@media (max-width: 620px) {
+    .vx-premium-plans { grid-template-columns: repeat(2, 1fr); }
+}
+.vx-plan-card {
+    padding: 18px 14px 14px;
+    background: rgba(124, 58, 237, 0.05);
+    border: 1px solid rgba(124, 58, 237, 0.2);
+    border-radius: 12px;
+    text-align: center;
+    transition: border-color 0.15s;
+}
+.vx-plan-card:hover { border-color: rgba(124, 58, 237, 0.55); }
+.vx-plan-label {
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.55);
+    margin-bottom: 10px;
+}
+.vx-plan-price {
+    font-size: 26px;
+    font-weight: 700;
+    color: #fff;
+}
+.vx-plan-duration {
+    margin: 2px 0 6px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+}
+.vx-plan-sol {
+    font-family: 'SF Mono', Menlo, monospace;
+    font-size: 11px;
+    color: rgba(124, 58, 237, 0.85);
+    margin-bottom: 12px;
+}
+
+/* Buttons */
+.vx-btn {
+    width: 100%;
+    padding: 9px 14px;
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s, background 0.15s;
+}
+.vx-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.vx-btn-primary {
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    color: #fff;
+}
+.vx-btn-primary:hover:not(:disabled) { opacity: 0.9; }
+.vx-btn-buy {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.vx-btn-buy:hover:not(:disabled) {
+    background: rgba(124, 58, 237, 0.3);
+    border-color: #7c3aed;
+}
+
+/* Status / error msg */
+.vx-premium-msg {
+    min-height: 24px;
+    padding: 8px 12px;
+    font-size: 12.5px;
+    border-radius: 6px;
+    margin-top: 6px;
+    font-family: 'SF Mono', Menlo, monospace;
+}
+.vx-premium-msg:empty { display: none; }
+.vx-premium-msg.vx-ok {
+    background: rgba(34, 197, 94, 0.08);
+    color: #86efac;
+    border: 1px solid rgba(34, 197, 94, 0.25);
+}
+.vx-premium-msg.vx-err {
+    background: rgba(239, 68, 68, 0.08);
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+/* Premium badge for profile display — used outside the modal too */
+.vx-premium-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: linear-gradient(135deg, #c084fc, #7c3aed);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    vertical-align: middle;
+}

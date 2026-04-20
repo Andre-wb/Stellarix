@@ -67,6 +67,16 @@ class Room(Base):
     # Per-room theme: JSON {"wallpaper": "stars|aurora|...", "accent": "#hex", "dark_mode": bool}
     theme_json = Column(Text, nullable=True)
 
+    # Cross-node replication policy for this room. Only the owner can flip
+    # this. DMs are hard-locked to 'none'. When 'federated', encrypted
+    # envelopes of new messages are gossiped to other nodes for durability.
+    # Content stays E2E-encrypted, but metadata (pubkey graph, timestamps)
+    # becomes visible to peer nodes — UI must warn participants on first
+    # entry.
+    #   'none'      — local storage only (default)
+    #   'federated' — replicated across the network (owner opt-in)
+    replication_mode = Column(String(16), default='none', nullable=False, server_default='none')
+
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 

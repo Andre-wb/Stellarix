@@ -406,6 +406,22 @@ class ActiveProbeDetector:
         Возвращает (is_probe: bool, reason: str).
         """
         ip = request_info.get("ip", "")
+
+        # Loopback / local-link clients are NOT external censors — they're
+        # the wizard polling /api/health, a browser on the same box, or
+        # a LAN peer. Treating them as probes spams the log with false
+        # positives (the wizard fetches /api/health every 2s).
+        if ip in ("127.0.0.1", "::1", "localhost"):
+            return False, ""
+        # Quick check for IPv4-mapped IPv6 loopback
+        if ip.startswith("::ffff:127."):
+            return False, ""
+        # Same-subnet private addresses (LAN peers)
+        if ip.startswith(("10.", "192.168.", "172.16.", "172.17.", "172.18.",
+                          "172.19.", "172.2", "172.30.", "172.31.", "169.254.",
+                          "fe80:", "fc00:", "fd00:")):
+            return False, ""
+
         headers = {k.lower(): v for k, v in request_info.get("headers", {}).items()}
         path = request_info.get("path", "")
         reasons = []

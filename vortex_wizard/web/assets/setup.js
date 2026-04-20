@@ -38,9 +38,19 @@
     }
 
     // ── Step dots — render dynamically by current flow ────────────────
+    //
+    // Step numbering (matches data-step attributes on DOM elements):
+    //   1 — identity (create / restore)  — the ``#identity-block`` div
+    //   2 — device + network mode        — data-step="2"
+    //   3 — exposure choice              — data-step="3"
+    //   4 — exposure detail              — data-step="4"
+    //   5 — review + create              — data-step="5"
+    //
+    // Local mode skips 3 and 4, so its flow is: 1 → 2 → 5.
     function flowSteps() {
-        // Local mode = 2 dots (Identity → Review). Others = 4.
-        return state.mode === 'local' ? [1, 4] : [1, 2, 3, 4];
+        return state.mode === 'local'
+            ? [1, 2, 5]
+            : [1, 2, 3, 4, 5];
     }
     function renderDots() {
         const host = $('#step-dots');
@@ -66,10 +76,12 @@
 
     function showStep(n) {
         state.step = n;
+        // step 1 is identity — its own block, not a .step-view
+        idBlock.style.display = (n === 1) ? '' : 'none';
         $$('.step-view').forEach(v => v.classList.toggle('active', +v.dataset.step === n));
         renderDots();
-        if (n === 3) applyDetailView();
-        if (n === 4) renderSummary();
+        if (n === 4) applyDetailView();   // detail page
+        if (n === 5) renderSummary();     // review page
     }
 
     // ── Identity block (shown before the numbered wizard) ─────────────
@@ -77,15 +89,18 @@
     const stepDots = $('#step-dots');
 
     function showIdentityView(name) {
+        state.step = 1;
+        idBlock.style.display = '';
+        $$('.step-view').forEach(v => v.classList.remove('active'));
         $$('.identity-view').forEach(v => {
             v.style.display = (v.dataset.view === name) ? '' : 'none';
         });
+        renderDots();
     }
 
     function beginWizard() {
-        idBlock.style.display = 'none';
-        stepDots.style.display = '';
-        showStep(1);
+        // After identity (step 1) is complete, move to step 2 (device + mode).
+        showStep(2);
     }
 
     $$('[data-id-action="create"]').forEach(b => b.addEventListener('click', async () => {
@@ -224,8 +239,10 @@
     }).catch(() => {});
 
     $('#btn-next-1').addEventListener('click', () => {
+        // This is the "Continue" button on the device + mode screen
+        // (step 2 in the new numbering; the button id stays btn-next-1
+        // for backwards compatibility with existing i18n/CSS selectors).
         if (!$('#device_name').value.trim()) {
-            // No msg element in step 1 — just flash the field
             $('#device_name').focus();
             return;
         }
@@ -233,25 +250,23 @@
             $('#controller_url').focus();
             return;
         }
-        // Local → jump straight to Review
+        // Local → jump straight to Review (step 5)
         if (state.mode === 'local') {
             state.exposure = 'skip';
-            showStep(4);
+            showStep(5);
         } else {
-            showStep(2);
+            showStep(3);
         }
     });
 
-    // ── Step 2 — choice cards (click = advance to step 3) ─────────────
+    // ── Step 3 — choice cards (click = advance to step 4) ─────────────
     $$('#tunnel-cards .choice-card').forEach(c => c.addEventListener('click', () => {
         state.exposure = c.dataset.choice;
         $$('#tunnel-cards .choice-card').forEach(x => x.classList.toggle('selected', x === c));
-        // Immediate transition — feels more like a wizard
-        showStep(3);
-        // Refresh tunnel status when entering the tunnel detail view
+        showStep(4);
         if (state.exposure === 'tunnel') refreshTunnelStatus();
     }));
-    $('#btn-back-2').addEventListener('click', () => showStep(1));
+    $('#btn-back-2').addEventListener('click', () => showStep(2));
 
     // ── Step 3 — detail views ─────────────────────────────────────────
     function setCtaMode(mode) {
@@ -358,7 +373,7 @@
         const u = $('#tunnel-url').textContent || '';
         try { await navigator.clipboard.writeText(u); } catch {}
     });
-    $('#btn-back-3').addEventListener('click', () => showStep(2));
+    $('#btn-back-3').addEventListener('click', () => showStep(3));
     $('#btn-next-3').addEventListener('click', () => {
         if (state.exposure === 'tunnel' && !state.tunnelUrl) {
             const tlabel = $('#tunnel-state-label');
@@ -370,10 +385,10 @@
             if (!v) { $('#manual_public_url').focus(); return; }
             state.manualUrl = v;
         }
-        showStep(4);
+        showStep(5);
     });
 
-    // ── Step 4 — summary + SNS resolve + save ─────────────────────────
+    // ── Step 5 — summary + SNS resolve + save ─────────────────────────
     async function resolveSns(force = false) {
         const sumBlock = $('#sns-summary');
         if (state.mode !== 'global') { sumBlock.style.display = 'none'; return; }
@@ -449,7 +464,9 @@
 
     $('#btn-refresh-sns').addEventListener('click', () => resolveSns(true));
     $('#btn-back-4').addEventListener('click', () => {
-        if (state.mode === 'local') showStep(1); else showStep(3);
+        // Back from Review: local skips directly from device (step 2)
+        // to review; global/custom came through the detail page (step 4).
+        if (state.mode === 'local') showStep(2); else showStep(4);
     });
 
     async function save() {
@@ -507,7 +524,27 @@
             if (!d) { showMsg('Bad response: ' + text.slice(0, 200), 'err'); return; }
             if (d.ok) {
                 showMsg(i18n('setup.saved', 'Saved ✓ — opening admin dashboard…'), 'ok');
-                setTimeout(() => { window.location.href = '/'; }, 900);
+                // Poll /mode until the server confirms it's flipped to
+                // admin, then do a cache-busting replace. Replaces the
+                // previous brittle fixed-delay approach — no more "first
+                // step looks like it reappeared" if fsync is slow.
+                const waitForAdmin = async () => {
+                    for (let i = 0; i < 20; i++) {
+                        try {
+                            const mr = await fetch('/mode', { cache: 'no-store' });
+                            const md = await mr.json();
+                            if (md.mode === 'admin') return true;
+                        } catch (_) {}
+                        await new Promise(r => setTimeout(r, 200));
+                    }
+                    return false;
+                };
+                waitForAdmin().then(ok => {
+                    // location.replace avoids a history entry pointing at
+                    // a now-dead setup URL. The ?v=Date.now() query busts
+                    // any intermediate cache (service worker, proxy).
+                    window.location.replace('/?v=' + Date.now());
+                });
             } else {
                 showMsg(d.error || 'Error', 'err');
             }
@@ -520,6 +557,7 @@
     }
     $('#btn-save').addEventListener('click', save);
 
-    // First render
+    // First render — identity is step 1, the active one on load
+    state.step = 1;
     renderDots();
 })();

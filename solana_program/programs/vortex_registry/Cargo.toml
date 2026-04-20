@@ -14,9 +14,12 @@ no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
 default = []
+# Required by Anchor 0.31+ so the CLI can emit an IDL when running
+# `anchor build`. Pulls `idl-build` from anchor-lang transitively.
+idl-build = ["anchor-lang/idl-build"]
 
 [dependencies]
 # init-if-needed enables #[account(init_if_needed)]; documented re-init
 # protection lives in the register / register_with_fee instructions
 # themselves (owner is compared to the signer every time).
-anchor-lang = { version = "0.30.1", features = ["init-if-needed"] }
+anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }

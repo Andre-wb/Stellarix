@@ -21,6 +21,7 @@ from app.security.crypto import hash_message
 from app.chats.messages._router import utc_iso as _utc_iso, parse_client_ts as _parse_client_ts
 from app.chats.messages.flood import check_flood as _check_flood, _FLOOD_THRESHOLD
 from app.chats.messages.push import send_web_push as _send_web_push
+from app.federation.replication import maybe_replicate as _maybe_replicate
 from app.security.sealed_sender import compute_sender_pseudo, verify_sender_pseudo, resolve_pseudo
 from app.transport.blind_mailbox import deposit_envelope
 
@@ -307,6 +308,17 @@ async def handle_e2e_message(room_id: int, user: User, data: dict, db: Session) 
     # Keep pending queue for offline delivery (BMP TTL = 2h, pending = 7d)
     await manager.enqueue_pending(room_id, payload, member_ids=_room_member_ids)
 
+    # ── Cross-node replication (federated rooms only, owner opt-in) ────────
+    # No-op unless `room.replication_mode == 'federated'`. Metadata leak is
+    # intentional and surfaced to users via the warning banner; content
+    # stays E2E-encrypted.
+    if _room_obj is not None:
+        try:
+            _sender_ts = int(msg.created_at.timestamp()) if msg.created_at else 0
+        except Exception:
+            _sender_ts = 0
+        await _maybe_replicate(_room_obj, payload, _sender_ts)
+
     # ── Bot command forwarding ─────────────────────────────────────────────
     # Client may include plaintext_command when text starts with '/'
     # (server can't see E2E-encrypted text, so client provides the hint)
@@ -576,6 +588,15 @@ async def handle_thread_reply(room_id: int, user: User, data: dict, db: Session)
     # BMP-only delivery (WS broadcast removed)
     await _bmp_deposit(room_id, payload)
     await manager.enqueue_pending(room_id, payload, member_ids=_thread_member_ids)
+
+    # Cross-node replication (same opt-in flag as regular messages)
+    _room_obj2 = db.query(Room).filter(Room.id == room_id).first()
+    if _room_obj2 is not None:
+        try:
+            _sender_ts2 = int(msg.created_at.timestamp()) if msg.created_at else 0
+        except Exception:
+            _sender_ts2 = 0
+        await _maybe_replicate(_room_obj2, payload, _sender_ts2)
 
     # Обновляем badge thread_count для всех
     await manager.broadcast_to_room(room_id, {

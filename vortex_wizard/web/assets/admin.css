@@ -376,8 +376,146 @@ body {
     word-break: break-all;
 }
 
+/* ── Forms: inputs, textareas, selects, checkboxes ──
+   Without these, browsers fall back to native widgets which look
+   totally out of place on our dark theme. Every field shows up
+   consistently styled regardless of whether it was there originally
+   or added by one of the new W1-W10 modules. */
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="number"],
+input[type="search"],
+input[type="url"],
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+textarea,
+select,
+.form-input {
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.4;
+    padding: 8px 12px;
+    background: var(--bg3);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.12s, box-shadow 0.12s;
+    max-width: 100%;
+}
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="email"]:focus,
+input[type="number"]:focus,
+input[type="search"]:focus,
+input[type="url"]:focus,
+input[type="date"]:focus,
+input[type="datetime-local"]:focus,
+input[type="time"]:focus,
+textarea:focus,
+select:focus,
+.form-input:focus {
+    border-color: var(--purple);
+    box-shadow: 0 0 0 3px rgba(124,58,237,0.18);
+}
+input::placeholder,
+textarea::placeholder,
+.form-input::placeholder { color: var(--text3); }
+
+textarea {
+    min-height: 80px;
+    resize: vertical;
+    font-family: var(--mono);
+}
+
+/* Native select arrow is ugly on dark — draw our own */
+select, select.form-input {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 30px;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23a1a1aa' viewBox='0 0 24 24'><path d='M7 10l5 5 5-5z'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    cursor: pointer;
+}
+
+/* Fully-custom checkboxes / radios — accent-color only tints the OS
+   widget, which still looks alien on dark themes (grey squircle on
+   macOS, yellow corners on Windows). We redraw them entirely. */
+/* Checkboxes / radios — minimal monochrome. No gradients, no glow. */
+input[type="checkbox"],
+input[type="radio"] {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.22);
+    cursor: pointer;
+    vertical-align: middle;
+    position: relative;
+    transition: background 0.1s, border-color 0.1s;
+    flex-shrink: 0;
+}
+input[type="checkbox"] { border-radius: 3px; }
+input[type="radio"]    { border-radius: 50%; }
+
+input[type="checkbox"]:hover,
+input[type="radio"]:hover {
+    border-color: rgba(255,255,255,0.5);
+}
+input[type="checkbox"]:focus-visible,
+input[type="radio"]:focus-visible {
+    outline: none;
+    border-color: rgba(255,255,255,0.7);
+}
+input[type="checkbox"]:checked,
+input[type="radio"]:checked {
+    background: #000;
+    border-color: rgba(255,255,255,0.5);
+}
+input[type="checkbox"]:checked::after {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 1px;
+    width: 5px;
+    height: 9px;
+    border: solid #fff;
+    border-width: 0 1.5px 1.5px 0;
+    transform: rotate(45deg);
+}
+input[type="radio"]:checked::after {
+    content: "";
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 6px; height: 6px;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: #fff;
+}
+input[type="checkbox"]:disabled,
+input[type="radio"]:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+/* Disabled state */
+input:disabled, textarea:disabled, select:disabled,
+button:disabled, .btn:disabled, .btn-primary:disabled,
+.btn-small:disabled, .btn-ghost:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    filter: grayscale(25%);
+}
+
 /* ── Buttons ── */
-.btn, .btn-primary, .btn-icon {
+.btn, .btn-primary, .btn-small, .btn-ghost, .btn-icon, .btn-danger, button {
     font-family: inherit;
     cursor: pointer;
     transition: all 0.12s;
@@ -402,6 +540,50 @@ body {
     box-shadow: 0 2px 12px rgba(124,58,237,0.25);
 }
 .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(124,58,237,0.35); }
+
+/* Compact button — used everywhere in W1-W10 panels */
+.btn-small {
+    padding: 5px 10px;
+    font-size: 11px;
+    background: var(--bg3);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-weight: 500;
+}
+.btn-small:hover:not(:disabled) {
+    background: rgba(124,58,237,0.1);
+    border-color: var(--purple);
+    color: var(--text);
+}
+
+/* Secondary / subdued variant */
+.btn-ghost {
+    background: transparent !important;
+    color: var(--text2);
+    border: 1px solid var(--border);
+}
+.btn-ghost:hover:not(:disabled) {
+    background: rgba(255,255,255,0.04) !important;
+    color: var(--text);
+}
+
+/* Destructive variant */
+.btn-danger {
+    padding: 8px 14px;
+    background: rgba(239,68,68,0.1);
+    color: #fca5a5;
+    border: 1px solid rgba(239,68,68,0.35);
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+}
+.btn-danger:hover:not(:disabled) {
+    background: rgba(239,68,68,0.18);
+    border-color: var(--red);
+    color: #fee2e2;
+}
+
 .btn-icon {
     display: inline-flex; align-items: center; justify-content: center;
     width: 32px; height: 32px;
@@ -411,6 +593,82 @@ body {
     border-radius: 8px;
 }
 .btn-icon:hover { color: var(--text); border-color: var(--purple); }
+
+/* ── Rows + switches (for toggle controls across panels) ── */
+.switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    gap: 12px;
+}
+.switch-row > span { flex: 1; font-size: 13px; }
+.card-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    gap: 12px;
+}
+.card-row + .card-row { border-top: 1px solid rgba(255,255,255,0.04); }
+.card-row > span:first-child { color: var(--text2); font-size: 13px; }
+.card-row > :last-child { color: var(--text); font-size: 13px; }
+
+/* ── Alert messages (used in db, backup, sec panels) ── */
+.alert {
+    margin-top: 10px; padding: 8px 12px;
+    border-radius: 8px; font-size: 12px; line-height: 1.5;
+    display: none;
+}
+.alert.show { display: block; }
+.alert.alert-ok  { background: rgba(34,197,94,0.08);  color: #86efac; border: 1px solid rgba(34,197,94,0.25); }
+.alert.alert-err { background: rgba(239,68,68,0.1);   color: #fca5a5; border: 1px solid rgba(239,68,68,0.35); }
+
+/* ── Layout helpers for the new panels ── */
+.row { display: flex; align-items: center; }
+.hint { font-size: 11px; color: var(--text3); }
+.empty { text-align: center; color: var(--text3); padding: 20px 0; font-style: italic; }
+.card-desc { font-size: 12px; color: var(--text2); line-height: 1.5; margin: 4px 0 8px; }
+
+/* Form labels — for prompts inside cards (password, email, etc.) */
+.form-label {
+    display: block;
+    font-size: 11px;
+    color: var(--text2);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* ── Loading / work-in-progress visuals ──
+   Any button can embed <span class="vx-spin"></span> for a 12px inline
+   spinner. Cards that are actively doing work get .vx-verifying which
+   pulses the border + casts a soft glow so the user knows a long
+   operation is in progress. */
+.vx-spin {
+    display: inline-block;
+    width: 12px; height: 12px;
+    margin-right: 6px;
+    border: 2px solid rgba(255,255,255,0.25);
+    border-top-color: var(--purple2);
+    border-radius: 50%;
+    animation: vx-spin 0.8s linear infinite;
+    vertical-align: -2px;
+}
+@keyframes vx-spin { to { transform: rotate(360deg); } }
+
+.vx-verifying {
+    position: relative;
+    animation: vx-pulse 1.2s ease-in-out infinite;
+}
+@keyframes vx-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.35); border-color: var(--purple); }
+    50%      { box-shadow: 0 0 0 8px rgba(124, 58, 237, 0);    border-color: var(--purple2); }
+}
+.vx-verifying .card-badge {
+    background: rgba(124, 58, 237, 0.2);
+    color: var(--purple2);
+}
 
 /* ── Peers table ── */
 .peers-table {
@@ -493,6 +751,31 @@ body {
     margin: 4px 0;
     border-radius: 0 6px 6px 0;
 }
+
+/* ── Restore banner (shown when a backup exists on the controller
+      but local DB looks fresh — e.g. right after restoring via seed) ── */
+.restore-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 18px;
+    margin-bottom: 16px;
+    border-radius: 12px;
+    background: rgba(139, 92, 246, 0.08);
+    border: 1px solid rgba(139, 92, 246, 0.35);
+    color: var(--text);
+}
+.restore-banner-text {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+}
+.restore-banner-text svg { color: #a78bfa; flex-shrink: 0; }
+.restore-banner-title { font-weight: 600; font-size: 14px; margin-bottom: 2px; }
+.restore-banner-desc  { font-size: 12px; color: var(--text2); }
+.restore-banner-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
 /* ── Toast ── */
 .toast {

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Auto-backup: include DataStore prefs (node URL). Keys + JWT live in
+         EncryptedSharedPreferences and are excluded automatically. -->
+    <include domain="sharedpref" path="datastore/." />
+    <exclude domain="sharedpref" path="secure_prefs.xml" />
+</full-backup-content>

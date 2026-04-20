@@ -7,6 +7,7 @@
     <title data-i18n="page.titleAdmin">Vortex Admin</title>
     <link rel="icon" href="/static/favicon.ico">
     <link rel="stylesheet" href="/static/admin.css">
+    <link rel="stylesheet" href="/static/polish.css">
 </head>
 <body>
     <!-- Language picker top-right, over everything -->
@@ -74,6 +75,34 @@
                 </span>
                 <span data-i18n="admin.earnings">Earnings</span>
             </button>
+            <button class="nav-item" data-tab="database">
+                <span class="nav-ico">
+                    <!-- Database cylinder -->
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/></svg>
+                </span>
+                <span data-i18n="admin.database">Database</span>
+            </button>
+            <button class="nav-item" data-tab="observability">
+                <span class="nav-ico">
+                    <!-- Eye / monitor -->
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+                </span>
+                <span data-i18n="admin.observability">Observability</span>
+            </button>
+            <button class="nav-item" data-tab="ai">
+                <span class="nav-ico">
+                    <!-- Spark / AI -->
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="M12 18v4"/><path d="m4.93 4.93 2.83 2.83"/><path d="m16.24 16.24 2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="m4.93 19.07 2.83-2.83"/><path d="m16.24 7.76 2.83-2.83"/></svg>
+                </span>
+                <span data-i18n="admin.ai">AI</span>
+            </button>
+            <button class="nav-item" data-tab="settings">
+                <span class="nav-ico">
+                    <!-- Gear -->
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+                </span>
+                <span data-i18n="admin.settings">Settings</span>
+            </button>
             <button class="nav-item" data-tab="logs">
                 <span class="nav-ico">
                     <!-- Terminal / list -->
@@ -89,40 +118,75 @@
                 <span id="node-status">checking…</span>
             </div>
             <div class="node-version" id="node-version"></div>
+            <div class="node-ctrl" style="display:flex; gap:6px; margin-top:8px;">
+                <button class="btn-small" id="btn-node-start" data-i18n="admin.nodeStart">Start node</button>
+                <button class="btn-small btn-ghost" id="btn-node-stop" data-i18n="admin.nodeStop" style="display:none;">Stop</button>
+            </div>
+            <div style="margin-top:8px;">
+                <button class="btn-small btn-ghost" id="btn-reset-setup"
+                        style="width:100%; color:#fca5a5; border-color:rgba(239,68,68,0.3);"
+                        data-i18n="admin.resetSetup" title="Delete .env and keys, return to setup">
+                    Reset setup
+                </button>
+            </div>
         </div>
     </aside>
 
     <main class="content">
 
-        <!-- 1. Integrity -->
+        <!-- Backup-available banner: shown when a backup exists on the
+             controller but the local DB looks fresh/empty (new device
+             just restored via seed phrase). Dismiss persists in
+             localStorage per-pubkey so it's not re-shown every boot. -->
+        <div id="restore-banner" class="restore-banner" style="display:none;">
+            <div class="restore-banner-text">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 15c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm1-8h-2V7h2v2z"/></svg>
+                <div>
+                    <div class="restore-banner-title" data-i18n="admin.restoreBannerTitle">На контроллере найден шифрованный бэкап</div>
+                    <div class="restore-banner-desc" id="restore-banner-desc">—</div>
+                </div>
+            </div>
+            <div class="restore-banner-actions">
+                <button class="btn-primary btn-small" id="restore-banner-do" data-i18n="admin.restoreBannerDo">Восстановить сейчас</button>
+                <button class="btn-small btn-ghost" id="restore-banner-skip" data-i18n="admin.restoreBannerSkip">Не сейчас</button>
+            </div>
+        </div>
+
+        <!-- 1. Integrity — whole-repo signing (app/, vortex_wizard/, static/, rust_utils/…) -->
         <section class="panel active" id="panel-integrity">
             <header class="panel-head">
                 <h1>Code Integrity</h1>
-                <button class="btn-primary" id="btn-reverify">Re-verify now</button>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn-ghost" id="btn-repo-verify">Verify</button>
+                    <button class="btn-primary" id="btn-repo-sign">Sign repo</button>
+                </div>
             </header>
             <div class="grid-2">
-                <div class="card card-big" id="integrity-main">
-                    <div class="card-badge" id="integrity-badge">…</div>
-                    <div class="card-big-value" id="integrity-matched">—</div>
-                    <div class="card-big-label">files verified</div>
-                    <div class="card-message" id="integrity-message"></div>
+                <div class="card card-big" id="repo-integrity-main">
+                    <div class="card-badge" id="repo-integrity-badge">…</div>
+                    <div class="card-big-value" id="repo-integrity-matched">—</div>
+                    <div class="card-big-label">files signed</div>
+                    <div class="card-message" id="repo-integrity-message">
+                        Signs every source file in the Vortex repo (app/, vortex_wizard/, static/, rust_utils/…).
+                        First call auto-generates a release keypair at keys/repo-release.key.
+                    </div>
                 </div>
                 <div class="card">
-                    <div class="card-row"><span>Release key</span><code id="integrity-signed-by">—</code></div>
-                    <div class="card-row"><span>Manifest version</span><span id="integrity-version">—</span></div>
-                    <div class="card-row"><span>Last checked</span><span id="integrity-built-at">—</span></div>
-                    <div class="card-row"><span>Mismatched files</span><span id="integrity-mismatched">0</span></div>
+                    <div class="card-row"><span>Release pubkey</span><code id="repo-integrity-pubkey">—</code></div>
+                    <div class="card-row"><span>Manifest version</span><span id="repo-integrity-version">—</span></div>
+                    <div class="card-row"><span>Last signed</span><span id="repo-integrity-built-at">—</span></div>
+                    <div class="card-row"><span>Mismatched</span><span id="repo-integrity-mismatched">0</span></div>
                 </div>
             </div>
-            <div class="card" id="integrity-diff" style="display:none;">
+            <div class="card" id="repo-integrity-diff" style="display:none;">
                 <h3>Mismatched / missing files</h3>
-                <ul class="code-list" id="integrity-diff-list"></ul>
+                <ul class="code-list" id="repo-integrity-diff-list"></ul>
             </div>
         </section>
 
         <!-- 2. Identity -->
         <section class="panel" id="panel-identity">
-            <header class="panel-head"><h1>Node Identity</h1></header>
+            <header class="panel-head"><h1 data-i18n="admin.nodeIdentity">Node Identity</h1></header>
             <div class="card card-big">
                 <div class="pubkey-display">
                     <code id="identity-pubkey">…</code>
@@ -130,7 +194,26 @@
                         <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M16 1H4C2.9 1 2 1.9 2 3v14h2V3h12V1m3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2m0 16H8V7h11v14z"/></svg>
                     </button>
                 </div>
-                <div class="card-message">Share this with other Vortex users to let them invite your node.</div>
+                <div class="card-message" data-i18n="admin.shareHint">Share this with other Vortex users to let them invite your node.</div>
+            </div>
+
+            <!-- Public URL that wizard setup produced — cloudflared tunnel /
+                 manual announce endpoint / Tor hidden service. -->
+            <div class="card card-big" id="identity-announce-card" style="display:none;">
+                <div class="card-badge" data-i18n="admin.publicUrlLabel">Public URL</div>
+                <div class="pubkey-display">
+                    <code id="identity-announce"><span data-i18n="admin.publicUrlNone">—</span></code>
+                    <button class="btn-icon" data-copy="#identity-announce" title="Copy">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M16 1H4C2.9 1 2 1.9 2 3v14h2V3h12V1m3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2m0 16H8V7h11v14z"/></svg>
+                    </button>
+                    <a id="identity-announce-open" target="_blank" rel="noopener"
+                       class="btn-icon" title="Open in browser"
+                       style="display:none; text-decoration:none;">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7zM19 19H5V5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7z"/></svg>
+                    </a>
+                </div>
+                <div class="card-message" data-i18n="admin.publicUrlDesc">This is the address the setup wizard produced for this node (cloudflared tunnel / manual URL). Give it to peers who want to reach you.</div>
+                <ul class="code-list" id="identity-announce-extra" style="display:none;"></ul>
             </div>
             <div class="grid-2">
                 <div class="card">
@@ -208,6 +291,29 @@
                 </div>
             </div>
             <div class="card">
+                <h3 data-i18n="admin.trafficGraphs">Live graphs</h3>
+                <p class="card-desc" data-i18n="admin.trafficGraphsDesc">Rolling 2-minute window, sampled every 5 seconds. All data is in-memory and local — nothing leaves this machine.</p>
+                <div class="grid-2" style="margin-top:12px; gap:12px;">
+                    <div>
+                        <div class="stat-label" data-i18n="admin.trafficCpuLabel">CPU seconds (cumulative)</div>
+                        <svg id="g-cpu" width="100%" height="80" viewBox="0 0 600 80" preserveAspectRatio="none"></svg>
+                    </div>
+                    <div>
+                        <div class="stat-label" data-i18n="admin.trafficMemLabel">Memory, MB</div>
+                        <svg id="g-mem" width="100%" height="80" viewBox="0 0 600 80" preserveAspectRatio="none"></svg>
+                    </div>
+                    <div>
+                        <div class="stat-label" data-i18n="admin.trafficWsLabel">Active WebSockets</div>
+                        <svg id="g-ws" width="100%" height="80" viewBox="0 0 600 80" preserveAspectRatio="none"></svg>
+                    </div>
+                    <div>
+                        <div class="stat-label" data-i18n="admin.trafficRoomsLabel">Active rooms</div>
+                        <svg id="g-rooms" width="100%" height="80" viewBox="0 0 600 80" preserveAspectRatio="none"></svg>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
                 <h3>Metadata-safe counters only</h3>
                 <p class="card-desc">These are raw counters — no content, no IPs, no per-user breakdowns. Never transmitted anywhere outside this machine.</p>
             </div>
@@ -224,6 +330,7 @@
                     <button class="btn-icon" data-copy="#earn-wallet" title="Copy">
                         <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M16 1H4C2.9 1 2 1.9 2 3v14h2V3h12V1m3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2m0 16H8V7h11v14z"/></svg>
                     </button>
+                    <span id="earn-premium-badge" class="vx-premium-badge" style="display:none;">PREMIUM ×1.2</span>
                 </div>
                 <div class="card-message" data-i18n="admin.earningsWalletDesc">Rewards land here on-chain once the payout contract is live. This address is derived from your 24-word seed — losing the seed means losing access to the funds.</div>
             </div>
@@ -270,6 +377,122 @@
             </div>
         </section>
 
+        <!-- Database — auto-manage embedded PostgreSQL -->
+        <section class="panel" id="panel-database">
+            <header class="panel-head"><h1 data-i18n="admin.dbTitle">Database</h1></header>
+
+            <div class="card">
+                <div class="card-row">
+                    <span data-i18n="admin.dbCurrent">Current backend</span>
+                    <span id="db-current">—</span>
+                </div>
+                <div class="card-row">
+                    <span data-i18n="admin.dbInstalled">PostgreSQL installed</span>
+                    <span id="db-installed">—</span>
+                </div>
+                <div class="card-row">
+                    <span data-i18n="admin.dbCluster">Cluster initialised</span>
+                    <span id="db-cluster">—</span>
+                </div>
+                <div class="card-row">
+                    <span data-i18n="admin.dbRunning">Running</span>
+                    <span id="db-running">—</span>
+                </div>
+                <div class="card-row">
+                    <span data-i18n="admin.dbPath">Data directory</span>
+                    <code id="db-pgdata">—</code>
+                </div>
+            </div>
+
+            <div class="card" id="db-setup-card">
+                <h3 data-i18n="admin.dbSetupTitle">One-click PostgreSQL</h3>
+                <p class="card-desc" data-i18n="admin.dbSetupDesc">
+                    Installs PostgreSQL locally (via Homebrew on macOS if missing),
+                    creates a fresh cluster under the wizard's state directory,
+                    adds a <code>vortex</code> role + database with the password
+                    you choose, and writes <code>DATABASE_URL</code> into the
+                    node's <code>.env</code>. Restart the node afterwards.
+                </p>
+                <label class="form-label" style="margin-top:12px;">Password for the new <code>vortex</code> role</label>
+                <input type="password" id="db-password" class="form-input" placeholder="min 8 chars" style="width:100%; max-width:360px;">
+                <div class="row" style="margin-top:12px; gap:8px;">
+                    <button class="btn-primary" id="btn-db-setup" data-i18n="admin.dbSetup">Set up PostgreSQL</button>
+                    <button class="btn-small" id="btn-db-start" style="display:none;" data-i18n="admin.dbStart">Start</button>
+                    <button class="btn-small btn-ghost" id="btn-db-stop" style="display:none;" data-i18n="admin.dbStop">Stop</button>
+                    <button class="btn-small btn-ghost" id="btn-db-uninstall" style="display:none; color:#fca5a5; border-color:rgba(239,68,68,0.3);" data-i18n="admin.dbUninstall">Uninstall & revert to SQLite</button>
+                </div>
+                <div class="alert" id="db-msg" role="status"></div>
+            </div>
+
+            <!-- Tables viewer -->
+            <div class="card" id="db-tables-card">
+                <h3 data-i18n="admin.dbTablesTitle">Tables</h3>
+                <p class="card-desc" id="db-tables-summary">—</p>
+                <table class="peers-table">
+                    <thead>
+                        <tr>
+                            <th data-i18n="admin.dbTableName">Name</th>
+                            <th data-i18n="admin.dbTableRows">Rows</th>
+                            <th data-i18n="admin.dbTableSize">Size</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="db-tables-tbody">
+                        <tr><td colspan="4" class="empty">Pick the Database tab to load</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Encrypted backup to controller -->
+            <div class="card" id="backup-card">
+                <h3 data-i18n="admin.backupTitle">Шифрованный бэкап на контроллер</h3>
+                <p class="card-desc" data-i18n="admin.backupDesc">
+                    Нода шифрует свою БД ключом, выведенным из твоей 24-словной фразы,
+                    и загружает blob на контроллер. Контроллер хранит только зашифрованное —
+                    расшифровать не может. Восстановление с той же фразой на любой машине
+                    возвращает БД обратно.
+                </p>
+                <div class="card-row">
+                    <span data-i18n="admin.backupLocal">Локальная БД</span>
+                    <span id="backup-local">—</span>
+                </div>
+                <div class="card-row">
+                    <span data-i18n="admin.backupRemote">Копия на контроллере</span>
+                    <span id="backup-remote">—</span>
+                </div>
+                <div class="card-row">
+                    <span data-i18n="admin.backupLastUpdated">Последнее обновление</span>
+                    <span id="backup-updated">—</span>
+                </div>
+                <div class="card-row">
+                    <span data-i18n="admin.backupSha">SHA-256 blob'а</span>
+                    <code id="backup-sha" style="font-size:11px;">—</code>
+                </div>
+                <div class="row" style="margin-top:12px; gap:8px;">
+                    <button class="btn-primary" id="btn-backup-upload" data-i18n="admin.backupUpload">Загрузить бэкап</button>
+                    <button class="btn-small" id="btn-backup-restore" data-i18n="admin.backupRestore">Восстановить с контроллера</button>
+                    <button class="btn-small btn-ghost" id="btn-backup-delete" style="color:#fca5a5; border-color:rgba(239,68,68,0.3);" data-i18n="admin.backupDelete">Удалить с контроллера</button>
+                </div>
+                <div class="alert" id="backup-msg" role="status"></div>
+            </div>
+
+            <!-- Row preview -->
+            <div class="card" id="db-rows-card" style="display:none;">
+                <h3><span id="db-rows-title">Rows</span> <span class="hint" id="db-rows-hint"></span></h3>
+                <div style="overflow-x:auto;">
+                    <table class="peers-table" id="db-rows-table">
+                        <thead id="db-rows-thead"></thead>
+                        <tbody id="db-rows-tbody"></tbody>
+                    </table>
+                </div>
+                <div class="row" style="margin-top:10px; gap:8px;">
+                    <button class="btn-small" id="db-rows-prev" data-i18n="admin.dbRowsPrev">← Prev</button>
+                    <button class="btn-small" id="db-rows-next" data-i18n="admin.dbRowsNext">Next →</button>
+                    <button class="btn-small btn-ghost" id="db-rows-close" data-i18n="admin.dbRowsClose">Close</button>
+                </div>
+            </div>
+        </section>
+
         <!-- 6. Certs & Keys -->
         <section class="panel" id="panel-certs">
             <header class="panel-head"><h1>Certificates &amp; Keys</h1></header>
@@ -286,6 +509,270 @@
                     <div class="card-row"><span>CSRF secret</span><span id="keys-csrf-age">—</span></div>
                 </div>
             </div>
+        </section>
+
+        <!-- Observability: audit log, profiler, log rotation + search -->
+        <section class="panel" id="panel-observability">
+            <header class="panel-head">
+                <h1 data-i18n="admin.observability">Observability</h1>
+                <div class="panel-head-right">
+                    <a class="btn" href="/api/wiz/admin/metrics" target="_blank" rel="noopener"
+                       data-i18n="admin.obsPromLink">/metrics</a>
+                </div>
+            </header>
+
+            <div class="card">
+                <h3 data-i18n="admin.obsAuditTitle">Admin audit log</h3>
+                <p class="card-desc" id="obs-audit-summary">—</p>
+                <div class="row" style="gap:8px; margin:8px 0;">
+                    <label style="display:flex; align-items:center; gap:6px; font-size:13px;">
+                        <input type="checkbox" id="obs-audit-only-alert">
+                        <span data-i18n="admin.obsOnlyAlerts">Только alert</span>
+                    </label>
+                    <button class="btn-small" id="obs-audit-refresh" data-i18n="admin.refresh">Refresh</button>
+                    <button class="btn-small btn-ghost" id="obs-audit-clear" data-i18n="admin.obsAuditClear">Очистить</button>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="peers-table">
+                        <thead>
+                            <tr>
+                                <th>When</th>
+                                <th>Method</th>
+                                <th>Path</th>
+                                <th>IP</th>
+                                <th>Status</th>
+                                <th>ms</th>
+                                <th>Alert</th>
+                            </tr>
+                        </thead>
+                        <tbody id="obs-audit-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 data-i18n="admin.obsProfilerTitle">Request profiler — slowest endpoints</h3>
+                <p class="card-desc" data-i18n="admin.obsProfilerDesc">Rolling window (last 500 samples per endpoint). P50/P95/P99 in ms.</p>
+                <div class="row" style="gap:8px; margin:8px 0;">
+                    <button class="btn-small" id="obs-prof-refresh" data-i18n="admin.refresh">Refresh</button>
+                    <button class="btn-small btn-ghost" id="obs-prof-reset" data-i18n="admin.obsProfReset">Сбросить счётчики</button>
+                </div>
+                <table class="peers-table">
+                    <thead>
+                        <tr>
+                            <th>Method</th>
+                            <th>Path</th>
+                            <th>Count</th>
+                            <th>P50</th>
+                            <th>P95</th>
+                            <th>P99</th>
+                        </tr>
+                    </thead>
+                    <tbody id="obs-prof-tbody"></tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h3 data-i18n="admin.opsJobsTitle">Scheduled jobs</h3>
+                <p class="card-desc" data-i18n="admin.opsJobsDesc">Background jobs — cron backup, auto-prune, resource watchdog, uptime ping. Intervals persist across restarts.</p>
+                <table class="peers-table">
+                    <thead>
+                        <tr>
+                            <th>Job</th>
+                            <th>Interval</th>
+                            <th>Last run</th>
+                            <th>Status</th>
+                            <th>Last message</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="ops-jobs-tbody"></tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h3 data-i18n="admin.opsUptimeTitle">Uptime</h3>
+                <div class="card-row">
+                    <span data-i18n="admin.opsUptimePct">Last 30 days</span>
+                    <span id="ops-uptime-pct">—</span>
+                </div>
+                <div class="card-row">
+                    <span data-i18n="admin.opsUptimeBadge">Public badge</span>
+                    <img id="ops-uptime-badge" alt="uptime" style="height:20px;">
+                </div>
+                <code id="ops-uptime-url" style="font-size:11px; word-break:break-all;"></code>
+            </div>
+
+            <div class="card">
+                <h3 data-i18n="admin.opsVersionTitle">Version pinning</h3>
+                <div class="card-row">
+                    <span data-i18n="admin.opsCurrentVersion">Current version</span>
+                    <code id="ops-version">—</code>
+                </div>
+                <label class="switch-row">
+                    <span>
+                        <span data-i18n="admin.opsPinToggle">Pin to this version</span>
+                        <span class="hint" style="display:block; font-size:11px;" data-i18n="admin.opsPinHint">Disables the auto-update banner — manual upgrades only.</span>
+                    </span>
+                    <input type="checkbox" id="ops-pin-toggle">
+                </label>
+            </div>
+
+            <div class="card">
+                <h3>Security</h3>
+                <div class="card-row">
+                    <span>2FA (TOTP)</span>
+                    <span><span id="sec-totp-status">—</span>
+                        <button class="btn-small" id="btn-sec-totp-setup" style="margin-left:8px;">Настроить</button>
+                        <button class="btn-small btn-ghost" id="btn-sec-totp-disable" style="margin-left:4px; display:none;">Выключить</button>
+                    </span>
+                </div>
+                <div class="card-row">
+                    <span>Passphrase для keys</span>
+                    <span><span id="sec-pass-status">—</span>
+                        <button class="btn-small" id="btn-sec-pass-enable" style="margin-left:8px;">Включить</button>
+                        <button class="btn-small btn-ghost" id="btn-sec-pass-unlock" style="margin-left:4px; display:none;">Разблокировать</button>
+                    </span>
+                </div>
+                <div class="card-row">
+                    <span>Header policy (CSP / HSTS)</span>
+                    <span>
+                        <select id="sec-csp-profile" class="form-input" style="padding:2px 6px; font-size:12px;"><option value="strict">strict</option><option value="relaxed">relaxed</option><option value="off">off</option></select>
+                        <select id="sec-hsts-profile" class="form-input" style="padding:2px 6px; font-size:12px; margin-left:6px;"><option value="off">HSTS off</option><option value="on">on</option><option value="preload">preload</option></select>
+                        <button class="btn-small" id="btn-sec-headers-save" style="margin-left:6px;">Save</button>
+                    </span>
+                </div>
+                <div style="margin-top:12px;">
+                    <button class="btn-small btn-ghost" id="btn-sec-panic" style="color:#fca5a5; border-color:rgba(239,68,68,0.3);">⚠ Panic: wipe keys + stop node</button>
+                </div>
+                <div class="alert" id="sec-msg" role="status"></div>
+            </div>
+
+            <div class="card">
+                <h3 data-i18n="admin.obsLogsTitle">Log rotation & search</h3>
+                <p class="card-desc" id="obs-logs-summary">—</p>
+                <div class="row" style="gap:8px; margin:8px 0;">
+                    <input class="form-input" id="obs-logs-query" style="flex:1;" placeholder="grep…">
+                    <button class="btn-small" id="obs-logs-search" data-i18n="admin.obsLogsSearch">Search</button>
+                    <button class="btn-small btn-ghost" id="obs-logs-rotate" data-i18n="admin.obsLogsRotate">Rotate now</button>
+                </div>
+                <div id="obs-logs-files" style="margin-top:8px; font-size:12px; color:var(--text2);"></div>
+                <pre id="obs-logs-hits" style="margin-top:10px; max-height:400px; overflow:auto; background:var(--bg2); padding:10px; border-radius:6px; font-size:11px; display:none;"></pre>
+            </div>
+        </section>
+
+        <!-- AI — Ollama install / pull / lifecycle.
+             Layout is progressive: when AI is OFF, the master toggle is
+             the only thing visible. Turning it ON reveals Install /
+             Model / Daemon cards, and the toggle drops to the footer. -->
+        <section class="panel" id="panel-ai">
+            <header class="panel-head">
+                <h1 data-i18n="admin.aiTitle">AI (Ollama)</h1>
+                <div class="panel-head-right">
+                    <button class="btn-small" id="btn-ai-refresh" data-i18n="admin.refresh">Refresh</button>
+                </div>
+            </header>
+
+            <!-- Master toggle card — position depends on state.
+                 When OFF: #ai-master lives here (at the top).
+                 When ON:  JS moves it to #ai-master-slot-end below. -->
+            <div id="ai-master-slot-start"></div>
+
+            <!-- Cards that only make sense with AI enabled -->
+            <div id="ai-stack" style="display:none;">
+                <div class="card" id="ai-status-card">
+                    <div class="card-row">
+                        <span data-i18n="admin.aiInstalled">Ollama</span>
+                        <span id="ai-installed">—</span>
+                    </div>
+                    <div class="card-row">
+                        <span data-i18n="admin.aiDaemon">Daemon</span>
+                        <span id="ai-running">—</span>
+                    </div>
+                    <div class="card-row">
+                        <span data-i18n="admin.aiConfiguredModel">Active model</span>
+                        <code id="ai-configured-model">—</code>
+                    </div>
+                    <div class="card-row">
+                        <span data-i18n="admin.aiModels">Installed models</span>
+                        <span id="ai-models">—</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 data-i18n="admin.aiInstallTitle">Установка в один клик</h3>
+                    <p class="card-desc" data-i18n="admin.aiInstallDesc">
+                        macOS: <code>brew install ollama</code>. Linux: wizard покажет команду,
+                        ты запустишь её в терминале (мы не гоняем curl|sh на автомате из-за безопасности).
+                    </p>
+                    <div class="row" style="gap:8px; margin-top:10px; flex-wrap:wrap;">
+                        <button class="btn-primary" id="btn-ai-install" data-i18n="admin.aiInstall">Install</button>
+                        <button class="btn-small btn-ghost" id="btn-ai-uninstall" style="color:#fca5a5; border-color:rgba(239,68,68,0.3);" data-i18n="admin.aiUninstall">Uninstall</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 data-i18n="admin.aiModelTitle">Модель</h3>
+                    <p class="card-desc" data-i18n="admin.aiModelDesc">
+                        Рекомендация: <strong>qwen3:8b</strong> (≈5 GB, сильная в rephrase/summarize).
+                        Альтернативы: <code>llama3.2:3b</code> (лёгкая), <code>mistral:7b</code>,
+                        <code>qwen2.5:14b</code> (точнее, но ≈9 GB).
+                    </p>
+                    <div class="row" style="gap:8px; margin-top:10px; align-items:center;">
+                        <input class="form-input" id="ai-model-input" placeholder="qwen3:8b" style="flex:1; max-width:260px;">
+                        <button class="btn-primary" id="btn-ai-pull" data-i18n="admin.aiPull">Pull model</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 data-i18n="admin.aiDaemonTitle">Daemon</h3>
+                    <div class="row" style="gap:8px; margin-top:8px;">
+                        <button class="btn-small" id="btn-ai-start" data-i18n="admin.aiStart">Start</button>
+                        <button class="btn-small btn-ghost" id="btn-ai-stop" data-i18n="admin.aiStop">Stop</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- End slot for the master toggle when AI is ON -->
+            <div id="ai-master-slot-end"></div>
+
+            <!-- Template — the card itself. Moved between slots by JS. -->
+            <div id="ai-master" class="card ai-master">
+                <h3 data-i18n="admin.aiEnabled">AI на этой ноде</h3>
+                <p class="card-desc" id="ai-weight-hint" data-i18n="admin.aiWeightHint">
+                    Controller даёт −15% веса в /v1/nodes/random нодам с выключенным AI.
+                    Запуская локальную модель ты улучшаешь UX пользователей и получаешь
+                    больше трафика.
+                </p>
+                <label class="switch-row" style="margin-top:12px;">
+                    <span id="ai-master-label"><strong data-i18n="admin.aiMasterOffLabel">Включить локальный AI</strong>
+                        <span class="hint" id="ai-master-subtitle" data-i18n="admin.aiMasterOffDesc" style="display:block; font-size:12px; color:var(--text2); margin-top:2px;">
+                            Поставит Ollama одним кликом и разблокирует установку модели.
+                        </span>
+                    </span>
+                    <input type="checkbox" id="ai-toggle">
+                </label>
+            </div>
+
+            <div class="alert" id="ai-msg" role="status"></div>
+        </section>
+
+        <!-- Settings — full .env editor -->
+        <section class="panel" id="panel-settings">
+            <header class="panel-head">
+                <h1 data-i18n="admin.settingsTitle">Settings</h1>
+                <div class="panel-head-right">
+                    <input class="form-input" id="settings-filter" placeholder="filter…" style="width:180px;" aria-label="filter settings">
+                    <button class="btn-small" id="btn-settings-refresh" data-i18n="admin.refresh">Refresh</button>
+                </div>
+            </header>
+            <p class="card-desc" id="settings-hint"
+               data-i18n="admin.settingsHint">
+                Все настройки .env ноды. Большинство требует рестарта ноды чтобы применилось.
+                Секреты (JWT_SECRET и т.п.) редактируются отдельно через вкладку Security.
+            </p>
+            <div class="alert" id="settings-msg" role="status"></div>
+            <div id="settings-groups"></div>
         </section>
 
         <!-- 7. Logs -->
@@ -316,5 +803,6 @@
     <script src="/static/stars.js"></script>
     <script src="/static/i18n.js"></script>
     <script src="/static/admin.js"></script>
+    <script src="/static/polish.js"></script>
 </body>
 </html>

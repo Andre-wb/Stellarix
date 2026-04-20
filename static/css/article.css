@@ -1,0 +1,249 @@
+/* Article composer + rendered article + math fallback styles. */
+
+.article-composer {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(6px);
+    z-index: 300;
+    display: flex; flex-direction: column;
+    padding: 24px; gap: 12px;
+}
+.article-composer-head {
+    display: flex; align-items: center; gap: 12px;
+    padding: 6px 12px;
+    background: var(--bg2, #111);
+    border-radius: 10px;
+    color: var(--text, #eee);
+}
+.article-composer-head .hint { font-size: 12px; color: var(--text2, #999); flex: 1; }
+.article-composer-body {
+    flex: 1; display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px; min-height: 0;
+}
+.article-composer-body textarea#article-src {
+    background: var(--bg3, #0d0d10);
+    color: var(--text, #eee);
+    border: 1px solid var(--border, #333);
+    border-radius: 10px;
+    padding: 14px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 13px; line-height: 1.55;
+    resize: none;
+    outline: none;
+}
+.article-composer-body textarea#article-src:focus { border-color: var(--accent, #8b5cf6); }
+.article-preview {
+    background: var(--bg3, #0d0d10);
+    color: var(--text, #eee);
+    border: 1px solid var(--border, #333);
+    border-radius: 10px;
+    padding: 16px;
+    overflow-y: auto;
+    font-size: 14px;
+    line-height: 1.6;
+}
+.article-composer-foot {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 12px;
+    background: var(--bg2, #111);
+    border-radius: 10px;
+    color: var(--text, #eee);
+}
+.article-composer-foot .hint { font-size: 11px; color: var(--text2, #777); }
+
+/* Rendered article inside a message bubble */
+.vx-article { font-size: 14px; line-height: 1.6; }
+.vx-article h1, .vx-article h2, .vx-article h3,
+.vx-article h4, .vx-article h5, .vx-article h6 {
+    margin: 0.8em 0 0.4em;
+    line-height: 1.25;
+}
+.vx-article h1 { font-size: 1.5em; }
+.vx-article h2 { font-size: 1.3em; }
+.vx-article h3 { font-size: 1.15em; }
+.vx-article p  { margin: 0.6em 0; }
+.vx-article code {
+    background: rgba(255,255,255,0.06);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.92em;
+}
+.vx-article pre {
+    background: rgba(0,0,0,0.35);
+    padding: 10px 12px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-size: 12px;
+}
+.vx-article pre code { background: none; padding: 0; }
+.vx-article blockquote {
+    border-left: 3px solid var(--accent, #8b5cf6);
+    margin: 0.8em 0; padding: 4px 12px;
+    color: var(--text2, #999);
+    background: rgba(139, 92, 246, 0.06);
+    border-radius: 0 6px 6px 0;
+}
+.vx-article ul, .vx-article ol { padding-left: 1.6em; margin: 0.5em 0; }
+.vx-article li { margin: 0.2em 0; }
+.vx-article a {
+    color: var(--accent2, #60a5fa);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.vx-article table {
+    border-collapse: collapse;
+    margin: 0.8em 0;
+    font-size: 0.95em;
+}
+.vx-article th, .vx-article td {
+    border: 1px solid var(--border, #333);
+    padding: 4px 10px;
+    text-align: left;
+}
+.vx-article hr {
+    border: none;
+    border-top: 1px solid var(--border, #333);
+    margin: 1em 0;
+}
+.vx-article img { max-width: 100%; height: auto; border-radius: 6px; }
+
+/* Math fallback when KaTeX isn't loaded */
+.vx-math-fallback {
+    background: rgba(139, 92, 246, 0.1);
+    color: #a78bfa;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-style: italic;
+}
+.vx-math-error {
+    background: rgba(239, 68, 68, 0.1);
+    color: #fca5a5;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 0.9em;
+    border-bottom: 1px dashed #ef4444;
+    cursor: help;
+}
+
+/* Mobile: stack editor / preview vertically */
+@media (max-width: 720px) {
+    .article-composer-body { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+}
+
+/* Font-size global knob (chat-ux.js sets --vx-font-size on <html>) */
+:root { --vx-font-size: 15px; }
+#messages-container, .msg-text { font-size: var(--vx-font-size); }
+
+/* Jump-to-date popover */
+.jtd-popover {
+    position: fixed;
+    z-index: 250;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: var(--bg2, #111);
+    border: 1px solid var(--border, #333);
+    border-radius: 10px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+    color: var(--text, #eee);
+    font-size: 13px;
+}
+.jtd-popover input[type=date] {
+    background: var(--bg3, #0d0d10);
+    color: var(--text, #eee);
+    border: 1px solid var(--border, #333);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+/* Shortcuts help dialog */
+.shortcuts-help {
+    position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 300; display: none;
+    min-width: 340px; max-width: 90vw;
+    padding: 18px 22px;
+    background: var(--bg2, #111);
+    border: 1px solid var(--border, #333);
+    border-radius: 14px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+    color: var(--text, #eee);
+}
+.shortcuts-help h3 { margin: 0 0 10px; font-size: 15px; }
+.shortcuts-help ul { list-style: none; padding: 0; margin: 0 0 12px; }
+.shortcuts-help li { padding: 4px 0; font-size: 13px; }
+.shortcuts-help kbd {
+    background: var(--bg3, #0d0d10);
+    border: 1px solid var(--border, #333);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px;
+}
+
+/* PQ/FS crypto badges in chat header */
+.vx-crypto-badges { display: inline-flex; gap: 4px; margin-left: 8px; }
+.vx-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    border-radius: 4px;
+    cursor: help;
+}
+.vx-badge-pq { background: rgba(34, 197, 94, 0.15);  color: #4ade80;  border: 1px solid rgba(34,197,94,0.35); }
+.vx-badge-fs { background: rgba(139, 92, 246, 0.15); color: #a78bfa; border: 1px solid rgba(139,92,246,0.35); }
+
+/* Ephemeral mode warning banner */
+.vx-ephemeral-banner {
+    background: rgba(239, 68, 68, 0.12);
+    color: #fca5a5;
+    padding: 10px 20px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    border-bottom: 1px solid rgba(239, 68, 68, 0.35);
+    position: sticky; top: 0; z-index: 150;
+}
+
+/* High-contrast theme */
+body.vx-high-contrast {
+    --bg: #000; --bg2: #0a0a0a; --bg3: #111;
+    --text: #fff; --text2: #ddd;
+    --accent: #ffd000; --accent2: #00d8ff;
+    --border: #666;
+}
+body.vx-high-contrast .msg-bubble { border: 1px solid #666; }
+body.vx-high-contrast a { color: #00d8ff !important; text-decoration: underline !important; }
+
+/* Keyboard-focus visible — always — for a11y */
+:focus-visible {
+    outline: 2px solid var(--accent, #8b5cf6);
+    outline-offset: 2px;
+}
+
+/* AI master card — hero visual when AI is OFF. Small and unobtrusive
+   when AI is ON (it's been moved to slot-end and acts as a disable button). */
+.ai-master {
+    border: 1px solid rgba(139, 92, 246, 0.35);
+    background: linear-gradient(135deg,
+                 rgba(139, 92, 246, 0.07),
+                 rgba(59, 130, 246, 0.05));
+}
+#ai-master-slot-start .ai-master {
+    padding: 22px 24px;
+}
+#ai-master-slot-start .ai-master h3 {
+    font-size: 16px;
+    margin-bottom: 6px;
+}
+#ai-master-slot-end .ai-master {
+    margin-top: 12px;
+    opacity: 0.92;
+}
+#ai-master-slot-end .ai-master h3 { font-size: 14px; }

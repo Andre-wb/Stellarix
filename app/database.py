@@ -27,6 +27,11 @@ from app.models import prekeys as _models_prekeys  # noqa: F401  -- register Pre
 # ---------------------------------------------------------------------------
 DATABASE_URL = Config.get_database_url()
 
+# Ephemeral mode — no disk persistence. Every message, key, and metadata
+# lives only in memory; restart = complete wipe. Overrides DATABASE_URL.
+if os.getenv("EPHEMERAL_MODE", "").lower() in ("1", "true", "yes"):
+    DATABASE_URL = "sqlite:///:memory:"
+
 _is_sqlite = DATABASE_URL.startswith("sqlite://")
 _is_postgres = DATABASE_URL.startswith("postgresql://") or DATABASE_URL.startswith("postgresql+")
 
@@ -332,6 +337,8 @@ def init_db() -> None:
                 "ALTER TABLE users ADD COLUMN totp_enabled BOOLEAN DEFAULT 0",
                 "ALTER TABLE users ADD COLUMN email VARCHAR(120)",
                 "ALTER TABLE users ADD COLUMN last_ip VARCHAR(45)",
+                "ALTER TABLE users ADD COLUMN wallet_pubkey VARCHAR(48)",
+                "CREATE INDEX IF NOT EXISTS ix_users_wallet_pubkey ON users(wallet_pubkey)",
                 "CREATE TABLE IF NOT EXISTS user_devices (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, device_name VARCHAR(255) NOT NULL, device_type VARCHAR(50) DEFAULT 'web', ip_address VARCHAR(45), last_active DATETIME, created_at DATETIME, refresh_token_hash VARCHAR(64))",
                 "CREATE INDEX IF NOT EXISTS ix_user_devices_user_id ON user_devices(user_id)",
                 "CREATE INDEX IF NOT EXISTS ix_user_devices_token_hash ON user_devices(refresh_token_hash)",
@@ -339,6 +346,9 @@ def init_db() -> None:
                 "ALTER TABLE spaces ADD COLUMN theme_json TEXT",
                 "ALTER TABLE users ADD COLUMN kyber_public_key TEXT",
                 "CREATE TABLE IF NOT EXISTS channel_feeds (id INTEGER PRIMARY KEY AUTOINCREMENT, room_id INTEGER NOT NULL REFERENCES rooms(id) ON DELETE CASCADE, feed_type VARCHAR(20) NOT NULL, url TEXT NOT NULL, last_fetched DATETIME, last_item_id TEXT, is_active BOOLEAN DEFAULT 1, created_at DATETIME)",
+                # Variant-B public-room key escrow (server stores the symmetric
+                # key in plaintext; rows exist ONLY for is_private=0 rooms).
+                "CREATE TABLE IF NOT EXISTS public_room_keys (room_id INTEGER PRIMARY KEY REFERENCES rooms(id) ON DELETE CASCADE, key_hex VARCHAR(64) NOT NULL, algorithm VARCHAR(32) NOT NULL DEFAULT 'aes-256-gcm', created_at DATETIME, rotated_at DATETIME)",
                 "CREATE INDEX IF NOT EXISTS ix_channel_feeds_room_id ON channel_feeds(room_id)",
                 "CREATE TABLE IF NOT EXISTS message_edit_history (id INTEGER PRIMARY KEY AUTOINCREMENT, message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE, ciphertext_hex TEXT NOT NULL, edited_at DATETIME NOT NULL)",
                 "CREATE INDEX IF NOT EXISTS ix_edit_history_message_id ON message_edit_history(message_id)",
@@ -392,6 +402,37 @@ def init_db() -> None:
                 # Push subscriptions
                 "CREATE TABLE IF NOT EXISTS push_subscriptions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, endpoint VARCHAR(512) NOT NULL UNIQUE, p256dh VARCHAR(256) NOT NULL, auth VARCHAR(256) NOT NULL, created_at DATETIME)",
                 "CREATE INDEX IF NOT EXISTS ix_push_subscriptions_user_id ON push_subscriptions(user_id)",
+                # Room-level cross-node replication policy (owner opt-in)
+                "ALTER TABLE rooms ADD COLUMN replication_mode VARCHAR(16) NOT NULL DEFAULT 'none'",
+                # DM tipping log (tip_events)
+                "CREATE TABLE IF NOT EXISTS tip_events ("
+                "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                "  from_user INTEGER,"
+                "  to_user INTEGER,"
+                "  to_wallet VARCHAR(64) NOT NULL,"
+                "  lamports INTEGER NOT NULL,"
+                "  note VARCHAR(200) DEFAULT '',"
+                "  tx_sig VARCHAR(200),"
+                "  confirmed INTEGER DEFAULT 0,"
+                "  created_at DATETIME"
+                ")",
+                "CREATE INDEX IF NOT EXISTS ix_tip_from ON tip_events(from_user)",
+                "CREATE INDEX IF NOT EXISTS ix_tip_to ON tip_events(to_user)",
+                "CREATE INDEX IF NOT EXISTS ix_tip_sig ON tip_events(tx_sig)",
+                # Replicated envelopes received from peer nodes (federated rooms)
+                "CREATE TABLE IF NOT EXISTS federated_envelopes ("
+                "  id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                "  origin_pubkey_hex VARCHAR(64) NOT NULL,"
+                "  room_id_origin INTEGER NOT NULL,"
+                "  envelope_hash VARCHAR(64) NOT NULL UNIQUE,"
+                "  payload_blob BLOB NOT NULL,"
+                "  signature_hex VARCHAR(128) NOT NULL,"
+                "  sender_ts INTEGER NOT NULL,"
+                "  created_at DATETIME"
+                ")",
+                "CREATE INDEX IF NOT EXISTS ix_fed_env_origin ON federated_envelopes(origin_pubkey_hex)",
+                "CREATE INDEX IF NOT EXISTS ix_fed_env_room_origin ON federated_envelopes(room_id_origin, origin_pubkey_hex)",
+                "CREATE INDEX IF NOT EXISTS ix_fed_env_created_at ON federated_envelopes(created_at)",
             ]
             with engine.connect() as conn:
                 try:

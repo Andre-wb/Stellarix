@@ -1,0 +1,96 @@
+{
+    "page": {
+        "title": "vortexx.sol — Vortex Controller"
+    },
+    "nav": {
+        "home":     "Home",
+        "nodes":    "Nodes",
+        "entries":  "Entry URLs",
+        "mirrors":  "Mirrors",
+        "security": "Security"
+    },
+    "home": {
+        "lede": "Discovery & verification controller for the Vortex peer-to-peer network.",
+        "fingerprintTitle": "Controller fingerprint",
+        "fingerprintDesc": "Pin this public key in your Vortex client. Every response from the controller is signed with it — a mismatch means someone is tampering.",
+        "howTitle": "How to connect",
+        "step1": "Install Vortex on your device.",
+        "step2": "Pick the <strong>Global</strong> network mode in the setup wizard.",
+        "step3": "Paste the controller URL (auto-resolved via SNS) or an entry URL from this site.",
+        "step4": "Verify the pubkey in your app matches the fingerprint above.",
+        "step5": "You're connected. Everything else (node list, signatures) is handled automatically.",
+        "nodesDesc":    "All registered peers, their weights, endpoints, and verification sources.",
+        "entriesDesc":  "Bootstrap URLs for first-time clients — Cloudflare tunnels, Tor, IPFS, direct.",
+        "mirrorsDesc":  "Alternative hosts serving this same signed content in case of censorship.",
+        "securityDesc": "Full breakdown of what's cryptographically verified, what's not, and why.",
+        "peersOnline":  "peers online",
+        "approved":     "approved",
+        "totalReg":     "total registered"
+    },
+    "nodes": {
+        "crumb":     "VORTEX / NODES",
+        "title":     "Registered nodes",
+        "lede":      "Every peer the controller knows about. Clients read this list, verify the signature, and pick a node to connect to based on weight. A fresh sealed node gets weight 1.0; stale or unsealed nodes decay toward 0 so traffic flows to live, trusted peers only.",
+        "legendDualT":     "Dual-verified",
+        "legendDualD":     "Registered with the controller AND sealed on-chain via Solana. Two independent witnesses confirm the code hash.",
+        "legendCtrlT":     "Controller only",
+        "legendCtrlD":     "Registered with the HTTP controller. Signature proves the node owns its private key, but code integrity is not anchored on-chain.",
+        "legendUnverifT":  "Unverified bootstrap",
+        "legendUnverifD":  "Known from a config file or gossip. Not yet authenticated. Treat with caution — anyone can advertise a pubkey until proof arrives.",
+        "filterAll":   "All",
+        "filterDual":  "Dual-verified",
+        "filterCtrl":  "Controller only",
+        "filterFresh": "Fresh (weight ≥ 0.8)",
+        "filterStale": "Stale (< 0.5)"
+    },
+    "entries": {
+        "crumb":     "VORTEX / ENTRIES",
+        "title":     "Entry URLs",
+        "lede":      "Starting points for a client that has no peers yet. Each entry URL is a way to reach the controller — through a Cloudflare tunnel, Tor, IPFS gateway, or a direct domain. Copy any one into your Vortex app on first launch.",
+        "typeTunnelT": "Cloudflare tunnel",
+        "typeTunnelD": "Free *.trycloudflare.com address. No account required. URL changes when the tunnel restarts — treat as ephemeral.",
+        "typeTorT":    "Hidden service",
+        "typeTorD":    ".onion address, reachable only through Tor. Censor-proof, slower. Needs a Tor client or bridge.",
+        "typeIpfsT":   "Distributed content",
+        "typeIpfsD":   "Content-addressed copy of the static frontend. Served from any IPFS gateway — no single server to block.",
+        "typeDirectT": "Plain HTTPS",
+        "typeDirectD": "Regular domain + TLS. Fastest but blockable at the DNS/IP level.",
+        "currentTitle": "Current entries",
+        "copyUrl":     "Copy URL"
+    },
+    "mirrors": {
+        "crumb": "VORTEX / MIRRORS",
+        "title": "Mirror sites",
+        "lede":  "Alternative places that serve the exact same signed content as this site. Useful if vortexx.sol is blocked at your DNS/ISP. Each mirror is periodically checked — the colored dot reflects the last probe result.",
+        "healthyT":     "Healthy",
+        "healthyD":     "Probed within the last 5 minutes and responded OK. Safe to use right now. Latency is shown on the card.",
+        "unreachableT": "Unreachable",
+        "unreachableD": "Last probe failed — connection refused, timeout, 5xx. The mirror may be down, blocked, or overloaded. Try the next one.",
+        "noprobeT":     "No probe",
+        "noprobeD":     "Tor .onion mirrors can't be health-checked without a local Tor proxy. Status is unknown — use a Tor browser to test.",
+        "availableTitle": "Available mirrors",
+        "open":  "Open"
+    },
+    "security": {
+        "crumb":  "VORTEX / SECURITY",
+        "title":  "Security model",
+        "lede":   "Exactly what's cryptographically verified, what's not, and how each key in the system earns — or loses — your trust. Read this before you connect new clients to a controller you don't run yourself.",
+        "treasuryTitle": "5. Treasury & rewards",
+        "treasurySub":   "The Solana wallet that receives protocol fees (register fees from new nodes + a 20% cut of premium subscriptions) and distributes the rest as rewards to active operators. Anyone can audit inflows/outflows on-chain.",
+        "treasury1":     "<strong>On-chain transparency</strong> — the address above is owner of <code>vortexx.sol</code> on Solana Name Service. Every inflow (register fees, subscriptions) and every reward payout is a signed Solana transaction — verifiable by anyone, including you.",
+        "treasury2":     "<strong>Fee split</strong> — 70% of each premium subscription goes to the rewards pool (distributed pro-rata to nodes by usage + stake), 20% funds core development, 10% is burned / held as insurance. Register fees anchor node identity and anti-sybil.",
+        "treasury3":     "<strong>Custody caveat</strong> — until the payout smart contract is deployed, treasury acts as a temporary custodian. This is documented honestly here and tracked publicly. The smart contract will replace manual custody once audit + on-chain governance lands.",
+        "wrongTitle":    "6. If something looks wrong"
+    },
+    "status": {
+        "checking":  "checking…",
+        "online":    "● online",
+        "offline":   "● offline"
+    },
+    "common": {
+        "loading":  "loading…",
+        "copy":     "Copy",
+        "copied":   "Copied",
+        "language": "Language"
+    }
+}

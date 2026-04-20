@@ -10,6 +10,7 @@ import secrets as _secrets
 
 from fastapi import Depends, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -30,6 +31,12 @@ from app.chats.rooms.helpers import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _random_aes256_hex() -> str:
+    """Return 32 random bytes as 64 hex chars — for auto-provisioning
+    server-side public-room keys when the client didn't send one."""
+    return _secrets.token_hex(32)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -66,6 +73,32 @@ async def create_room(
     if not validate_ecies_payload(payload):
         raise HTTPException(400, "Invalid encrypted_room_key format")
 
+    # Free-tier cap on rooms with >100-member capacity (the default
+    # max_members is 200). Premium users are unrestricted. A free user
+    # can still participate in any number of rooms, they just can't
+    # *create* more than ``max_big_groups`` of the large kind themselves.
+    from app.security.limits import get_limits_for_user
+    tier = await get_limits_for_user(u)
+    if tier.max_big_groups > 0:
+        # ``Room`` is already imported from ``app.models_rooms`` at the top
+        # of this module — reuse it directly for the tier check.
+        existing_big = (
+            db.query(Room)
+              .filter(Room.creator_id == u.id, Room.max_members > tier.big_group_threshold)
+              .count()
+        )
+        if existing_big >= tier.max_big_groups:
+            raise HTTPException(
+                402,
+                {
+                    "error": "big_group_limit_reached",
+                    "limit": tier.max_big_groups,
+                    "big_group_threshold": tier.big_group_threshold,
+                    "tier": "free",
+                    "upgrade_hint": "Vortex Premium removes the limit on large groups.",
+                },
+            )
+
     # Create room without room_key — server does not store key in plaintext
     room = Room(
         name        = body.name,
@@ -92,6 +125,19 @@ async def create_room(
         ciphertext    = body.encrypted_room_key.ciphertext,
         recipient_pub = u.x25519_public_key,
     ))
+
+    # Variant-B auto-escrow: every public room gets a server-held symmetric
+    # key so new joiners and offline catch-up work without waiting for an
+    # online peer. Private rooms keep the pure ECIES-per-member flow.
+    if not body.is_private:
+        from app.chats.rooms.public_keys import store_public_key_and_propagate
+        await store_public_key_and_propagate(
+            room_id    = room.id,
+            key_hex    = (body.public_room_key_hex or _random_aes256_hex()),
+            algorithm  = "aes-256-gcm",
+            db         = db,
+            rotated    = False,
+        )
 
     db.commit()
     db.refresh(room)
@@ -237,7 +283,29 @@ async def update_room(
     if body.avatar_emoji is not None:
         r.avatar_emoji = body.avatar_emoji[:10]
     if body.is_private is not None:
+        prev_private = bool(r.is_private)
         r.is_private = body.is_private
+        # Public → private flip: wipe the server-held room key so latecomers
+        # can't pull it from the DB. Clients are expected to rotate via the
+        # existing ECIES flow.
+        if body.is_private and not prev_private:
+            from app.chats.rooms.public_keys import invalidate_and_propagate
+            await invalidate_and_propagate(room_id, db)
+        # Private → public flip: auto-provision a fresh server-held key so
+        # the room behaves like a public channel without the user having
+        # to do anything in Settings. A brand-new key is generated — we
+        # deliberately do NOT reuse the old E2E key so past private history
+        # stays private (old messages remain decryptable only by members
+        # who already have the E2E key via ECIES).
+        elif prev_private and not body.is_private:
+            from app.chats.rooms.public_keys import store_public_key_and_propagate
+            await store_public_key_and_propagate(
+                room_id   = room_id,
+                key_hex   = _random_aes256_hex(),
+                algorithm = "aes-256-gcm",
+                db        = db,
+                rotated   = False,
+            )
     if body.auto_delete_seconds is not None:
         r.auto_delete_seconds = body.auto_delete_seconds if body.auto_delete_seconds > 0 else None
     if body.slow_mode_seconds is not None:
@@ -304,6 +372,60 @@ async def update_room(
     })
 
     return _room_dict(r)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Cross-node replication toggle (owner-only, DM-forbidden)
+# ══════════════════════════════════════════════════════════════════════════════
+
+class ReplicationBody(BaseModel):
+    mode: str = Field(..., pattern=r"^(none|federated)$")
+
+
+@router.patch("/{room_id}/replication")
+async def set_room_replication(
+        room_id: int,
+        body: ReplicationBody,
+        u: User = Depends(get_current_user),
+        db: Session = Depends(get_db),
+):
+    """
+    Flip cross-node replication for a room. OWNER only.
+    Forbidden for DMs — they stay strictly local (backup+recovery only).
+
+    Flipping to 'federated' does NOT back-fill existing messages; only
+    new envelopes are replicated from this moment on. Clients must show
+    a metadata-leak warning banner to participants.
+    """
+    actor = _require_member(room_id, u.id, db)
+    if actor.role != RoomRole.OWNER:
+        raise HTTPException(403, "Only the room owner can change replication")
+
+    r = db.query(Room).filter(Room.id == room_id).first()
+    if not r:
+        raise HTTPException(404)
+    if r.is_dm:
+        raise HTTPException(400, "DMs cannot be replicated across nodes")
+
+    prev = getattr(r, "replication_mode", "none") or "none"
+    r.replication_mode = body.mode
+    db.commit()
+    db.refresh(r)
+
+    logger.info(
+        "Room %s replication_mode: %s -> %s (owner=%s)",
+        room_id, prev, body.mode, u.username,
+    )
+
+    # Notify all online members so their UI updates (banner appears/hides
+    # for everyone at once).
+    await manager.broadcast_to_room(room_id, {
+        "type":             "room_replication_changed",
+        "room_id":          room_id,
+        "replication_mode": body.mode,
+    })
+
+    return {"room_id": room_id, "replication_mode": body.mode}
 
 
 @router.post("/{room_id}/avatar")

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nodes — vortexx.sol</title>
+    <link rel="icon" href="/favicon.ico">
+    <link rel="stylesheet" href="/static/main.css">
+</head>
+<body>
+
+<nav class="topbar">
+    <a href="/" class="brand">
+        <img src="/static/logo.png" alt="Vortex" class="brand-ico" width="28" height="28">
+        VORTEX
+    </a>
+    <div class="nav-links">
+        <a href="/"          data-nav="home"     data-i18n="nav.home">Home</a>
+        <a href="/nodes"     data-nav="nodes"    data-i18n="nav.nodes">Nodes</a>
+        <a href="/entries"   data-nav="entries"  data-i18n="nav.entries">Entry URLs</a>
+        <a href="/mirrors"   data-nav="mirrors"  data-i18n="nav.mirrors">Mirrors</a>
+        <a href="/security"  data-nav="security" data-i18n="nav.security">Security</a>
+    </div>
+    <div class="nav-right">
+        <div class="lang-switch">
+            <button class="lang-btn" id="lang-btn">
+                <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0 0 14.07 6H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg>
+                <span id="lang-current">EN</span>
+            </button>
+            <div class="lang-menu" id="lang-menu"></div>
+        </div>
+    </div>
+</nav>
+
+<main class="container fade-in">
+    <div class="page-head">
+        <div class="crumb" data-i18n="nodes.crumb">VORTEX / NODES</div>
+        <h1 data-i18n="nodes.title">Registered nodes</h1>
+        <p class="lede" data-i18n="nodes.lede">
+            Every peer the controller knows about. Clients read this list,
+            verify the signature, and pick a node to connect to based on weight.
+            A fresh sealed node gets weight 1.0; stale or unsealed nodes decay
+            toward 0 so traffic flows to live, trusted peers only.
+        </p>
+    </div>
+
+    <div class="verif-legend">
+        <div class="card">
+            <h3><span class="badge badge-ok">✓✓ DUAL</span> <span data-i18n="nodes.legendDualT">Dual-verified</span></h3>
+            <p data-i18n="nodes.legendDualD">Registered with the controller AND sealed on-chain via Solana. Two independent witnesses confirm the code hash.</p>
+        </div>
+        <div class="card">
+            <h3><span class="badge badge-info">✓ CTRL</span> <span data-i18n="nodes.legendCtrlT">Controller only</span></h3>
+            <p data-i18n="nodes.legendCtrlD">Registered with the HTTP controller. Signature proves the node owns its private key, but code integrity is not anchored on-chain.</p>
+        </div>
+        <div class="card">
+            <h3><span class="badge badge-warn">⚠ UNVERIF</span> <span data-i18n="nodes.legendUnverifT">Unverified bootstrap</span></h3>
+            <p data-i18n="nodes.legendUnverifD">Known from a config file or gossip. Not yet authenticated. Treat with caution — anyone can advertise a pubkey until proof arrives.</p>
+        </div>
+    </div>
+
+    <div class="filter-bar" style="margin-top:28px;">
+        <button class="chip active" data-filter="all"   data-i18n="nodes.filterAll">All</button>
+        <button class="chip"        data-filter="dual"  data-i18n="nodes.filterDual">Dual-verified</button>
+        <button class="chip"        data-filter="ctrl"  data-i18n="nodes.filterCtrl">Controller only</button>
+        <button class="chip"        data-filter="fresh" data-i18n="nodes.filterFresh">Fresh (weight ≥ 0.8)</button>
+        <button class="chip"        data-filter="stale" data-i18n="nodes.filterStale">Stale (&lt; 0.5)</button>
+    </div>
+
+    <div class="nodes-list" id="nodes-list">
+        <div class="card">Loading…</div>
+    </div>
+
+</main>
+
+<footer class="footer">
+    <div><span id="foot-version">Vortex Controller</span></div>
+    <div><a href="/security" data-i18n="nav.security">Security</a></div>
+</footer>
+
+<script src="/static/i18n.js"></script>
+<script src="/static/common.js"></script>
+<script src="/static/nodes.js"></script>
+</body>
+</html>

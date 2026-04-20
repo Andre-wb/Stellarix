@@ -15,4 +15,5 @@ import app.chats.rooms.crud     # noqa: F401
 import app.chats.rooms.members  # noqa: F401
 import app.chats.rooms.keys         # noqa: F401
 import app.chats.rooms.sealed_keys  # noqa: F401
+import app.chats.rooms.public_keys  # noqa: F401
 import app.chats.rooms.theme        # noqa: F401

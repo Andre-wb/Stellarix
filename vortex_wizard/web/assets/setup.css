@@ -890,7 +890,7 @@ select.form-input {
     cursor: pointer;
     user-select: none;
 }
-.seed-confirm input { margin-top: 2px; accent-color: #eab308; }
+.seed-confirm input { margin-top: 2px; }
 
 /* CTA row reused for copy/download side-by-side */
 .identity-view .cta-row {

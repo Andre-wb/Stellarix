@@ -48,6 +48,11 @@ class User(Base):
     email    = Column(String(255), unique=True, nullable=True, index=True)
     last_ip  = Column(String(45),  nullable=True)
 
+    # Solana wallet linked to this account for Vortex Premium. Optional —
+    # users who haven't linked one stay on the free tier. Base58 Pubkey
+    # encoding is 32-44 chars; 48 gives headroom.
+    wallet_pubkey = Column(String(48), nullable=True, index=True)
+
     # Profile card
     bio          = Column(String(300), nullable=True)
     birth_date   = Column(String(10),  nullable=True)

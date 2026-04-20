@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import os
 import secrets
 import threading
 import time
@@ -65,6 +66,7 @@ async def passkey_register_options(
 
     from webauthn import generate_registration_options, options_to_json
     from webauthn.helpers.structs import (
+        AuthenticatorAttachment,
         AuthenticatorSelectionCriteria,
         ResidentKeyRequirement,
         UserVerificationRequirement,
@@ -72,16 +74,30 @@ async def passkey_register_options(
 
     rp_id = _get_rp_id(request)
 
+    # Hardware-key enforcement: when REQUIRE_HARDWARE_KEY=true, we force
+    # cross-platform authenticators (YubiKey, SoloKey, etc.) and REQUIRE
+    # user verification — platform biometrics alone aren't enough.
+    require_hw = os.getenv("REQUIRE_HARDWARE_KEY", "").lower() in ("1", "true", "yes")
+    selection = (
+        AuthenticatorSelectionCriteria(
+            authenticator_attachment=AuthenticatorAttachment.CROSS_PLATFORM,
+            resident_key=ResidentKeyRequirement.REQUIRED,
+            user_verification=UserVerificationRequirement.REQUIRED,
+        )
+        if require_hw
+        else AuthenticatorSelectionCriteria(
+            resident_key=ResidentKeyRequirement.PREFERRED,
+            user_verification=UserVerificationRequirement.PREFERRED,
+        )
+    )
+
     options = generate_registration_options(
         rp_id=rp_id,
         rp_name="Vortex",
         user_id=str(u.id).encode(),
         user_name=u.username,
         user_display_name=u.display_name or u.username,
-        authenticator_selection=AuthenticatorSelectionCriteria(
-            resident_key=ResidentKeyRequirement.PREFERRED,
-            user_verification=UserVerificationRequirement.PREFERRED,
-        ),
+        authenticator_selection=selection,
     )
 
     session_id = secrets.token_hex(16)

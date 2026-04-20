@@ -154,6 +154,13 @@ document.addEventListener('DOMContentLoaded',_highlightLang);
 <script src="/static/js/inline-handlers.js" defer></script>
 <script src="/static/js/bot-constructor.js" defer></script>
 <link rel="stylesheet" href="/static/css/bot-constructor.css">
+<link rel="stylesheet" href="/static/css/article.css">
+{# Math + Markdown renderers for article attachments. Self-hosted — drop
+   katex.min.js + katex.min.css + marked.min.js into /static/vendor/.
+   If absent, article.js falls back gracefully to plain text. #}
+<link rel="stylesheet" href="/static/vendor/katex.min.css" onerror="this.remove()">
+<script src="/static/vendor/katex.min.js" defer></script>
+<script src="/static/vendor/marked.min.js" defer></script>
 <script type="module" src="/static/js/main.js"></script>
 <script type="module" src="/static/js/ux-enhancements.js"></script>
 <script src="/static/js/ide-dev-settings.js" defer></script>

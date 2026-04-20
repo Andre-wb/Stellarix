@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Treasury — vortexx.sol</title>
+    <link rel="icon" href="/favicon.ico">
+    <link rel="stylesheet" href="/static/main.css">
+    <style>
+        .admin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+            margin: 20px 0 28px;
+        }
+        .admin-stat {
+            padding: 16px 18px;
+            background: var(--bg2, #141420);
+            border: 1px solid var(--border, #26262e);
+            border-radius: 12px;
+        }
+        .admin-stat-k { font-size: 11.5px; color: var(--text2, #97979f); letter-spacing: 0.4px; text-transform: uppercase; }
+        .admin-stat-v { font-size: 24px; margin-top: 6px; font-weight: 600; color: var(--text, #fff); }
+        .admin-stat-sub { font-size: 11.5px; margin-top: 4px; color: var(--text2, #97979f); }
+        .admin-login {
+            max-width: 380px;
+            margin: 60px auto;
+            padding: 24px;
+            background: var(--bg2, #141420);
+            border: 1px solid var(--border, #26262e);
+            border-radius: 14px;
+            text-align: center;
+        }
+        .admin-login h2 { margin-top: 0; }
+        .admin-login input {
+            width: 100%;
+            margin: 12px 0;
+            padding: 10px 12px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border, #26262e);
+            border-radius: 8px;
+            color: var(--text, #fff);
+            font-family: inherit;
+            font-size: 13px;
+            box-sizing: border-box;
+        }
+        .admin-login button {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--purple, #7c3aed);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .admin-login button:hover { opacity: 0.9; }
+        .admin-err {
+            margin-top: 10px;
+            padding: 8px 10px;
+            background: rgba(239,68,68,0.08);
+            border: 1px solid rgba(239,68,68,0.25);
+            color: #fca5a5;
+            border-radius: 6px;
+            font-size: 12.5px;
+        }
+        .admin-chart {
+            padding: 20px;
+            background: var(--bg2, #141420);
+            border: 1px solid var(--border, #26262e);
+            border-radius: 14px;
+            margin-bottom: 24px;
+        }
+        .admin-chart h3 { margin: 0 0 14px; font-size: 13px; letter-spacing: 0.4px; text-transform: uppercase; color: var(--text2, #97979f); }
+        .admin-foot-btn {
+            margin-top: 20px;
+            padding: 6px 12px;
+            background: transparent;
+            border: 1px solid var(--border, #26262e);
+            border-radius: 6px;
+            color: var(--text2, #97979f);
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .admin-note {
+            margin-top: 14px;
+            padding: 10px 14px;
+            background: rgba(234,179,8,0.06);
+            border: 1px solid rgba(234,179,8,0.18);
+            border-radius: 8px;
+            color: #fcd34d;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="topbar">
+    <a href="/" class="brand">
+        <img src="/static/logo.png" alt="Vortex" class="brand-ico" width="28" height="28">
+        VORTEX
+    </a>
+    <div class="nav-links">
+        <a href="/"         data-nav="home">Home</a>
+        <a href="/nodes"    data-nav="nodes">Nodes</a>
+        <a href="/entries"  data-nav="entries">Entry URLs</a>
+        <a href="/mirrors"  data-nav="mirrors">Mirrors</a>
+        <a href="/security" data-nav="security">Security</a>
+    </div>
+</nav>
+
+<main class="container fade-in">
+
+    <!-- LOGIN FORM — shown when not authenticated -->
+    <div id="login-view" class="admin-login" style="display:none;">
+        <h2>Treasury access</h2>
+        <p class="lede" style="font-size:13px; margin:0 0 6px;">Private dashboard. Paste the admin token set in <code>ADMIN_TOKEN</code>.</p>
+        <input type="password" id="admin-token-in" placeholder="bearer token">
+        <button id="btn-login">Unlock</button>
+        <div class="admin-err" id="login-err" style="display:none;"></div>
+    </div>
+
+    <!-- DASHBOARD — shown when authenticated -->
+    <div id="dash-view" style="display:none;">
+
+        <div class="page-head">
+            <div class="crumb">VORTEX / TREASURY</div>
+            <h1>Revenue dashboard</h1>
+            <p class="lede">Protocol-level flows into and out of the <code id="tw-addr">loading…</code> wallet. Mock figures until the payout contract is live — schema is final.</p>
+        </div>
+
+        <div class="admin-grid">
+            <div class="admin-stat">
+                <div class="admin-stat-k">Treasury balance</div>
+                <div class="admin-stat-v"><span id="s-balance">—</span> SOL</div>
+                <div class="admin-stat-sub">on-chain (vortexx.sol owner)</div>
+            </div>
+            <div class="admin-stat">
+                <div class="admin-stat-k">Register fees (30d)</div>
+                <div class="admin-stat-v"><span id="s-reg-count">—</span></div>
+                <div class="admin-stat-sub"><span id="s-reg-sol">—</span> SOL in</div>
+            </div>
+            <div class="admin-stat">
+                <div class="admin-stat-k">Active premium subs</div>
+                <div class="admin-stat-v" id="s-subs">—</div>
+                <div class="admin-stat-sub" id="s-mrr">— $/mo MRR</div>
+            </div>
+            <div class="admin-stat">
+                <div class="admin-stat-k">Paid to operators (30d)</div>
+                <div class="admin-stat-v"><span id="s-payout-sol">—</span> SOL</div>
+                <div class="admin-stat-sub">~$<span id="s-payout-usd">—</span> distributed</div>
+            </div>
+            <div class="admin-stat">
+                <div class="admin-stat-k">Nodes registered</div>
+                <div class="admin-stat-v" id="s-net-reg">—</div>
+                <div class="admin-stat-sub"><span id="s-net-online">—</span> online now</div>
+            </div>
+            <div class="admin-stat">
+                <div class="admin-stat-k">Fee schedule</div>
+                <div class="admin-stat-v" style="font-size:14px;">
+                    <span id="s-fee-reg">—</span> SOL · <span id="s-fee-pct">—</span>%
+                </div>
+                <div class="admin-stat-sub">register fee · premium take-rate</div>
+            </div>
+        </div>
+
+        <div class="admin-chart">
+            <h3>Daily inflow — last 30 days (SOL)</h3>
+            <svg id="chart" width="100%" height="120" viewBox="0 0 600 120" preserveAspectRatio="none"></svg>
+        </div>
+
+        <div class="admin-note" id="dash-note"></div>
+
+        <button class="admin-foot-btn" id="btn-logout">Sign out</button>
+    </div>
+
+</main>
+
+<script>
+(() => {
+    const LS_KEY = 'vortex.admin.token';
+    const $ = s => document.querySelector(s);
+
+    function show(view) {
+        $('#login-view').style.display = view === 'login' ? '' : 'none';
+        $('#dash-view').style.display  = view === 'dash'  ? '' : 'none';
+    }
+
+    async function fetchRevenue(token) {
+        const r = await fetch('/admin/revenue', {
+            headers: { 'Authorization': 'Bearer ' + token },
+        });
+        if (r.status === 401 || r.status === 403) return { ok: false, err: 'Unauthorized — token rejected' };
+        if (r.status === 503) return { ok: false, err: 'Admin interface is disabled (set ADMIN_TOKEN env var)' };
+        if (!r.ok) return { ok: false, err: 'HTTP ' + r.status };
+        return { ok: true, data: await r.json() };
+    }
+
+    function renderChart(values) {
+        const svg = $('#chart');
+        while (svg.firstChild) svg.removeChild(svg.firstChild);
+        const W = 600, H = 120, PAD = 6;
+        const max = Math.max(...values, 1);
+        const step = (W - PAD * 2) / (values.length - 1 || 1);
+        // Area fill
+        let d = `M ${PAD} ${H - PAD}`;
+        values.forEach((v, i) => {
+            const x = PAD + i * step;
+            const y = H - PAD - (v / max) * (H - PAD * 2);
+            d += ` L ${x} ${y}`;
+        });
+        d += ` L ${W - PAD} ${H - PAD} Z`;
+        const area = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        area.setAttribute('d', d);
+        area.setAttribute('fill', 'rgba(124,58,237,0.18)');
+        svg.appendChild(area);
+        // Line
+        let line = `M`;
+        values.forEach((v, i) => {
+            const x = PAD + i * step;
+            const y = H - PAD - (v / max) * (H - PAD * 2);
+            line += ` ${i === 0 ? '' : 'L'} ${x} ${y}`;
+        });
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', line);
+        path.setAttribute('fill', 'none');
+        path.setAttribute('stroke', 'rgb(168,85,247)');
+        path.setAttribute('stroke-width', '1.6');
+        svg.appendChild(path);
+    }
+
+    function render(d) {
+        $('#tw-addr').textContent     = d.treasury_pubkey || '—';
+        $('#s-balance').textContent   = d.treasury_balance_sol ?? '—';
+        $('#s-reg-count').textContent = d.register_fees_30d.count ?? '—';
+        $('#s-reg-sol').textContent   = d.register_fees_30d.sol ?? '—';
+        $('#s-subs').textContent      = d.premium_subs_active ?? '—';
+        $('#s-mrr').textContent       = '$' + (d.mrr_usd ?? 0).toLocaleString() + '/mo MRR';
+        $('#s-payout-sol').textContent = d.rewards_distributed_30d_sol ?? '—';
+        $('#s-payout-usd').textContent = (d.rewards_distributed_30d_usd ?? 0).toLocaleString();
+        $('#s-net-reg').textContent    = d.network?.registered ?? '—';
+        $('#s-net-online').textContent = d.network?.online ?? '—';
+        $('#s-fee-reg').textContent    = d.fee_schedule?.register_fee_sol ?? '—';
+        $('#s-fee-pct').textContent    = d.fee_schedule?.premium_protocol_pct ?? '—';
+        $('#dash-note').textContent    = d.note || '';
+        renderChart(d.daily_inflow_30d || []);
+    }
+
+    async function tryLoad(token) {
+        const res = await fetchRevenue(token);
+        if (!res.ok) return res;
+        render(res.data);
+        show('dash');
+        return res;
+    }
+
+    // Boot — attempt stored token first
+    (async () => {
+        const stored = localStorage.getItem(LS_KEY);
+        if (stored) {
+            const res = await tryLoad(stored);
+            if (res.ok) return;
+            localStorage.removeItem(LS_KEY);
+        }
+        show('login');
+    })();
+
+    $('#btn-login').addEventListener('click', async () => {
+        const t = ($('#admin-token-in').value || '').trim();
+        const err = $('#login-err');
+        err.style.display = 'none';
+        if (!t) return;
+        const res = await tryLoad(t);
+        if (res.ok) {
+            localStorage.setItem(LS_KEY, t);
+        } else {
+            err.textContent = res.err || 'Failed';
+            err.style.display = '';
+        }
+    });
+    $('#admin-token-in').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') $('#btn-login').click();
+    });
+    $('#btn-logout').addEventListener('click', () => {
+        localStorage.removeItem(LS_KEY);
+        location.reload();
+    });
+})();
+</script>
+</body>
+</html>

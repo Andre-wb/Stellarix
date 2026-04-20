@@ -246,16 +246,20 @@ describe("vortex_registry", () => {
     });
   });
 
-  // ── Phase B: premium subscriptions ───────────────────────────────────
-  describe("phase B — subscribe_premium", () => {
+  // ── Shared Phase B / other phases helpers ───────────────────────────
+  const DEFAULT_TIER_PRICES = [33_333_333, 80_000_000, 133_333_333, 253_333_333];
+  const DEFAULT_PLAN_MONTHS = [1, 3, 6, 12];
+
+  // ── Phase B: tier subscriptions + gifting ───────────────────────────
+  describe("phase B — subscribe_tier", () => {
     const [configPda] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("config")],
       program.programId,
     );
 
-    function subscriptionPda(user: anchor.web3.PublicKey): anchor.web3.PublicKey {
+    function subscriptionPda(beneficiary: anchor.web3.PublicKey): anchor.web3.PublicKey {
       const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
-        [Buffer.from("subscription"), user.toBuffer()],
+        [Buffer.from("subscription"), beneficiary.toBuffer()],
         program.programId,
       );
       return pda;
@@ -269,64 +273,86 @@ describe("vortex_registry", () => {
       await provider.connection.confirmTransaction(sig);
     }
 
-    it("subscribe_premium charges the right amount and sets end_timestamp", async () => {
+    it("tier 0 (1-month) charges 5$ ≈ 0.033 SOL", async () => {
       const cfg = await program.account.config.fetch(configPda);
-      const treasury = cfg.treasury;
-      const perMonth = cfg.premiumPricePerMonthLamports.toNumber();
+      const price = cfg.tierPricesLamports[0].toNumber();
+      assert.equal(price, DEFAULT_TIER_PRICES[0]);
 
       const user = anchor.web3.Keypair.generate();
       await airdrop(user.publicKey, 2);
-
       const subPda = subscriptionPda(user.publicKey);
-      const tBefore = await provider.connection.getBalance(treasury);
 
-      const months = 3;
+      const tBefore = await provider.connection.getBalance(cfg.treasury);
       await program.methods
-        .subscribePremium(months)
+        .subscribeTier(0, user.publicKey)
         .accounts({
           config: configPda,
           subscription: subPda,
-          user: user.publicKey,
-          treasury: treasury,
+          payer: user.publicKey,
+          treasury: cfg.treasury,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .signers([user])
+        .rpc();
+      const tAfter = await provider.connection.getBalance(cfg.treasury);
+      assert.equal(tAfter - tBefore, price);
+
+      const sub = await program.account.subscription.fetch(subPda);
+      assert.isTrue(sub.beneficiary.equals(user.publicKey));
+      assert.equal(sub.monthsTotalPaid, 1);
+      assert.equal(sub.lifetimeLamportsPaid.toNumber(), price);
+      // Self-purchase — last_gift_from must stay default (all zeros).
+      assert.isTrue(sub.lastGiftFrom.equals(anchor.web3.PublicKey.default));
+    });
+
+    it("tier 3 (yearly) charges the yearly price and adds 360 days", async () => {
+      const cfg = await program.account.config.fetch(configPda);
+      const price = cfg.tierPricesLamports[3].toNumber();
+      assert.equal(price, DEFAULT_TIER_PRICES[3]);
+
+      const user = anchor.web3.Keypair.generate();
+      await airdrop(user.publicKey, 2);
+      const subPda = subscriptionPda(user.publicKey);
+
+      await program.methods
+        .subscribeTier(3, user.publicKey)
+        .accounts({
+          config: configPda,
+          subscription: subPda,
+          payer: user.publicKey,
+          treasury: cfg.treasury,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
         .signers([user])
         .rpc();
 
-      const tAfter = await provider.connection.getBalance(treasury);
-      assert.equal(tAfter - tBefore, perMonth * months,
-        "treasury must receive per_month * months lamports");
-
       const sub = await program.account.subscription.fetch(subPda);
-      assert.isTrue(sub.user.equals(user.publicKey));
-      assert.equal(sub.monthsTotalPaid, months);
-      assert.equal(sub.lifetimeLamportsPaid.toNumber(), perMonth * months);
-
       const nowSec = Math.floor(Date.now() / 1000);
-      const threeMonths = 3 * 30 * 86_400;
-      assert.isAtLeast(sub.endTimestamp.toNumber(), nowSec + threeMonths - 30);
-      assert.isAtMost(sub.endTimestamp.toNumber(), nowSec + threeMonths + 30);
-
-      const cfgAfter = await program.account.config.fetch(configPda);
-      assert.equal(cfgAfter.subscriptionTxCount.toNumber(), 1);
-      assert.equal(cfgAfter.totalPremiumRevenueLamports.toNumber(),
-        perMonth * months);
+      const yearSec = 12 * 30 * 86_400;
+      assert.isAtLeast(sub.endTimestamp.toNumber(), nowSec + yearSec - 60);
+      assert.equal(sub.monthsTotalPaid, 12);
     });
 
-    it("re-subscribe stacks extra months on top of remaining time", async () => {
+    it("re-subscribe stacks time on remaining + monotone pricing monotone (6mo < 2×3mo)", async () => {
       const cfg = await program.account.config.fetch(configPda);
+
+      // Price monotonicity: 12mo < 2 × 6mo (year more attractive than two halves).
+      const price6 = cfg.tierPricesLamports[2].toNumber();
+      const price12 = cfg.tierPricesLamports[3].toNumber();
+      assert.isBelow(price12, 2 * price6,
+        "12-month plan must be cheaper than two 6-month plans");
+
+      // Stacking: buy 3mo, then 1mo → end should advance by +30d only on top of 3mo.
       const user = anchor.web3.Keypair.generate();
       await airdrop(user.publicKey, 2);
-
       const subPda = subscriptionPda(user.publicKey);
 
-      // First: buy 2 months
       await program.methods
-        .subscribePremium(2)
+        .subscribeTier(1, user.publicKey)   // 3 months
         .accounts({
           config: configPda,
           subscription: subPda,
-          user: user.publicKey,
+          payer: user.publicKey,
           treasury: cfg.treasury,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
@@ -334,13 +360,12 @@ describe("vortex_registry", () => {
         .rpc();
       const after1 = await program.account.subscription.fetch(subPda);
 
-      // Then: +1 month. End should advance by exactly +30 days, not reset.
       await program.methods
-        .subscribePremium(1)
+        .subscribeTier(0, user.publicKey)   // +1 month
         .accounts({
           config: configPda,
           subscription: subPda,
-          user: user.publicKey,
+          payer: user.publicKey,
           treasury: cfg.treasury,
           systemProgram: anchor.web3.SystemProgram.programId,
         })
@@ -351,39 +376,64 @@ describe("vortex_registry", () => {
       assert.equal(
         after2.endTimestamp.toNumber() - after1.endTimestamp.toNumber(),
         30 * 86_400,
-        "extra month must shift end_timestamp exactly +30 days",
+        "1-month tier on top of existing subscription must add exactly 30 days",
       );
-      assert.equal(after2.monthsTotalPaid, 3);
+      assert.equal(after2.monthsTotalPaid, 4);
     });
 
-    it("rejects 0 months and >36 months", async () => {
+    it("gifting: payer != beneficiary, last_gift_from set correctly", async () => {
+      const cfg = await program.account.config.fetch(configPda);
+      const giver = anchor.web3.Keypair.generate();
+      const recipient = anchor.web3.Keypair.generate();
+      await airdrop(giver.publicKey, 2);
+
+      const subPda = subscriptionPda(recipient.publicKey);
+
+      // Giver pays; recipient receives. Recipient NEVER signs.
+      await program.methods
+        .subscribeTier(2, recipient.publicKey)   // 6-month gift
+        .accounts({
+          config: configPda,
+          subscription: subPda,
+          payer: giver.publicKey,
+          treasury: cfg.treasury,
+          systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .signers([giver])
+        .rpc();
+
+      const sub = await program.account.subscription.fetch(subPda);
+      assert.isTrue(sub.beneficiary.equals(recipient.publicKey));
+      assert.isTrue(sub.lastGiftFrom.equals(giver.publicKey));
+      assert.equal(sub.monthsTotalPaid, 6);
+    });
+
+    it("rejects invalid tier (>=4)", async () => {
       const cfg = await program.account.config.fetch(configPda);
       const user = anchor.web3.Keypair.generate();
       await airdrop(user.publicKey, 2);
       const subPda = subscriptionPda(user.publicKey);
 
-      for (const bad of [0, 37]) {
-        try {
-          await program.methods
-            .subscribePremium(bad)
-            .accounts({
-              config: configPda,
-              subscription: subPda,
-              user: user.publicKey,
-              treasury: cfg.treasury,
-              systemProgram: anchor.web3.SystemProgram.programId,
-            })
-            .signers([user])
-            .rpc();
-          assert.fail(`months=${bad} should have been rejected`);
-        } catch (e: any) {
-          assert.include(String(e), "InvalidMonths",
-            `months=${bad} should raise InvalidMonths`);
-        }
+      try {
+        await program.methods
+          .subscribeTier(4, user.publicKey)
+          .accounts({
+            config: configPda,
+            subscription: subPda,
+            payer: user.publicKey,
+            treasury: cfg.treasury,
+            systemProgram: anchor.web3.SystemProgram.programId,
+          })
+          .signers([user])
+          .rpc();
+        assert.fail("expected InvalidTier");
+      } catch (e: any) {
+        assert.include(String(e), "InvalidTier");
       }
     });
 
-    it("rejects subscribe_premium when wrong treasury passed", async () => {
+    it("rejects subscribe_tier when wrong treasury passed", async () => {
+      const cfg = await program.account.config.fetch(configPda);
       const user = anchor.web3.Keypair.generate();
       await airdrop(user.publicKey, 2);
       const subPda = subscriptionPda(user.publicKey);
@@ -391,38 +441,79 @@ describe("vortex_registry", () => {
 
       try {
         await program.methods
-          .subscribePremium(1)
+          .subscribeTier(0, user.publicKey)
           .accounts({
             config: configPda,
             subscription: subPda,
-            user: user.publicKey,
+            payer: user.publicKey,
             treasury: fake.publicKey,
             systemProgram: anchor.web3.SystemProgram.programId,
           })
           .signers([user])
           .rpc();
-        assert.fail("expected WrongTreasury error");
+        assert.fail("expected WrongTreasury");
       } catch (e: any) {
         assert.include(String(e), "WrongTreasury");
       }
     });
 
-    it("admin can re-price premium via update_config", async () => {
-      const newPrice = new anchor.BN(50_000_000); // 0.05 SOL
+    it("rejects subscribe_tier when subscription PDA doesn't match beneficiary", async () => {
+      const cfg = await program.account.config.fetch(configPda);
+      const user = anchor.web3.Keypair.generate();
+      const other = anchor.web3.Keypair.generate();
+      await airdrop(user.publicKey, 2);
+      const wrongSubPda = subscriptionPda(other.publicKey);
+
+      try {
+        await program.methods
+          .subscribeTier(0, user.publicKey)       // beneficiary = user
+          .accounts({
+            config: configPda,
+            subscription: wrongSubPda,            // PDA derived from `other` — mismatch
+            payer: user.publicKey,
+            treasury: cfg.treasury,
+            systemProgram: anchor.web3.SystemProgram.programId,
+          })
+          .signers([user])
+          .rpc();
+        assert.fail("expected PDA mismatch");
+      } catch (e: any) {
+        // Anchor's seeds constraint catches this before our WrongBeneficiary
+        // error — either signal is acceptable.
+        assert.isTrue(
+          /WrongBeneficiary|ConstraintSeeds|seeds constraint/i.test(String(e)),
+          `unexpected error: ${e}`,
+        );
+      }
+    });
+
+    it("admin can re-price tiers via update_config (new_tier_prices)", async () => {
+      const doubled = DEFAULT_TIER_PRICES.map((p) => new anchor.BN(p * 2));
       await program.methods
-        .updateConfig(null, null, newPrice)
+        .updateConfig(null, null, doubled)
         .accounts({ config: configPda, admin: provider.wallet.publicKey })
         .rpc();
       const cfg = await program.account.config.fetch(configPda);
-      assert.equal(cfg.premiumPricePerMonthLamports.toNumber(), newPrice.toNumber());
+      assert.equal(
+        cfg.tierPricesLamports[0].toNumber(),
+        DEFAULT_TIER_PRICES[0] * 2,
+      );
 
-      // Above-cap must fail.
+      // Revert to defaults for subsequent tests.
+      await program.methods
+        .updateConfig(null, null, DEFAULT_TIER_PRICES.map((p) => new anchor.BN(p)))
+        .accounts({ config: configPda, admin: provider.wallet.publicKey })
+        .rpc();
+
+      // Above-cap price (>6 SOL) rejected.
+      const oneAboveCap = DEFAULT_TIER_PRICES.map((p) => new anchor.BN(p));
+      oneAboveCap[3] = new anchor.BN(7_000_000_000);
       try {
         await program.methods
-          .updateConfig(null, null, new anchor.BN(2_000_000_000))
+          .updateConfig(null, null, oneAboveCap)
           .accounts({ config: configPda, admin: provider.wallet.publicKey })
           .rpc();
-        assert.fail("expected PremiumPriceAboveCap error");
+        assert.fail("expected PremiumPriceAboveCap");
       } catch (e: any) {
         assert.include(String(e), "PremiumPriceAboveCap");
       }

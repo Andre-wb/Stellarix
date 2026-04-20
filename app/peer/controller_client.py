@@ -34,7 +34,18 @@ logger = logging.getLogger(__name__)
 
 # ── Canonical JSON (must match controller) ─────────────────────────────────
 
+try:
+    import vortex_chat as _vc_rust
+    _HAS_RUST_CJSON = hasattr(_vc_rust, "canonical_json")
+except ImportError:
+    _HAS_RUST_CJSON = False
+
+
 def _canonical(data) -> bytes:
+    """Deterministic JSON for signing. Rust path ≈ 25× faster; Python
+    fallback kept for builds without the compiled extension."""
+    if _HAS_RUST_CJSON:
+        return _vc_rust.canonical_json(data)
     return json.dumps(data, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
@@ -453,9 +464,26 @@ def client_from_config() -> Optional[ControllerClient]:
         metadata={
             "name": Config.DEVICE_NAME or "vortex-node",
             "mode": Config.NETWORK_MODE,
+            # Capability flags — controller uses these to weight nodes
+            # when picking random peers for /v1/nodes/random. A node that
+            # can answer AI requests locally gives users a better UX, so
+            # the controller biases discovery toward such nodes.
+            "ai_capable":  _ai_capable(),
         },
         heartbeat_sec=Config.CONTROLLER_HEARTBEAT_SEC,
         proxy_urls=proxy_urls,
         fallback_urls=fallback_urls,
         expected_release_pubkey=expected_release_pubkey,
     )
+
+
+def _ai_capable() -> bool:
+    """True iff AI is enabled on this node AND a reachable Ollama daemon
+    exists on the loopback. Cached by callers is fine — the controller
+    re-reads metadata every heartbeat.
+    """
+    if Config.AI_ENABLED is False:
+        return False
+    # Fast, non-blocking: rely on the env flag alone for registration.
+    # A periodic wizard job can flip AI_ENABLED when the daemon crashes.
+    return bool(Config.AI_ENABLED)

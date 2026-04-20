@@ -100,10 +100,30 @@ except BaseException as _oqs_err:
         if _SIMULATION_ALLOWED:
             _PQ_AVAILABLE = True   # allow API to function (testing only)
             _PQ_BACKEND = "simulated"
+            import platform as _platform
+            _system = _platform.system()
+            if _system == "Darwin":
+                _install = "brew install liboqs && pip install --force-reinstall liboqs-python"
+            elif _system == "Linux":
+                # Debian/Ubuntu name differs from Arch/Fedora — show the
+                # common one first, mention alternatives.
+                _install = (
+                    "sudo apt install liboqs-dev  (Ubuntu/Debian) "
+                    "|  sudo pacman -S liboqs  (Arch) "
+                    "|  then: pip install --force-reinstall liboqs-python"
+                )
+            elif _system == "Windows":
+                _install = (
+                    "pip install pqcrypto  "
+                    "(Windows has no prebuilt liboqs — use the pqcrypto fallback)"
+                )
+            else:
+                _install = "pip install pqcrypto"
             logger.warning(
                 "⚠ Post-quantum SIMULATION MODE active. "
                 "This is NOT cryptographically secure — SHAKE-256 is not Kyber. "
-                "For real security: pip install liboqs-python"
+                "Fix: %s",
+                _install,
             )
         else:
             _PQ_BACKEND = "unavailable"

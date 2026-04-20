@@ -1,0 +1,120 @@
+/* Wave 7 — UI polish: light theme, compact layout, PiP Logs,
+   command palette, dashboard widgets overlay. */
+
+/* ── Light theme — overrides the dark defaults via [data-theme="light"] ── */
+html[data-theme="light"] {
+    --bg:       #fafafa;
+    --bg2:      #ffffff;
+    --bg3:      #f2f2f5;
+    --text:     #111315;
+    --text2:    #5a5f66;
+    --accent:   #6f3dfa;
+    --accent2:  #2763d4;
+    --border:   #dbdee3;
+    --green:    #16a34a;
+    --yellow:   #eab308;
+    --red:      #dc2626;
+}
+
+html[data-theme="light"] body {
+    background: var(--bg);
+    color: var(--text);
+}
+html[data-theme="light"] .sidebar { background: var(--bg2); border-right: 1px solid var(--border); }
+html[data-theme="light"] .nav-item { color: var(--text2); }
+html[data-theme="light"] .nav-item.active { color: var(--accent); background: rgba(111, 61, 250, 0.08); }
+html[data-theme="light"] .card,
+html[data-theme="light"] .card-big { background: var(--bg2); border: 1px solid var(--border); color: var(--text); }
+html[data-theme="light"] .form-input,
+html[data-theme="light"] textarea.form-input,
+html[data-theme="light"] select.form-input {
+    background: var(--bg2); color: var(--text); border: 1px solid var(--border);
+}
+html[data-theme="light"] code,
+html[data-theme="light"] pre {
+    background: var(--bg3); color: var(--text);
+}
+html[data-theme="light"] .toast { background: var(--bg2); color: var(--text); border: 1px solid var(--border); }
+html[data-theme="light"] table.peers-table th,
+html[data-theme="light"] table.peers-table td { border-color: var(--border); color: var(--text); }
+
+/* ── Compact layout ── */
+html[data-density="compact"] .card { padding: 10px 12px; margin-bottom: 10px; }
+html[data-density="compact"] .card-row { padding: 4px 0; font-size: 12px; }
+html[data-density="compact"] h1 { font-size: 18px; margin: 6px 0; }
+html[data-density="compact"] h3 { font-size: 13px; margin-bottom: 6px; }
+html[data-density="compact"] .btn-small { padding: 3px 8px; font-size: 11px; }
+html[data-density="compact"] .sidebar { width: 180px; }
+html[data-density="compact"] .content { margin-left: 180px; padding: 12px 18px; }
+
+/* ── Picture-in-Picture logs window ── */
+.logs-pip {
+    position: fixed; bottom: 16px; right: 16px; z-index: 500;
+    width: 420px; height: 260px;
+    background: #0a0a0a; color: #b6f5c5;
+    border: 1px solid #2a2a33; border-radius: 10px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 11px;
+    resize: both; overflow: hidden;
+    display: flex; flex-direction: column;
+}
+.logs-pip-head {
+    padding: 6px 10px;
+    background: #111;
+    border-bottom: 1px solid #2a2a33;
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: move;
+}
+.logs-pip-body { flex: 1; overflow: auto; padding: 8px 10px; white-space: pre; }
+.logs-pip-head .btn-small { padding: 2px 6px; font-size: 10px; }
+
+/* ── Command palette overlay ── */
+.cmd-palette {
+    position: fixed; top: 90px; left: 50%; transform: translateX(-50%);
+    width: 540px; max-width: 90vw;
+    background: var(--bg2, #111); border: 1px solid var(--border, #333);
+    border-radius: 12px; z-index: 700;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+    display: none;
+}
+.cmd-palette.open { display: block; }
+.cmd-palette input {
+    width: 100%; padding: 14px 16px; box-sizing: border-box;
+    background: transparent; border: none; color: var(--text, #eee);
+    font-size: 15px; outline: none;
+    border-bottom: 1px solid var(--border, #333);
+}
+.cmd-palette-list {
+    max-height: 320px; overflow-y: auto; padding: 6px 0;
+}
+.cmd-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 16px; cursor: pointer;
+    font-size: 13px; color: var(--text, #ccc);
+}
+.cmd-item.active { background: rgba(139, 92, 246, 0.15); color: var(--text, #fff); }
+.cmd-item-hint { color: var(--text2, #888); font-size: 11px; font-family: ui-monospace, Menlo, monospace; }
+
+/* ── Dashboard widget reorder handle ── */
+.widget-handle {
+    cursor: grab;
+    display: inline-block; padding: 2px 6px;
+    margin-right: 6px; color: var(--text2, #888);
+    font-size: 11px; user-select: none;
+}
+.widget-handle:active { cursor: grabbing; }
+.widget-hidden { display: none !important; }
+
+/* Reorder-cards toggle lives in the panel header now (used to float
+   bottom-left, which collided with the sidebar's "Reset setup" button). */
+.widget-reorder-toggle {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 8px;
+}
+.widget-reorder-toggle.active {
+    background: linear-gradient(135deg, rgba(124,58,237,0.2), rgba(6,182,212,0.15)) !important;
+    border-color: var(--purple, #7c3aed) !important;
+    color: var(--text, #fff) !important;
+}

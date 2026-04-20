@@ -227,6 +227,31 @@
                             </div>
                             <span>Страница</span>
                         </button>
+                        <button class="attach-item" onclick="window.openArticleComposer?.();toggleAttachPanel()" aria-label="Написать статью" data-i18n-aria="chat.attachArticle">
+                            <div class="attach-icon" style="background:#0ea5e9;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm4 18H6V4h7v5h5v11zm-4-8v1H8v-1h6zm0 2v1H8v-1h6zm-6 2h4v1H8v-1z"/>
+                                </svg>
+                            </div>
+                            <span data-i18n="chat.attachArticle">Статья</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Article composer modal (Markdown + LaTeX live preview) -->
+                <div id="article-composer" class="article-composer" style="display:none;" role="dialog" aria-label="Редактор статьи">
+                    <div class="article-composer-head">
+                        <strong data-i18n="article.title">Статья</strong>
+                        <span class="hint" data-i18n="article.hint">Markdown + $LaTeX$ · живой превью справа · отправится как обычное сообщение (E2E)</span>
+                        <button class="btn-small btn-ghost" onclick="window.closeArticleComposer?.()" aria-label="Закрыть">✕</button>
+                    </div>
+                    <div class="article-composer-body">
+                        <textarea id="article-src" spellcheck="false" placeholder="# Заголовок&#10;&#10;Текст статьи с формулами: $E = mc^2$&#10;&#10;$$\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}$$&#10;&#10;## Секция&#10;&#10;- список&#10;- **bold**, *italic*, `code`&#10;&#10;```python&#10;def hello(): ...&#10;```"></textarea>
+                        <div id="article-preview" class="article-preview" aria-live="polite"></div>
+                    </div>
+                    <div class="article-composer-foot">
+                        <span class="hint" id="article-size">0 / 262144 B</span>
+                        <button class="btn-primary" onclick="window.sendArticle?.()" data-i18n="article.send">Отправить</button>
                     </div>
                 </div>
 

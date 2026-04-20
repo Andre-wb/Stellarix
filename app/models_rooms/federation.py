@@ -32,6 +32,36 @@ class PersistedFederatedRoom(Base):
     last_accessed  = Column(DateTime,     nullable=True)
 
 
+class FederatedEnvelope(Base):
+    """Cross-node replicated message envelope.
+
+    Written on the receiving node when a peer pushes a signed envelope for
+    a room whose owner opted into `federated` replication. The envelope
+    body (`payload_blob`) is the same JSON the sender would have deposited
+    into BMP — content stays E2E encrypted, this node cannot decrypt it.
+
+    Dedup by `envelope_hash` (sha256 over the canonical JSON payload).
+    `origin_pubkey_hex` is the ed25519 pubkey of the node that signed and
+    forwarded it — *not* necessarily the pubkey of the user who authored
+    the original message.
+    """
+    __tablename__ = "federated_envelopes"
+    __table_args__ = (
+        UniqueConstraint("envelope_hash", name="uq_federated_env_hash"),
+        Index("ix_fed_env_room_origin", "room_id_origin", "origin_pubkey_hex"),
+        Index("ix_fed_env_created_at", "created_at"),
+    )
+
+    id                = Column(Integer,     primary_key=True, index=True)
+    origin_pubkey_hex = Column(String(64),  nullable=False, index=True)
+    room_id_origin    = Column(Integer,     nullable=False)
+    envelope_hash     = Column(String(64),  nullable=False)
+    payload_blob      = Column(LargeBinary, nullable=False)
+    signature_hex     = Column(String(128), nullable=False)
+    sender_ts         = Column(Integer,     nullable=False)   # origin-side created_at epoch seconds
+    created_at        = Column(DateTime,    default=lambda: datetime.now(timezone.utc))
+
+
 class Story(Base):
     """Ephemeral story -- photo, video, or text. Expires in 24 hours.
     E2E encrypted: media/text are AES-256-GCM ciphertext.  The per-story

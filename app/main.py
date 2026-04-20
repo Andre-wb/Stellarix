@@ -50,6 +50,7 @@ from app.push.bmp_push_proxy import router as bmp_push_router
 from app.chats.tasks import router as tasks_router
 from app.chats.voice import router as voice_router, ws_router as voice_ws_router
 from app.federation.federation import router as federation_router, ws_router as fed_ws_router
+from app.federation.replication import router as replication_router
 from app.federation.trusted_nodes import trusted_nodes_router
 from app.security.zero_knowledge import zk_router
 from app.keys.keys import router as keys_router
@@ -698,6 +699,11 @@ if is_stealth():
 app.include_router(keys_router)
 app.include_router(resumable_router)
 app.include_router(auth_router)
+# On-chain premium subscription lookup (/api/premium/*) — reads Subscription
+# PDA from Solana, caches 5 min. Safe to mount unconditionally; when no
+# SOLANA_RPC_URL is configured the endpoints return "no subscription".
+from app.security.premium_check import router as premium_router
+app.include_router(premium_router)
 app.include_router(session_router)
 app.include_router(rooms_router)
 app.include_router(chat_router)
@@ -722,6 +728,7 @@ app.include_router(voice_router)
 app.include_router(voice_ws_router)
 app.include_router(federation_router)
 app.include_router(fed_ws_router)
+app.include_router(replication_router)
 app.include_router(trusted_nodes_router)
 app.include_router(zk_router)
 app.include_router(bots_router)
@@ -739,6 +746,9 @@ app.include_router(bridge_router)
 
 from app.chats.ai_assistant import router as ai_router
 app.include_router(ai_router)
+
+from app.chats.tipping import router as tipping_router
+app.include_router(tipping_router)
 
 from app.security.panic import router as panic_router
 app.include_router(panic_router)
@@ -973,6 +983,8 @@ async def health():
         "ws_connections": manager.total_connections(),
         "own_ip": registry.own_ip,
         "uptime_seconds": round(time.monotonic() - _startup_time, 1) if _startup_time else 0,
+        "ephemeral":   bool(os.getenv("EPHEMERAL_MODE", "").lower() in ("1","true","yes")),
+        "metadata_padding": bool(getattr(Config, "METADATA_PADDING", True)),
     }
     if Config.NETWORK_MODE == "global":
         from app.transport.global_transport import global_transport

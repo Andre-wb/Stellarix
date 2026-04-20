@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security model — vortexx.sol</title>
+    <link rel="icon" href="/favicon.ico">
+    <link rel="stylesheet" href="/static/main.css">
+</head>
+<body>
+<nav class="topbar">
+    <a href="/" class="brand">
+        <img src="/static/logo.png" alt="Vortex" class="brand-ico" width="28" height="28">
+        VORTEX
+    </a>
+    <div class="nav-links">
+        <a href="/"          data-nav="home">Home</a>
+        <a href="/nodes"     data-nav="nodes">Nodes</a>
+        <a href="/entries"   data-nav="entries">Entry URLs</a>
+        <a href="/mirrors"   data-nav="mirrors">Mirrors</a>
+        <a href="/security"  data-nav="security">Security</a>
+    </div>
+    <div class="nav-right">
+        <div class="lang-switch">
+            <button class="lang-btn" id="lang-btn">
+                <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0 0 14.07 6H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg>
+                <span id="lang-current">EN</span>
+            </button>
+            <div class="lang-menu" id="lang-menu"></div>
+        </div>
+    </div>
+</nav>
+
+<main class="container fade-in">
+    <div class="page-head">
+        <div class="crumb">VORTEX / SECURITY</div>
+        <h1>Security model</h1>
+        <p class="lede">
+            Exactly what's cryptographically verified, what's not, and how each key
+            in the system earns — or loses — your trust. Read this before you connect
+            new clients to a controller you don't run yourself.
+        </p>
+    </div>
+
+    <!-- ── 1. Keys ── -->
+    <section class="sec-section">
+        <h2>1. Keys in play</h2>
+        <p class="sub">Four independent Ed25519/X25519 keypairs, each with a single, narrow job. Loss or compromise of any one key does <em>not</em> break the others.</p>
+        <table class="keys-table">
+            <thead>
+                <tr>
+                    <th>Key</th>
+                    <th>Lives</th>
+                    <th>Signs</th>
+                    <th>Verified by</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Release key</td>
+                    <td>Developer's HSM / air-gap</td>
+                    <td>Source code manifest (<code>INTEGRITY.sig.json</code>)</td>
+                    <td>Clients — pubkey pinned at build time</td>
+                </tr>
+                <tr>
+                    <td>Controller key</td>
+                    <td>VPS (<code>keys/controller.key</code>)</td>
+                    <td>Every <code>/v1/*</code> response payload</td>
+                    <td>Clients — pubkey read from SNS or build pin</td>
+                </tr>
+                <tr>
+                    <td>Node signing key</td>
+                    <td>Each Vortex node's <code>keys/</code> dir</td>
+                    <td>Its own registration &amp; heartbeats</td>
+                    <td>Controller — verifies against pubkey in payload</td>
+                </tr>
+                <tr>
+                    <td>User identity (X25519)</td>
+                    <td>Mobile / desktop device only</td>
+                    <td>Session handoff tokens, message envelopes</td>
+                    <td>Receiving node — never leaves the device</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <!-- ── 2. Trust flow ── -->
+    <section class="sec-section">
+        <h2>2. Trust flow when a client connects</h2>
+        <p class="sub">Each step validates the next. If any check fails the client refuses the connection and falls back to the next controller URL.</p>
+        <div class="trust-flow">
+            <div class="flow-step">
+                <div class="flow-step-n">1</div>
+                <div class="flow-step-title">Resolve via SNS</div>
+                <div class="flow-step-desc">Read <code>vortexx.sol</code> on-chain: <code>URL</code> + <code>TXT</code> records. The record is signed by the Solana wallet that owns the name — impossible to DNS-hijack.</div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-step-n">2</div>
+                <div class="flow-step-title">Integrity probe</div>
+                <div class="flow-step-desc">Client calls <code>/v1/integrity</code>. Rejects anything other than <code>status: verified</code> and a <code>signed_by</code> matching the pinned release key.</div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-step-n">3</div>
+                <div class="flow-step-title">Signed responses</div>
+                <div class="flow-step-desc">Every subsequent API call returns <code>{payload, signature, signed_by}</code>. Client verifies the Ed25519 signature with the controller pubkey from step 2.</div>
+            </div>
+            <div class="flow-step">
+                <div class="flow-step-n">4</div>
+                <div class="flow-step-title">Cross-check on Solana</div>
+                <div class="flow-step-desc">For sealed nodes, client optionally re-reads the <code>code_hash</code> from the on-chain registry. Divergence from the controller's self-reported hash = tampered — node permanently blacklisted.</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── 3. What it protects ── -->
+    <section class="sec-section">
+        <h2>3. What is actually protected</h2>
+        <p class="sub">Green = cryptographically enforced. Red = trust assumption or out-of-scope.</p>
+        <div class="check-list">
+            <div class="check-item safe">
+                <span class="check-ico">✓</span>
+                <div><strong>Response authenticity</strong> — impossible to forge <code>/v1/nodes/random</code> without the controller's private key. A MITM can't swap in malicious peer URLs.</div>
+            </div>
+            <div class="check-item safe">
+                <span class="check-ico">✓</span>
+                <div><strong>Code integrity</strong> — the running controller's files are hashed and cross-checked against a signed manifest at every startup. Runtime tampering fails the gate middleware and returns 503.</div>
+            </div>
+            <div class="check-item safe">
+                <span class="check-ico">✓</span>
+                <div><strong>Node identity</strong> — a node must sign its registration with its own private key. An attacker can't register on behalf of another node's pubkey.</div>
+            </div>
+            <div class="check-item safe">
+                <span class="check-ico">✓</span>
+                <div><strong>Handoff / migration</strong> — every session transfer carries an Ed25519-signed token with anti-replay, valid only for 5 minutes. Target node rejects unknown source nodes.</div>
+            </div>
+            <div class="check-item safe">
+                <span class="check-ico">✓</span>
+                <div><strong>DNS hijack</strong> — <code>.sol</code> records are on Solana, not DNS. An adversary needs to compromise the wallet that owns the domain — not just a DNS registrar.</div>
+            </div>
+            <div class="check-item risk">
+                <span class="check-ico">✗</span>
+                <div><strong>Transport privacy</strong> — the URL you connect to is visible to your ISP/Cloudflare. Use Tor mirror if metadata matters. End-to-end message content is encrypted separately.</div>
+            </div>
+            <div class="check-item risk">
+                <span class="check-ico">✗</span>
+                <div><strong>Message content</strong> — is NOT signed by the controller or nodes. It's encrypted end-to-end between users. Controller can't read anything even if compromised.</div>
+            </div>
+            <div class="check-item risk">
+                <span class="check-ico">✗</span>
+                <div><strong>Availability</strong> — a DDoS or domain seizure can take the controller offline. Fallback = mirrors + multiple controllers + on-chain Solana registry.</div>
+            </div>
+            <div class="check-item risk">
+                <span class="check-ico">✗</span>
+                <div><strong>Host OS / kernel</strong> — if the VPS itself is rooted, keys can be stolen. This attestation layer does not protect against it. Use hardware-backed signing for paranoid deployments.</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── 4. Badge legend ── -->
+    <section class="sec-section">
+        <h2>4. What the badges on /nodes mean</h2>
+        <p class="sub">Pick the verification level that fits your threat model. Any node can <em>claim</em> anything; these badges only confirm what's cryptographically supported.</p>
+        <div class="verif-legend">
+            <div class="card">
+                <h3><span class="badge badge-ok">✓✓ DUAL</span> Two witnesses</h3>
+                <p>Registered with the controller AND sealed on-chain. Both the HTTP signature and the Solana record agree on the node's pubkey + code hash. Safe for long-lived sessions with sensitive data.</p>
+            </div>
+            <div class="card">
+                <h3><span class="badge badge-info">✓ CTRL</span> Controller only</h3>
+                <p>Proves key ownership (signed registration) but no on-chain seal. Fine for short sessions; risk model is "trust the controller operator". If controller is compromised, this node could be fake.</p>
+            </div>
+            <div class="card">
+                <h3><span class="badge badge-warn">⚠ UNVERIF</span> Bootstrap</h3>
+                <p>Known from a config file or gossip message. No cryptographic proof yet. Use only to bootstrap the peer list, then replace with verified entries. Avoid for session handoff targets.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── 5. Treasury — where the money goes ── -->
+    <section class="sec-section">
+        <h2 data-i18n="security.treasuryTitle">5. Treasury &amp; rewards</h2>
+        <p class="sub" data-i18n="security.treasurySub">The Solana wallet that receives protocol fees (register fees from new nodes + a 20% cut of premium subscriptions) and distributes the rest as rewards to active operators. Anyone can audit inflows/outflows on-chain.</p>
+        <div class="pubkey-box">
+            <code id="treasury-addr" data-i18n="common.loading">loading…</code>
+            <button class="btn-icon" data-copy="#treasury-addr" title="Copy">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M16 1H4C2.9 1 2 1.9 2 3v14h2V3h12V1m3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2m0 16H8V7h11v14z"/></svg>
+            </button>
+        </div>
+        <div class="check-list" style="margin-top:16px;">
+            <div class="check-item safe">
+                <span class="check-ico">✓</span>
+                <div data-i18n="security.treasury1"><strong>On-chain transparency</strong> — the address above is owner of <code>vortexx.sol</code> on Solana Name Service. Every inflow (register fees, subscriptions) and every reward payout is a signed Solana transaction — verifiable by anyone, including you.</div>
+            </div>
+            <div class="check-item safe">
+                <span class="check-ico">✓</span>
+                <div data-i18n="security.treasury2"><strong>Fee split</strong> — 70% of each premium subscription goes to the rewards pool (distributed pro-rata to nodes by usage + stake), 20% funds core development, 10% is burned / held as insurance. Register fees anchor node identity and anti-sybil.</div>
+            </div>
+            <div class="check-item risk">
+                <span class="check-ico">✗</span>
+                <div data-i18n="security.treasury3"><strong>Custody caveat</strong> — until the payout smart contract is deployed, treasury acts as a temporary custodian. This is documented honestly here and tracked publicly. The smart contract will replace manual custody once audit + on-chain governance lands.</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── 6. What to do if something feels wrong ── -->
+    <section class="sec-section">
+        <h2 data-i18n="security.wrongTitle">6. If something looks wrong</h2>
+        <p class="sub">Red flags and the corresponding action.</p>
+        <div class="check-list">
+            <div class="check-item risk">
+                <span class="check-ico">!</span>
+                <div><strong>Controller pubkey on this page differs from the one pinned in my app</strong> — stop connecting. Either your app is out of date, or this site is fake. Compare with the pubkey shown on the Vortex release page.</div>
+            </div>
+            <div class="check-item risk">
+                <span class="check-ico">!</span>
+                <div><strong>Integrity badge on /v1/integrity says "tampered"</strong> — the controller itself won't serve traffic (gate middleware blocks it). Apps automatically switch to a fallback controller.</div>
+            </div>
+            <div class="check-item risk">
+                <span class="check-ico">!</span>
+                <div><strong>A node's <code>code_hash</code> on /nodes doesn't match what it reports</strong> — treat as compromised. Clients mark it permanently and refuse it as a handoff target.</div>
+            </div>
+            <div class="check-item risk">
+                <span class="check-ico">!</span>
+                <div><strong>This whole page is unreachable from your ISP</strong> — not a security issue by itself. Use a mirror from the <a href="/mirrors">Mirrors page</a>.</div>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<footer class="footer">
+    <div><span id="foot-version">Vortex Controller</span></div>
+    <div><a href="/">Home</a></div>
+</footer>
+
+<script src="/static/i18n.js"></script>
+<script src="/static/common.js"></script>
+<script src="/static/footer-version.js"></script>
+<script>
+(async () => {
+    try {
+        const r = await fetch('/v1/treasury');
+        const d = await r.json();
+        const el = document.getElementById('treasury-addr');
+        if (el && d.pubkey) el.textContent = d.pubkey;
+    } catch {}
+})();
+</script>
+</body>
+</html>

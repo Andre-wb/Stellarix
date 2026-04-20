@@ -49,6 +49,21 @@ export function insertUnreadDivider(unreadCount) {
         container.appendChild(divider);
     }
 
+    // Put the divider at the top of the viewport so the user lands on the
+    // first unread message, not the newest one. rAF gives the browser a
+    // chance to finish laying out the just-appended messages — otherwise
+    // offsets may be computed against incomplete layout on slower devices.
+    requestAnimationFrame(() => {
+        const d = document.getElementById('unread-divider');
+        if (!d) return;
+        try {
+            d.scrollIntoView({ behavior: 'instant', block: 'start' });
+        } catch (_) {
+            // Old Safari: behavior:'instant' was rejected before ~15.4
+            d.scrollIntoView({ block: 'start' });
+        }
+    });
+
     // IntersectionObserver: when divider visible, reset live counter
     _unreadObserver = new IntersectionObserver(entries => {
         entries.forEach(entry => {

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Entry URLs — vortexx.sol</title>
+    <link rel="icon" href="/favicon.ico">
+    <link rel="stylesheet" href="/static/main.css">
+</head>
+<body>
+<nav class="topbar">
+    <a href="/" class="brand">
+        <img src="/static/logo.png" alt="Vortex" class="brand-ico" width="28" height="28">
+        VORTEX
+    </a>
+    <div class="nav-links">
+        <a href="/"          data-nav="home"     data-i18n="nav.home">Home</a>
+        <a href="/nodes"     data-nav="nodes"    data-i18n="nav.nodes">Nodes</a>
+        <a href="/entries"   data-nav="entries"  data-i18n="nav.entries">Entry URLs</a>
+        <a href="/mirrors"   data-nav="mirrors"  data-i18n="nav.mirrors">Mirrors</a>
+        <a href="/security"  data-nav="security" data-i18n="nav.security">Security</a>
+    </div>
+    <div class="nav-right">
+        <div class="lang-switch">
+            <button class="lang-btn" id="lang-btn">
+                <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0 0 14.07 6H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/></svg>
+                <span id="lang-current">EN</span>
+            </button>
+            <div class="lang-menu" id="lang-menu"></div>
+        </div>
+    </div>
+</nav>
+
+<main class="container fade-in">
+    <div class="page-head">
+        <div class="crumb">VORTEX / ENTRIES</div>
+        <h1>Entry URLs</h1>
+        <p class="lede">
+            Starting points for a client that has no peers yet. Each entry URL
+            is a way to reach the controller — through a Cloudflare tunnel,
+            Tor, IPFS gateway, or a direct domain. Copy any one into your
+            Vortex app on first launch.
+        </p>
+    </div>
+
+    <div class="verif-legend">
+        <div class="card">
+            <h3><span class="badge badge-info">TUNNEL</span> <span>Cloudflare tunnel</span></h3>
+            <p>Free <code>*.trycloudflare.com</code> address. No account required. URL changes when the tunnel restarts — treat as ephemeral.</p>
+        </div>
+        <div class="card">
+            <h3><span class="badge badge-info">TOR</span> <span>Hidden service</span></h3>
+            <p><code>.onion</code> address, reachable only through Tor. Censor-proof, slower. Needs a Tor client or bridge.</p>
+        </div>
+        <div class="card">
+            <h3><span class="badge badge-info">IPFS</span> <span>Distributed content</span></h3>
+            <p>Content-addressed copy of the static frontend. Served from any IPFS gateway — no single server to block.</p>
+        </div>
+        <div class="card">
+            <h3><span class="badge badge-info">DIRECT</span> <span>Plain HTTPS</span></h3>
+            <p>Regular domain + TLS. Fastest but blockable at the DNS/IP level.</p>
+        </div>
+    </div>
+
+    <div style="margin-top:28px;">
+        <div class="card-title" style="margin-bottom:10px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8Z"/></svg>
+            <span>Current entries <span id="entries-sig" style="font-weight:normal; color:var(--text3); margin-left:auto;"></span></span>
+        </div>
+        <div class="item-grid" id="entries-grid">
+            <div class="card">Loading…</div>
+        </div>
+    </div>
+</main>
+
+<footer class="footer">
+    <div><span id="foot-version">Vortex Controller</span></div>
+    <div><a href="/security">Security</a></div>
+</footer>
+
+<script src="/static/i18n.js"></script>
+<script src="/static/common.js"></script>
+<script src="/static/entries.js"></script>
+</body>
+</html>

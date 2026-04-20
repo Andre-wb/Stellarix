@@ -459,13 +459,36 @@ def cmd_setup(wizard_port: int, no_browser: bool) -> None:
 
 # ── Cloudflare Tunnel ─────────────────────────────────────────────────────────
 
+def _find_cloudflared() -> str | None:
+    """Возвращает абсолютный путь до cloudflared или None.
+
+    Когда run.py запускается из PyInstaller-бандла (двойной клик по .app
+    на macOS), PATH урезан и не содержит /opt/homebrew/bin. Проверяем
+    все популярные места установки прямо.
+    """
+    hit = shutil.which("cloudflared")
+    if hit:
+        return hit
+    for c in (
+        "/opt/homebrew/bin/cloudflared",
+        "/usr/local/bin/cloudflared",
+        "/opt/local/bin/cloudflared",
+        "/snap/bin/cloudflared",
+        "/usr/bin/cloudflared",
+        r"C:\Program Files (x86)\cloudflared\cloudflared.exe",
+        r"C:\Program Files\cloudflared\cloudflared.exe",
+    ):
+        try:
+            if os.path.isfile(c) and os.access(c, os.X_OK):
+                return c
+        except OSError:
+            continue
+    return None
+
+
 def _has_cloudflared() -> bool:
-    """Проверяет установлен ли cloudflared."""
-    try:
-        subprocess.run(["cloudflared", "--version"], capture_output=True, timeout=5)
-        return True
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return False
+    """True если cloudflared установлен где-либо в стандартных путях."""
+    return _find_cloudflared() is not None
 
 
 _tunnel_ready = threading.Event()
@@ -493,7 +516,9 @@ def _start_cloudflare_tunnel(port: int, proto: str) -> subprocess.Popen | None:
 
         while True:
             try:
-                cmd = ["cloudflared", "tunnel", "--url", f"{proto}://localhost:{port}", "--no-autoupdate"]
+                # Use absolute path — PATH may be stripped when launched from a .app
+                cf_bin = _find_cloudflared() or "cloudflared"
+                cmd = [cf_bin, "tunnel", "--url", f"{proto}://localhost:{port}", "--no-autoupdate"]
                 # Self-signed cert → cloudflared не доверяет → 502 Bad Gateway
                 if proto == "https":
                     cmd.append("--no-tls-verify")

@@ -153,3 +153,75 @@ window._rejectThemeProposal = async function(roomId) {
         if (banner) banner.remove();
     } catch(e) { alert(e.message); }
 };
+
+// =============================================================================
+// Cross-node replication warning banner
+// Shown whenever the user enters a room whose owner turned on `federated`
+// replication. Dismissal is per-room, stored in localStorage so we don't
+// re-pester the user every time they switch back.
+// =============================================================================
+
+function _replicationBannerDismissKey(roomId) {
+    return `vx_rep_banner_dismissed:${roomId}`;
+}
+
+export function _hideReplicationBanner() {
+    const b = document.getElementById('replication-warn-banner');
+    if (b) b.remove();
+}
+
+export function _showReplicationBanner(room) {
+    _hideReplicationBanner();
+    if (!room || room.replication_mode !== 'federated') return;
+    try {
+        if (localStorage.getItem(_replicationBannerDismissKey(room.id)) === '1') return;
+    } catch (_) { /* storage blocked — still show */ }
+
+    const banner = document.createElement('div');
+    banner.id = 'replication-warn-banner';
+    banner.className = 'not-contact-banner';
+    banner.style.background = 'rgba(245, 158, 11, 0.12)';
+    banner.style.borderBottom = '1px solid rgba(245, 158, 11, 0.35)';
+    banner.style.color = '#f59e0b';
+
+    const title = (typeof t === 'function' ? t('room.replicationBannerTitle') : '')
+        || 'Копии этой комнаты хранятся на всей сети';
+    const desc = (typeof t === 'function' ? t('room.replicationBannerDesc') : '')
+        || 'Содержимое зашифровано, но метаданные (кто пишет и когда) видны операторам других нод. Владелец комнаты включил межнодовую репликацию.';
+
+    const text = document.createElement('div');
+    text.className = 'not-contact-text';
+    text.style.flex = '1';
+    text.innerHTML =
+        '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 4.5L19.5 19h-15L12 6.5zm-1 5v4h2v-4h-2zm0 5v2h2v-2h-2z"/></svg>' +
+        ' <strong style="margin-left:6px;">' + _escapeHtml(title) + '</strong>' +
+        '<div style="font-weight:400; font-size:11px; opacity:0.9; margin-top:2px;">' + _escapeHtml(desc) + '</div>';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'btn btn-secondary btn-sm';
+    closeBtn.setAttribute('aria-label', 'close');
+    closeBtn.style.cssText = 'padding:4px 8px; font-size:14px; line-height:1;';
+    closeBtn.textContent = '✕';
+    closeBtn.addEventListener('click', () => {
+        try { localStorage.setItem(_replicationBannerDismissKey(room.id), '1'); } catch (_) {}
+        _hideReplicationBanner();
+    });
+
+    const actions = document.createElement('div');
+    actions.className = 'not-contact-actions';
+    actions.appendChild(closeBtn);
+
+    banner.appendChild(text);
+    banner.appendChild(actions);
+
+    const messagesContainer = document.getElementById('messages-container');
+    if (messagesContainer) {
+        messagesContainer.parentNode.insertBefore(banner, messagesContainer);
+    }
+}
+
+function _escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+}
