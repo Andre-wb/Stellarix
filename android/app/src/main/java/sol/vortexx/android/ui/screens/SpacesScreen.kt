@@ -70,7 +70,11 @@ class SpacesViewModel @Inject constructor(private val repo: SpacesRepository) : 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SpacesScreen(onBack: () -> Unit, vm: SpacesViewModel = hiltViewModel()) {
+fun SpacesScreen(
+    onBack: () -> Unit,
+    onSpaceClick: (Long) -> Unit = {},
+    vm: SpacesViewModel = hiltViewModel(),
+) {
     val spaces by vm.spaces.collectAsState()
     var showCreate by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { vm.refresh() }
@@ -97,7 +101,7 @@ fun SpacesScreen(onBack: () -> Unit, vm: SpacesViewModel = hiltViewModel()) {
         },
     ) { padding ->
         LazyColumn(Modifier.padding(padding).fillMaxSize()) {
-            items(spaces, key = SpaceEntity::id) { SpaceRow(it) }
+            items(spaces, key = SpaceEntity::id) { s -> SpaceRow(s, onClick = { onSpaceClick(s.id) }) }
         }
     }
 
@@ -108,11 +112,11 @@ fun SpacesScreen(onBack: () -> Unit, vm: SpacesViewModel = hiltViewModel()) {
 }
 
 @Composable
-private fun SpaceRow(s: SpaceEntity) {
+private fun SpaceRow(s: SpaceEntity, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { /* space -> rooms list nav, Wave 13 */ }
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

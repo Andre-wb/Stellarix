@@ -16,6 +16,12 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE roomId = :roomId ORDER BY sentAt DESC LIMIT :limit")
     suspend fun lastN(roomId: Long, limit: Int): List<MessageEntity>
 
+    @Query("SELECT * FROM messages WHERE id = :id LIMIT 1")
+    suspend fun byId(id: Long): MessageEntity?
+
+    @Query("SELECT * FROM messages WHERE plaintext IS NULL AND roomId = :roomId")
+    suspend fun undecrypted(roomId: Long): List<MessageEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(msg: MessageEntity)
 

@@ -52,7 +52,7 @@ class MessageActionsImpl @Inject constructor(
     }.getOrDefault(false)
 
     override suspend fun edit(messageId: Long, newPlaintext: String): Boolean {
-        val existing = messages.lastN(0, 0).firstOrNull { it.id == messageId } ?: return false
+        val existing = messages.byId(messageId) ?: return false
         val keyAcq = keys.keyFor(existing.roomId)
         if (keyAcq !is KeyAcquisition.Ready) return false
         val newCt = Hex.encode(aead.encrypt(Hex.decode(keyAcq.keyHex), newPlaintext.toByteArray()))

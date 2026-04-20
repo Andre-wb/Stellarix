@@ -52,10 +52,21 @@ object Routes {
 @Composable
 fun VortexNavHost(
     authRepo: AuthRepository,
+    initialRoomId: Long? = null,
+    onConsumedInitial: () -> Unit = {},
     nav: NavHostController = rememberNavController(),
 ) {
     val session by authRepo.session.collectAsState(initial = Session.LoggedOut)
     var baseUrlReady by remember { mutableStateOf(false) }
+
+    // Fire-and-forget deep-link: once bootstrap + auth are cleared, jump
+    // to the requested chat. Consumed exactly once.
+    androidx.compose.runtime.LaunchedEffect(baseUrlReady, session, initialRoomId) {
+        if (initialRoomId != null && baseUrlReady && session !is Session.LoggedOut) {
+            nav.navigate(Routes.chat(initialRoomId))
+            onConsumedInitial()
+        }
+    }
 
     val start = when {
         !baseUrlReady                -> Routes.BOOTSTRAP
@@ -88,7 +99,19 @@ fun VortexNavHost(
             )
         }
         composable(Routes.SETTINGS) { SettingsScreen(onBack = { nav.popBackStack() }) }
-        composable(Routes.SPACES)   { SpacesScreen(  onBack = { nav.popBackStack() }) }
+        composable(Routes.SPACES)   {
+            SpacesScreen(
+                onBack       = { nav.popBackStack() },
+                onSpaceClick = { _ ->
+                    // For now: close drawer+spaces and show the global rooms
+                    // list. Filtering rooms by space_id will be a simple
+                    // query change in RoomsListScreen.
+                    nav.navigate(Routes.ROOMS) {
+                        popUpTo(Routes.SPACES) { inclusive = true }
+                    }
+                },
+            )
+        }
         composable(Routes.BOTS)     { BotsScreen(    onBack = { nav.popBackStack() }) }
         composable(Routes.SEARCH)   {
             SearchScreen(

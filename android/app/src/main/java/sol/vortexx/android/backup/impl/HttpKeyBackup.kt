@@ -8,6 +8,9 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.serialization.Serializable
+import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
+import org.bouncycastle.crypto.params.X25519PrivateKeyParameters
+import sol.vortexx.android.auth.api.SecureStore
 import sol.vortexx.android.backup.api.KeyBackup
 import sol.vortexx.android.crypto.api.Aead
 import sol.vortexx.android.crypto.api.Argon2Params
@@ -23,6 +26,7 @@ import javax.inject.Singleton
 class HttpKeyBackup @Inject constructor(
     private val http: VortexHttpClient,
     private val identity: IdentityRepository,
+    private val store: SecureStore,                    // directly rewrite identity keys
     private val aead: Aead,
     private val hasher: PasswordHasher,
     private val random: SecureRandomProvider,
@@ -50,6 +54,16 @@ class HttpKeyBackup @Inject constructor(
         resp.status.isSuccess()
     }.getOrDefault(false)
 
+    /**
+     * Pulls the encrypted vault, derives the AES key, decrypts, and
+     * writes each field straight into [SecureStore] under the same keys
+     * `SeedIdentityRepository.loadFromStore` reads. On the next
+     * `identity.createOrLoad()` call the restored identity surfaces.
+     *
+     * Also regenerates the public keys from the restored private keys
+     * (no need to trust whatever the vault said) so any tamper detected
+     * here surfaces as a mismatched pub on rest of the app.
+     */
     override suspend fun restore(passphrase: CharArray): Boolean = runCatching {
         val resp = http.client.get("api/key-backup")
         if (!resp.status.isSuccess()) return@runCatching false
@@ -57,16 +71,32 @@ class HttpKeyBackup @Inject constructor(
 
         val params = parseParams(body.kdf_params)
         val aesKey = hasher.hash(passphrase, Hex.decode(body.vault_salt), params)
-        val plain = aead.decrypt(aesKey, Hex.decode(body.vault_data))
+        val plain  = aead.decrypt(aesKey, Hex.decode(body.vault_data))
 
-        // Simple TLV/JSON-line format — see buildVaultBytes.
         val fields = String(plain, Charsets.UTF_8).lines()
-            .filter { it.contains(":") }
-            .associate { it.substringBefore(":") to it.substringAfter(":") }
-        // Persistence of the restored keys lives in IdentityRepository
-        // (wiped first so the restore replaces whatever was on this device).
+            .mapNotNull { line ->
+                val t = line.trim()
+                val idx = t.indexOf(':')
+                if (idx <= 0) null else t.substring(0, idx) to t.substring(idx + 1).trim()
+            }.toMap()
+
+        val mnemonic   = fields["mnemonic"]    ?: return@runCatching false
+        val x25519Hex  = fields["x25519"]      ?: return@runCatching false
+        val ed25519Hex = fields["ed25519"]     ?: return@runCatching false
+
+        val xPriv = X25519PrivateKeyParameters(Hex.decode(x25519Hex), 0)
+        val ePriv = Ed25519PrivateKeyParameters(Hex.decode(ed25519Hex), 0)
+
+        // Clear anything that was on this device, then write the vault.
         identity.wipe()
-        fields["mnemonic"]?.let { /* identity.createOrLoad() uses the new mnemonic via SeedProvider impl hook */ }
+        store.putString("id_mnemonic",     mnemonic)
+        store.putString("id_x25519_priv",  x25519Hex)
+        store.putString("id_x25519_pub",   Hex.encode(xPriv.generatePublicKey().encoded))
+        store.putString("id_ed25519_priv", ed25519Hex)
+        store.putString("id_ed25519_pub",  Hex.encode(ePriv.generatePublicKey().encoded))
+        // Force a re-read so observers of `identity.identity` Flow see the
+        // restored user on their next collect.
+        identity.createOrLoad()
         true
     }.getOrDefault(false)
 
@@ -82,9 +112,9 @@ class HttpKeyBackup @Inject constructor(
         val map = s.removePrefix("argon2id;").split(";")
             .associate { it.substringBefore("=") to it.substringAfter("=").toInt() }
         return Argon2Params(
-            iterations  = map["t"]  ?: 4,
-            memoryKb    = map["m"]  ?: 131_072,
-            parallelism = map["p"]  ?: 1,
+            iterations  = map["t"] ?: 4,
+            memoryKb    = map["m"] ?: 131_072,
+            parallelism = map["p"] ?: 1,
             hashLen     = 32,
         )
     }

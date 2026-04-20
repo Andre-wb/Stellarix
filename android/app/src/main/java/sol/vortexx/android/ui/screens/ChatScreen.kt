@@ -57,6 +57,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import sol.vortexx.android.chat.api.IncomingMessages
@@ -91,8 +92,13 @@ class ChatViewModel @Inject constructor(
     private val presence: Presence,
     private val threads: ThreadsRepository,
     private val files: FileTransferService,
+    private val auth: sol.vortexx.android.auth.api.AuthRepository,
     val voiceRecorder: VoiceRecorder,
 ) : ViewModel() {
+
+    val selfUsername: kotlinx.coroutines.flow.Flow<String?> = auth.session.map {
+        (it as? sol.vortexx.android.auth.api.Session.LoggedIn)?.username
+    }
 
     data class ComposerState(
         val draft: String = "",
@@ -183,10 +189,14 @@ class ChatViewModel @Inject constructor(
 
     fun markVisible(id: Long) { viewModelScope.launch { presence.markRead(roomId, id) } }
 
+    data class UploadProgress(val percent: Int, val filename: String)
+
+    private val _uploadProgress = MutableStateFlow<UploadProgress?>(null)
+    val uploadProgress = _uploadProgress.asStateFlow()
+
     fun sendVoice(bytes: ByteArray) {
         viewModelScope.launch {
-            files.upload(roomId, ByteArrayInputStream(bytes), "voice.ogg", bytes.size.toLong())
-                .collect { /* progress events dropped for now */ }
+            pipeUpload("voice.ogg", ByteArrayInputStream(bytes), bytes.size.toLong())
         }
     }
 
@@ -196,11 +206,20 @@ class ChatViewModel @Inject constructor(
                 val stream = ctx.contentResolver.openInputStream(uri) ?: return@runCatching
                 val name = uri.lastPathSegment ?: "file"
                 val size = ctx.contentResolver.openFileDescriptor(uri, "r")?.use { it.statSize } ?: 0L
-                stream.use { s ->
-                    files.upload(roomId, s, name, size).collect {
-                        if (it is TransferProgress.Done) { /* OK */ }
-                    }
+                stream.use { s -> pipeUpload(name, s, size) }
+            }
+        }
+    }
+
+    private suspend fun pipeUpload(name: String, s: java.io.InputStream, size: Long) {
+        files.upload(roomId, s, name, size).collect { ev ->
+            when (ev) {
+                is TransferProgress.InFlight -> {
+                    val pct = if (size > 0) ((ev.done * 100) / size).toInt().coerceIn(0, 100) else 0
+                    _uploadProgress.value = UploadProgress(pct, name)
                 }
+                is TransferProgress.Done,
+                is TransferProgress.Error -> _uploadProgress.value = null
             }
         }
     }
@@ -219,15 +238,25 @@ fun ChatScreen(
     val composer by vm.composer.collectAsState()
     val typing by vm.typing.collectAsState()
     val reads by vm.reads.collectAsState()
+    val self by vm.selfUsername.collectAsState(initial = null)
+    val upload by vm.uploadProgress.collectAsState()
     val listState = rememberLazyListState()
     val ctx = LocalContext.current
     var deleteTarget by remember { mutableStateOf<MessageEntity?>(null) }
 
     LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
-            vm.markVisible(messages.last().id)
-        }
+        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
+    }
+
+    // Observe the last visible index and mark the message there as read.
+    // Snapshot flow gives us a debounced stream so we don't spam the
+    // server on every pixel scroll.
+    LaunchedEffect(messages) {
+        androidx.compose.runtime.snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
+            .collect { idx ->
+                if (idx == null) return@collect
+                messages.getOrNull(idx)?.let { vm.markVisible(it.id) }
+            }
     }
 
     Scaffold(
@@ -255,6 +284,7 @@ fun ChatScreen(
                 items(messages, key = MessageEntity::id) { msg ->
                     Bubble(
                         msg = msg,
+                        isOwn = msg.senderUsername == null || msg.senderUsername == self,
                         readThrough = reads,
                         onCopy   = { copyToClipboard(ctx, msg.plaintext ?: "") },
                         onReply  = { vm.beginReply(msg) },
@@ -267,6 +297,20 @@ fun ChatScreen(
             }
 
             TypingRow(users = typing)
+
+            upload?.let { up ->
+                androidx.compose.material3.LinearProgressIndicator(
+                    progress = { up.percent / 100f },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = VortexPurple,
+                )
+                Text(
+                    "${up.filename} · ${up.percent}%",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp),
+                )
+            }
 
             ComposerBar(
                 composer = composer,
@@ -301,6 +345,7 @@ fun ChatScreen(
 @Composable
 private fun Bubble(
     msg: MessageEntity,
+    isOwn: Boolean,
     readThrough: Map<Long, Long>,
     onCopy: () -> Unit,
     onReply: () -> Unit,
@@ -353,9 +398,9 @@ private fun Bubble(
             textDecoration = if (msg.plaintext == null) TextDecoration.Underline else null,
         )
 
-        // Seen-by pill on outgoing messages (senderId == null means remote;
-        // when the local user id plumbing lands we'll filter here too).
-        ReadReceiptsPill(messageId = msg.id, readThrough = readThrough)
+        // Seen-by pill only on outgoing messages — doesn't make sense to
+        // tell the user that the author of a remote message "saw" it.
+        if (isOwn) ReadReceiptsPill(messageId = msg.id, readThrough = readThrough)
 
         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
             DropdownMenuItem(text = { Text("Copy") },        onClick = { onCopy();        menuOpen = false })

@@ -2,6 +2,7 @@ package sol.vortexx.android.feeds.impl
 
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
+import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
@@ -23,6 +24,19 @@ class HttpChannelFeedRepository @Inject constructor(
 ) : ChannelFeedRepository {
 
     override fun observe(roomId: Long): Flow<List<ChannelFeedEntity>> = dao.observeRoom(roomId)
+
+    override suspend fun refresh(roomId: Long): Boolean = runCatching {
+        val resp = http.client.get("api/rooms/$roomId/feeds")
+        if (!resp.status.isSuccess()) return@runCatching false
+        resp.body<List<FeedDto>>().forEach { dto ->
+            dao.upsert(ChannelFeedEntity(
+                id = dto.id, roomId = dto.room_id,
+                feedType = dto.feed_type, url = dto.url,
+                lastFetched = dto.last_fetched, isActive = dto.is_active,
+            ))
+        }
+        true
+    }.getOrDefault(false)
 
     override suspend fun subscribe(roomId: Long, url: String, feedType: String): Boolean = runCatching {
         val resp = http.client.post("api/rooms/$roomId/feeds") {

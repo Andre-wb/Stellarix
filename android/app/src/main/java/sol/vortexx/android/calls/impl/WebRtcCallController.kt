@@ -77,6 +77,9 @@ class WebRtcCallController @Inject constructor(
     private var videoTrack: VideoTrack? = null
     private var videoSource: VideoSource? = null
     private var currentCallId: String? = null
+    // If a `call_offer` arrives before the user taps Answer, park it here
+    // so answer() can pick it up without another WS round trip.
+    private var pendingRemoteOffer: SessionDescription? = null
     private val eglBase: EglBase = EglBase.create()
 
     init { scope.launch { observeSignaling() } }
@@ -104,6 +107,13 @@ class WebRtcCallController @Inject constructor(
         _state.value = CallState.Connecting
         peer = createPeer()
         attachLocalMedia(invitation.video)
+        // The remote SDP offer arrived out-of-band via `call_offer`;
+        // observeSignaling pushes it into this lambda so we can set
+        // remote + create + send answer in one call.
+        pendingRemoteOffer?.let { sdp ->
+            pendingRemoteOffer = null
+            setRemoteThenAnswer(sdp, invitation.video)
+        }
     }
 
     override suspend fun hangup() {
@@ -205,10 +215,24 @@ class WebRtcCallController @Inject constructor(
         if (!type.startsWith("call_") && type != "ice_candidate") return@collect
 
         when (type) {
-            "call_invite" -> _state.value = CallState.Ringing
-            "call_accept" -> { /* remote peer set. Will be wired in a follow-up */ }
+            "call_offer", "call_invite" -> {
+                // Incoming call: park the remote SDP and flip to Ringing.
+                _state.value = CallState.Ringing
+                obj["sdp"]?.jsonPrimitive?.content?.let {
+                    pendingRemoteOffer = SessionDescription(SessionDescription.Type.OFFER, it)
+                }
+            }
+            "call_accept" -> {
+                // Remote side accepted — set their answer SDP so media flows.
+                val sdpText = obj["sdp"]?.jsonPrimitive?.content ?: return@collect
+                peer?.setRemoteDescription(
+                    SdpObserverAdapter(),
+                    SessionDescription(SessionDescription.Type.ANSWER, sdpText),
+                )
+            }
             "call_hangup" -> {
                 peer?.close(); peer = null
+                pendingRemoteOffer = null
                 _state.value = CallState.Ended("remote_hangup")
             }
             "ice_candidate" -> {
@@ -220,6 +244,31 @@ class WebRtcCallController @Inject constructor(
                 peer?.addIceCandidate(cand)
             }
         }
+    }
+
+    /**
+     * Callee path: we already have a [PeerConnection] with local media
+     * attached; set the remote offer, compute our answer, and send it.
+     */
+    private suspend fun setRemoteThenAnswer(remoteSdp: SessionDescription, video: Boolean) {
+        val p = peer ?: return
+        p.setRemoteDescription(SdpObserverAdapter(), remoteSdp)
+
+        val constraints = MediaConstraints().apply {
+            mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveAudio", "true"))
+            mandatory.add(MediaConstraints.KeyValuePair("OfferToReceiveVideo", video.toString()))
+        }
+        val answer = kotlinx.coroutines.suspendCancellableCoroutine<SessionDescription?> { cont ->
+            p.createAnswer(object : SdpObserverAdapter() {
+                override fun onCreateSuccess(s: SessionDescription) { cont.resumeWith(Result.success(s)) }
+                override fun onCreateFailure(e: String?)           { cont.resumeWith(Result.success(null)) }
+            }, constraints)
+        } ?: return
+        p.setLocalDescription(SdpObserverAdapter(), answer)
+        sendSignal(Signal(
+            type = "call_accept", call_id = currentCallId,
+            sdp = answer.description, video = video,
+        ))
     }
 
     private suspend fun sendSignal(s: Signal) {

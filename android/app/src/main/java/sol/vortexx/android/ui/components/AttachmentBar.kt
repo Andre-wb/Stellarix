@@ -3,12 +3,14 @@ package sol.vortexx.android.ui.components
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -59,35 +61,40 @@ fun AttachmentBar(
             )
         }
 
-        IconButton(onClick = {
-            // Simple tap-toggle: tap once to start, tap again to stop-and-send.
-            // Hold-to-record would need raw pointer events — kept simple here
-            // so the interaction is obvious on first use.
-            scope.launch {
-                if (recording) {
-                    val s = session
-                    session = null
-                    if (s != null) {
-                        val bytes = s.stop()
-                        if (bytes.isNotEmpty()) onVoiceReady(bytes)
-                    }
-                } else {
-                    session = recorder.start()
-                }
-            }
-        }) {
-            Icon(
-                imageVector = if (recording) Icons.Filled.Stop else Icons.Filled.Mic,
-                contentDescription = if (recording) "Stop recording" else "Record voice",
-                tint = if (recording) VortexPurple else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp),
-            )
-        }
-    }
-
-    // Safety net: if user navigates away mid-recording, cancel.
-    LaunchedEffect(Unit) {
-        // No-op on enter; DisposableEffect isn't necessary because the
-        // recorder stream is lazily collected above.
+        Icon(
+            imageVector = if (recording) Icons.Filled.Stop else Icons.Filled.Mic,
+            contentDescription = if (recording) "Recording — release to send" else "Hold to record voice",
+            tint = if (recording) VortexPurple else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .size(44.dp)
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        // Press = begin recording; long-press counts too.
+                        onPress = { offset ->
+                            // Start the session on press-down; ask for cancel
+                            // if the gesture is cancelled (pointer leaves) and
+                            // send the clip on natural release.
+                            var cancelled = false
+                            scope.launch { session = recorder.start() }
+                            try {
+                                tryAwaitRelease().also { released ->
+                                    if (!released) cancelled = true
+                                }
+                            } finally {
+                                scope.launch {
+                                    val s = session; session = null
+                                    if (s != null) {
+                                        if (cancelled) s.cancel()
+                                        else {
+                                            val bytes = s.stop()
+                                            if (bytes.isNotEmpty()) onVoiceReady(bytes)
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                    )
+                },
+        )
     }
 }

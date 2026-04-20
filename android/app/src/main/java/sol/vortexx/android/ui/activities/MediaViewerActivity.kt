@@ -72,9 +72,41 @@ class MediaViewerActivity : ComponentActivity() {
                     if (bmp != null) Image(bmp.asImageBitmap(), contentDescription = null)
                     else Text("Unable to decode image", color = Color.White)
                 }
+                mime.startsWith("video/") || mime.startsWith("audio/") ->
+                    VideoPreview(bytes!!)
                 else -> Text("Preview not yet supported for $mime", color = Color.White)
             }
         }
+    }
+
+    /**
+     * ExoPlayer-backed preview. Writes the decrypted bytes to cache and
+     * plays from there so we don't need a custom DataSource. The cache
+     * file is deleted when the activity is destroyed.
+     */
+    @Composable
+    private fun VideoPreview(bytes: ByteArray) {
+        val ctx = androidx.compose.ui.platform.LocalContext.current
+        val file = androidx.compose.runtime.remember {
+            java.io.File.createTempFile("vortex_media_", ".bin", ctx.cacheDir).apply {
+                writeBytes(bytes)
+            }
+        }
+        val exo = androidx.compose.runtime.remember(file) {
+            androidx.media3.exoplayer.ExoPlayer.Builder(ctx).build().apply {
+                setMediaItem(androidx.media3.common.MediaItem.fromUri(android.net.Uri.fromFile(file)))
+                prepare(); playWhenReady = true
+            }
+        }
+        androidx.compose.runtime.DisposableEffect(exo) {
+            onDispose { exo.release(); file.delete() }
+        }
+        androidx.compose.ui.viewinterop.AndroidView(
+            factory = {
+                androidx.media3.ui.PlayerView(it).apply { player = exo }
+            },
+            modifier = Modifier.fillMaxSize(),
+        )
     }
 
     companion object {

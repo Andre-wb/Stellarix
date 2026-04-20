@@ -10,6 +10,7 @@ import sol.vortexx.android.db.entities.ChannelFeedEntity
  */
 interface ChannelFeedRepository {
     fun observe(roomId: Long): Flow<List<ChannelFeedEntity>>
+    suspend fun refresh(roomId: Long): Boolean
     suspend fun subscribe(roomId: Long, url: String, feedType: String = "rss"): Boolean
     suspend fun unsubscribe(feedId: Long): Boolean
 }

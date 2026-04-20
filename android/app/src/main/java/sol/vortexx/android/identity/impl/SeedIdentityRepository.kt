@@ -37,6 +37,14 @@ class SeedIdentityRepository @Inject constructor(
     override suspend fun createOrLoad(): Identity {
         _identity.value?.let { return it }
 
+        // Consult SecureStore again — an out-of-band restore (e.g. key-backup
+        // flow) can have populated it after wipe(). Without this step we'd
+        // generate a brand new mnemonic and overwrite the restored one.
+        loadFromStore()?.let {
+            _identity.value = it
+            return it
+        }
+
         val mnemonic = seeds.generate()
         val seed = seeds.toSeed(mnemonic)
         val id = deriveIdentity(mnemonic, seed)

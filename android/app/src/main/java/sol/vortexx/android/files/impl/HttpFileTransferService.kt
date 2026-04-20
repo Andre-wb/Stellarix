@@ -38,9 +38,27 @@ class HttpFileTransferService @Inject constructor(
     private val http: VortexHttpClient,
     private val aead: Aead,
     private val keys: RoomKeyProvider,
+    private val resumable: ResumableUpload,
 ) : FileTransferService {
 
+    /** Above this threshold we switch to chunked streaming upload. */
+    private val singleShotMax = 10L * 1024 * 1024   // 10 MiB
+
     override suspend fun upload(
+        roomId: Long,
+        source: InputStream,
+        filename: String,
+        sizeBytes: Long,
+    ): Flow<TransferProgress> {
+        // Auto-switch: anything over ~10 MiB goes to the chunked path so
+        // we never load the full plaintext into RAM.
+        if (sizeBytes > singleShotMax) {
+            return resumable.upload(roomId, source, filename, sizeBytes)
+        }
+        return singleShot(roomId, source, filename, sizeBytes)
+    }
+
+    private fun singleShot(
         roomId: Long,
         source: InputStream,
         filename: String,
@@ -52,8 +70,6 @@ class HttpFileTransferService @Inject constructor(
             return@flow
         }
 
-        // For phase 1 we buffer the whole file, encrypt in one shot. Large
-        // files land in Wave 14.5 with streaming chunked AEAD.
         val plaintext = source.use { it.readBytes() }
         val packed = aead.encrypt(Hex.decode(keyAcq.keyHex), plaintext)
         val ctHex = Hex.encode(packed)

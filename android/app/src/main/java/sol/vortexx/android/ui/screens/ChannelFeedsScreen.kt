@@ -63,7 +63,10 @@ class ChannelFeedsViewModel @Inject constructor(
         .flatMapLatest { id -> if (id == null) flowOf(emptyList()) else repo.observe(id) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    fun bind(roomId: Long) { _room.value = roomId }
+    fun bind(roomId: Long) {
+        _room.value = roomId
+        viewModelScope.launch { repo.refresh(roomId) }
+    }
     fun subscribe(url: String, type: String = "rss") {
         val rid = _room.value ?: return
         viewModelScope.launch { repo.subscribe(rid, url.trim(), type) }
