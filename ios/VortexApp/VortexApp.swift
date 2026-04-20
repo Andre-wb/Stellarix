@@ -5,7 +5,7 @@ import App
 struct VortexApp: App {
     var body: some Scene {
         WindowGroup {
-            HomeScreen()
+            RootScreen()
         }
     }
 }
