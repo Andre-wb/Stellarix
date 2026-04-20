@@ -1,0 +1,38 @@
+name: Vortex
+options:
+  bundleIdPrefix: sol.vortexx
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+
+settings:
+  base:
+    SWIFT_VERSION: 5.10
+    DEVELOPMENT_TEAM: ""
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+
+packages:
+  VortexModules:
+    path: Modules
+
+targets:
+  Vortex:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - VortexApp
+    info:
+      path: VortexApp/Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: sol.vortexx.app
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 0.1.0
+        SUPPORTS_MACCATALYST: NO
+    dependencies:
+      - package: VortexModules
+        product: App

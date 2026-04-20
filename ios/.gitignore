@@ -1,0 +1,9 @@
+.DS_Store
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+xcshareddata/
+*.xcodeproj/
+.swiftpm/
+Package.resolved
