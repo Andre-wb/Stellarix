@@ -35,11 +35,28 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- Deep-link from a push notification: vortex://chat/<roomId> -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="vortex" android:host="chat" />
+            </intent-filter>
         </activity>
 
         <activity
             android:name=".ui.activities.MediaViewerActivity"
             android:exported="false"
             android:theme="@style/Theme.Vortex" />
+
+        <!-- FCM receiver: handles both Google's delivery intent and our
+             token-refresh callback. -->
+        <service
+            android:name=".push.impl.VortexMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

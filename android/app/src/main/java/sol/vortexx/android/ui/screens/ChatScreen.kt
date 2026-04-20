@@ -62,24 +62,36 @@ import kotlinx.coroutines.launch
 import sol.vortexx.android.chat.api.IncomingMessages
 import sol.vortexx.android.chat.api.MessageActions
 import sol.vortexx.android.chat.api.MessageSender
+import sol.vortexx.android.chat.api.Presence
 import sol.vortexx.android.db.entities.MessageEntity
+import sol.vortexx.android.files.api.FileTransferService
+import sol.vortexx.android.files.api.TransferProgress
+import sol.vortexx.android.stickers.api.VoiceRecorder
+import sol.vortexx.android.threads.api.ThreadsRepository
+import sol.vortexx.android.ui.components.AttachmentBar
+import sol.vortexx.android.ui.components.ReadReceiptsPill
+import sol.vortexx.android.ui.components.TypingRow
 import sol.vortexx.android.ui.theme.VortexPurple
 import javax.inject.Inject
+import java.io.ByteArrayInputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 /**
- * Full chat screen — mirrors the web message context menu:
- * long-press a bubble → copy / reply / edit / react / delete.
- * Reply & edit drive a preview bar above the input; submitting routes
- * through [MessageSender] / [MessageActions] accordingly.
+ * Full chat screen. Hosts the bubble list, composer, attachments,
+ * typing-indicator, read-receipt pills, and the message context menu
+ * (copy / reply / edit / react / delete / open-thread).
  */
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val sender: MessageSender,
     private val incoming: IncomingMessages,
     private val actions: MessageActions,
+    private val presence: Presence,
+    private val threads: ThreadsRepository,
+    private val files: FileTransferService,
+    val voiceRecorder: VoiceRecorder,
 ) : ViewModel() {
 
     data class ComposerState(
@@ -104,8 +116,25 @@ class ChatViewModel @Inject constructor(
             initialValue = emptyList(),
         )
     }
+    val typing by lazy {
+        presence.typingIn(roomId).stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptySet(),
+        )
+    }
+    val reads by lazy {
+        presence.readUpTo(roomId).stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyMap(),
+        )
+    }
 
-    fun onDraftChange(v: String) { _composer.value = _composer.value.copy(draft = v) }
+    fun onDraftChange(v: String) {
+        _composer.value = _composer.value.copy(draft = v)
+        if (v.isNotBlank()) viewModelScope.launch { presence.sendTyping(roomId) }
+    }
 
     fun submit() {
         val c = _composer.value
@@ -128,7 +157,6 @@ class ChatViewModel @Inject constructor(
             editingId = null,
         )
     }
-
     fun beginEdit(msg: MessageEntity) {
         _composer.value = _composer.value.copy(
             editingId = msg.id,
@@ -137,34 +165,69 @@ class ChatViewModel @Inject constructor(
             replyToPreview = null,
         )
     }
-
     fun cancelComposerMode() {
         _composer.value = _composer.value.copy(
             replyToId = null, replyToPreview = null, editingId = null,
         )
     }
 
-    fun react(msg: MessageEntity, emoji: String) {
-        viewModelScope.launch { actions.react(msg.id, emoji) }
+    fun react(msg: MessageEntity, emoji: String) { viewModelScope.launch { actions.react(msg.id, emoji) } }
+    fun delete(msg: MessageEntity) { viewModelScope.launch { actions.delete(msg.id) } }
+
+    fun openThread(msg: MessageEntity, onReady: (Long) -> Unit) {
+        viewModelScope.launch {
+            val t = threads.create(roomId, msg.id, msg.plaintext?.take(40) ?: "thread")
+            if (t != null) onReady(t.roomId)
+        }
     }
 
-    fun delete(msg: MessageEntity) {
-        viewModelScope.launch { actions.delete(msg.id) }
+    fun markVisible(id: Long) { viewModelScope.launch { presence.markRead(roomId, id) } }
+
+    fun sendVoice(bytes: ByteArray) {
+        viewModelScope.launch {
+            files.upload(roomId, ByteArrayInputStream(bytes), "voice.ogg", bytes.size.toLong())
+                .collect { /* progress events dropped for now */ }
+        }
+    }
+
+    fun sendFile(ctx: Context, uri: android.net.Uri) {
+        viewModelScope.launch {
+            runCatching {
+                val stream = ctx.contentResolver.openInputStream(uri) ?: return@runCatching
+                val name = uri.lastPathSegment ?: "file"
+                val size = ctx.contentResolver.openFileDescriptor(uri, "r")?.use { it.statSize } ?: 0L
+                stream.use { s ->
+                    files.upload(roomId, s, name, size).collect {
+                        if (it is TransferProgress.Done) { /* OK */ }
+                    }
+                }
+            }
+        }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatScreen(roomId: Long, vm: ChatViewModel = hiltViewModel()) {
+fun ChatScreen(
+    roomId: Long,
+    onOpenThread: (Long) -> Unit = {},
+    onBack: () -> Unit = {},
+    vm: ChatViewModel = hiltViewModel(),
+) {
     LaunchedEffect(roomId) { vm.bind(roomId) }
     val messages by vm.messages.collectAsState()
     val composer by vm.composer.collectAsState()
+    val typing by vm.typing.collectAsState()
+    val reads by vm.reads.collectAsState()
     val listState = rememberLazyListState()
     val ctx = LocalContext.current
     var deleteTarget by remember { mutableStateOf<MessageEntity?>(null) }
 
     LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) listState.animateScrollToItem(messages.size - 1)
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(messages.size - 1)
+            vm.markVisible(messages.last().id)
+        }
     }
 
     Scaffold(
@@ -173,7 +236,7 @@ fun ChatScreen(roomId: Long, vm: ChatViewModel = hiltViewModel()) {
             TopAppBar(
                 title = { Text("Room #$roomId") },
                 navigationIcon = {
-                    IconButton(onClick = { /* hooked by NavHost back */ }) {
+                    IconButton(onClick = onBack) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -192,20 +255,27 @@ fun ChatScreen(roomId: Long, vm: ChatViewModel = hiltViewModel()) {
                 items(messages, key = MessageEntity::id) { msg ->
                     Bubble(
                         msg = msg,
+                        readThrough = reads,
                         onCopy   = { copyToClipboard(ctx, msg.plaintext ?: "") },
                         onReply  = { vm.beginReply(msg) },
                         onEdit   = { vm.beginEdit(msg) },
                         onReact  = { emoji -> vm.react(msg, emoji) },
                         onDelete = { deleteTarget = msg },
+                        onOpenThread = { vm.openThread(msg) { tid -> onOpenThread(tid) } },
                     )
                 }
             }
 
+            TypingRow(users = typing)
+
             ComposerBar(
                 composer = composer,
+                voiceRecorder = vm.voiceRecorder,
                 onDraft  = vm::onDraftChange,
                 onSubmit = vm::submit,
                 onCancelMode = vm::cancelComposerMode,
+                onVoice = { bytes -> vm.sendVoice(bytes) },
+                onFile  = { uri -> vm.sendFile(ctx, uri) },
             )
         }
     }
@@ -231,11 +301,13 @@ fun ChatScreen(roomId: Long, vm: ChatViewModel = hiltViewModel()) {
 @Composable
 private fun Bubble(
     msg: MessageEntity,
+    readThrough: Map<Long, Long>,
     onCopy: () -> Unit,
     onReply: () -> Unit,
     onEdit: () -> Unit,
     onReact: (String) -> Unit,
     onDelete: () -> Unit,
+    onOpenThread: () -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
 
@@ -281,11 +353,16 @@ private fun Bubble(
             textDecoration = if (msg.plaintext == null) TextDecoration.Underline else null,
         )
 
+        // Seen-by pill on outgoing messages (senderId == null means remote;
+        // when the local user id plumbing lands we'll filter here too).
+        ReadReceiptsPill(messageId = msg.id, readThrough = readThrough)
+
         DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-            DropdownMenuItem(text = { Text("Copy") },   onClick = { onCopy();   menuOpen = false })
-            DropdownMenuItem(text = { Text("Reply") },  onClick = { onReply();  menuOpen = false })
-            DropdownMenuItem(text = { Text("Edit") },   onClick = { onEdit();   menuOpen = false })
-            DropdownMenuItem(text = { Text("Delete") }, onClick = { onDelete(); menuOpen = false })
+            DropdownMenuItem(text = { Text("Copy") },        onClick = { onCopy();        menuOpen = false })
+            DropdownMenuItem(text = { Text("Reply") },       onClick = { onReply();       menuOpen = false })
+            DropdownMenuItem(text = { Text("Edit") },        onClick = { onEdit();        menuOpen = false })
+            DropdownMenuItem(text = { Text("Open thread") }, onClick = { onOpenThread();  menuOpen = false })
+            DropdownMenuItem(text = { Text("Delete") },      onClick = { onDelete();      menuOpen = false })
             Row(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
                 listOf("👍", "❤️", "😂", "🔥", "✅").forEach { emoji ->
                     Text(
@@ -307,9 +384,12 @@ private fun Bubble(
 @Composable
 private fun ComposerBar(
     composer: ChatViewModel.ComposerState,
+    voiceRecorder: VoiceRecorder,
     onDraft: (String) -> Unit,
     onSubmit: () -> Unit,
     onCancelMode: () -> Unit,
+    onVoice: (ByteArray) -> Unit,
+    onFile: (android.net.Uri) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
         if (composer.replyToPreview != null || composer.editingId != null) {
@@ -342,6 +422,11 @@ private fun ComposerBar(
             Modifier.fillMaxWidth().padding(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            AttachmentBar(
+                recorder      = voiceRecorder,
+                onVoiceReady  = onVoice,
+                onFilePicked  = onFile,
+            )
             OutlinedTextField(
                 value = composer.draft,
                 onValueChange = onDraft,

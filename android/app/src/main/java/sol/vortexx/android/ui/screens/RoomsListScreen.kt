@@ -18,7 +18,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
@@ -131,6 +133,10 @@ class RoomsListViewModel @Inject constructor(
 fun RoomsListScreen(
     onRoomClick: (Long) -> Unit,
     onSettingsClick: () -> Unit,
+    onOpenSpaces: () -> Unit = {},
+    onOpenBots: () -> Unit = {},
+    onOpenSearch: () -> Unit = {},
+    onOpenDocs: () -> Unit = {},
     vm: RoomsListViewModel = hiltViewModel(),
 ) {
     val rooms by vm.rooms.collectAsState()
@@ -139,7 +145,29 @@ fun RoomsListScreen(
 
     var showCreate by remember { mutableStateOf(false) }
     var showJoin by remember { mutableStateOf(false) }
+    val drawerState = androidx.compose.material3.rememberDrawerState(androidx.compose.material3.DrawerValue.Closed)
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
 
+    androidx.compose.material3.ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            androidx.compose.material3.ModalDrawerSheet {
+                androidx.compose.foundation.layout.Column(
+                    modifier = Modifier.padding(16.dp),
+                ) {
+                    Text("Vortex", style = MaterialTheme.typography.titleLarge,
+                         color = MaterialTheme.colorScheme.onBackground)
+                    androidx.compose.foundation.layout.Spacer(Modifier.height(20.dp))
+                    DrawerLink("Spaces")   { scope.launch { drawerState.close() }; onOpenSpaces() }
+                    DrawerLink("Bots")     { scope.launch { drawerState.close() }; onOpenBots() }
+                    DrawerLink("Search")   { scope.launch { drawerState.close() }; onOpenSearch() }
+                    DrawerLink("Gravitix docs") { scope.launch { drawerState.close() }; onOpenDocs() }
+                    androidx.compose.material3.HorizontalDivider(Modifier.padding(vertical = 12.dp))
+                    DrawerLink("Settings") { scope.launch { drawerState.close() }; onSettingsClick() }
+                }
+            }
+        },
+    ) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -154,14 +182,20 @@ fun RoomsListScreen(
                              color = MaterialTheme.colorScheme.onBackground)
                     }
                 },
+                navigationIcon = {
+                    IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                        Icon(Icons.Filled.Menu, contentDescription = "Menu",
+                             tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                },
                 actions = {
                     IconButton(onClick = { vm.refresh() }) {
                         if (refreshing) CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                         else Icon(Icons.Filled.Refresh, contentDescription = "Refresh",
                                   tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    IconButton(onClick = onSettingsClick) {
-                        Icon(Icons.Filled.Settings, contentDescription = "Settings",
+                    IconButton(onClick = onOpenSearch) {
+                        Icon(Icons.Filled.Search, contentDescription = "Search",
                              tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 },
@@ -214,6 +248,20 @@ fun RoomsListScreen(
             confirmButton = { TextButton(onClick = vm::dismissError) { Text("OK") } },
         )
     }
+    } // ModalNavigationDrawer
+}
+
+@Composable
+private fun DrawerLink(label: String, onClick: () -> Unit) {
+    Text(
+        text = label,
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onBackground,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+    )
 }
 
 @Composable

@@ -22,7 +22,9 @@ import sol.vortexx.android.ui.screens.ChatScreen
 import sol.vortexx.android.ui.screens.RoomsListScreen
 import sol.vortexx.android.ui.screens.SearchScreen
 import sol.vortexx.android.ui.screens.SettingsScreen
+import sol.vortexx.android.ui.screens.ChannelFeedsScreen
 import sol.vortexx.android.ui.screens.GravitixDocsScreen
+import sol.vortexx.android.ui.screens.IdeScreen
 import sol.vortexx.android.ui.screens.SpacesScreen
 import sol.vortexx.android.ui.screens.ThreadsScreen
 
@@ -35,12 +37,15 @@ object Routes {
     const val BOTS      = "bots"
     const val SEARCH    = "search"
     const val DOCS      = "gravitix-docs"
+    const val IDE       = "ide"
     const val THREADS   = "threads/{roomId}"
+    const val FEEDS     = "feeds/{roomId}"
     const val CHAT      = "chat/{roomId}"
     const val CALL      = "call/{roomId}/{video}"
 
     fun chat(roomId: Long)     = "chat/$roomId"
     fun threads(roomId: Long)  = "threads/$roomId"
+    fun feeds(roomId: Long)    = "feeds/$roomId"
     fun call(roomId: Long, video: Boolean) = "call/$roomId/$video"
 }
 
@@ -76,6 +81,10 @@ fun VortexNavHost(
             RoomsListScreen(
                 onRoomClick     = { id -> nav.navigate(Routes.chat(id)) },
                 onSettingsClick = { nav.navigate(Routes.SETTINGS) },
+                onOpenSpaces    = { nav.navigate(Routes.SPACES) },
+                onOpenBots      = { nav.navigate(Routes.BOTS) },
+                onOpenSearch    = { nav.navigate(Routes.SEARCH) },
+                onOpenDocs      = { nav.navigate(Routes.DOCS) },
             )
         }
         composable(Routes.SETTINGS) { SettingsScreen(onBack = { nav.popBackStack() }) }
@@ -92,7 +101,11 @@ fun VortexNavHost(
             arguments = listOf(navArgument("roomId") { type = NavType.LongType }),
         ) { entry ->
             val roomId = entry.arguments?.getLong("roomId") ?: return@composable
-            ChatScreen(roomId = roomId)
+            ChatScreen(
+                roomId = roomId,
+                onOpenThread = { tid -> nav.navigate(Routes.chat(tid)) },
+                onBack       = { nav.popBackStack() },
+            )
         }
         composable(
             Routes.THREADS,
@@ -106,6 +119,14 @@ fun VortexNavHost(
             )
         }
         composable(Routes.DOCS) { GravitixDocsScreen(onBack = { nav.popBackStack() }) }
+        composable(Routes.IDE)  { IdeScreen(onBack = { nav.popBackStack() }) }
+        composable(
+            Routes.FEEDS,
+            arguments = listOf(navArgument("roomId") { type = NavType.LongType }),
+        ) { entry ->
+            val roomId = entry.arguments?.getLong("roomId") ?: return@composable
+            ChannelFeedsScreen(roomId = roomId, onBack = { nav.popBackStack() })
+        }
         composable(
             Routes.CALL,
             arguments = listOf(

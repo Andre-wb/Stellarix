@@ -58,6 +58,16 @@ class WebRtcCallController @Inject constructor(
     private val _state = MutableStateFlow<CallState>(CallState.Idle)
     override val state = _state.asStateFlow()
 
+    // Exposed so the Compose layer can attach a SurfaceViewRenderer to
+    // whichever track is currently live. Null between calls.
+    private val _localVideo  = MutableStateFlow<VideoTrack?>(null)
+    private val _remoteVideo = MutableStateFlow<VideoTrack?>(null)
+    val localVideo  = _localVideo.asStateFlow()
+    val remoteVideo = _remoteVideo.asStateFlow()
+
+    /** Shared [EglBase] — the renderer needs this to init its surface. */
+    val eglBaseContext get() = eglBase.eglBaseContext
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val json  = Json { ignoreUnknownKeys = true }
 
@@ -100,6 +110,7 @@ class WebRtcCallController @Inject constructor(
         sendSignal(Signal(type = "call_hangup", call_id = currentCallId))
         peer?.close(); peer = null
         audioTrack = null; videoTrack = null; videoSource?.dispose(); videoSource = null
+        _localVideo.value = null; _remoteVideo.value = null
         currentCallId = null
         _state.value = CallState.Ended("local_hangup")
     }
@@ -144,7 +155,12 @@ class WebRtcCallController @Inject constructor(
                     s == PeerConnection.IceConnectionState.FAILED
                 ) _state.value = CallState.Ended("peer_${s.name.lowercase()}")
             }
-            override fun onAddStream(stream: MediaStream) { /* render happens in CallScreen */ }
+            override fun onAddStream(stream: MediaStream) {
+                // Publish the first incoming video track so the Compose
+                // renderer can attach. Audio tracks are played back by
+                // the AudioDeviceModule automatically.
+                stream.videoTracks.firstOrNull()?.let { _remoteVideo.value = it }
+            }
             override fun onRemoveStream(stream: MediaStream) {}
             override fun onDataChannel(p0: org.webrtc.DataChannel?) {}
             override fun onRenegotiationNeeded() {}
@@ -162,7 +178,9 @@ class WebRtcCallController @Inject constructor(
         audioTrack = factory.createAudioTrack("audio0", audio).also { p.addTrack(it) }
         if (video) {
             videoSource = factory.createVideoSource(false)
-            videoTrack  = factory.createVideoTrack("video0", videoSource).also { p.addTrack(it) }
+            videoTrack  = factory.createVideoTrack("video0", videoSource).also {
+                p.addTrack(it); _localVideo.value = it
+            }
         }
     }
 
