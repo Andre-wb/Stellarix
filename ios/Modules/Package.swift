@@ -43,6 +43,9 @@ let package = Package(
         .package(url: "https://github.com/groue/GRDB.swift", from: "6.29.0"),
         // Argon2 through libargon2 — CryptoKit doesn't ship it.
         .package(url: "https://github.com/tmthecoder/Argon2Swift", from: "1.1.0"),
+        // libwebrtc binary for iOS — Google stopped publishing, Stasel's
+        // fork is the de-facto standard.
+        .package(url: "https://github.com/stasel/WebRTC", from: "125.0.0"),
     ],
     targets: [
         // Feature targets start empty in Wave 1; they're filled in by
@@ -54,17 +57,21 @@ let package = Package(
         .target(name: "Bootstrap",  dependencies: []),
         .target(name: "Net",        dependencies: ["Bootstrap"]),
         .target(name: "Auth",       dependencies: ["Net"]),
-        .target(name: "Identity",   dependencies: ["VortexCrypto", "Auth"]),
+        .target(name: "Identity",   dependencies: ["VortexCrypto", "Auth"],
+                resources: [.copy("Resources/bip39_english.txt")]),
         .target(name: "DB",         dependencies: [
             .product(name: "GRDB", package: "GRDB.swift"),
         ]),
         .target(name: "Rooms",      dependencies: ["Net", "DB", "VortexCrypto", "Identity"]),
         .target(name: "Keys",       dependencies: ["Net", "DB", "VortexCrypto"]),
         .target(name: "WS",         dependencies: ["Net", "Auth"]),
-        .target(name: "Chat",       dependencies: ["WS", "Keys", "DB", "VortexCrypto", "Search", "Auth"]),
+        .target(name: "Chat",       dependencies: ["WS", "Keys", "DB", "VortexCrypto", "Search", "Auth", "Threads"]),
         .target(name: "Files",      dependencies: ["Net", "VortexCrypto", "Keys"]),
         .target(name: "Stickers",   dependencies: ["Net"]),
-        .target(name: "Calls",      dependencies: ["WS", "Net"]),
+        .target(name: "Calls",      dependencies: [
+            "WS", "Net",
+            .product(name: "WebRTC", package: "WebRTC"),
+        ]),
         .target(name: "Push",       dependencies: ["Net", "VortexCrypto"]),
         .target(name: "Federation", dependencies: ["Net"]),
         .target(name: "Search",     dependencies: ["DB"]),
