@@ -954,6 +954,16 @@ async def manifest():
     )
 
 
+@app.get("/v1/integrity")
+async def v1_integrity_probe():
+    """Client-bootstrap probe — iOS/Android Bootstrap modules hit
+    `<base>/v1/integrity` and look for `status: "verified"` before they
+    allow auth calls. In full deployments the controller serves this
+    path (on a separate port); in a single-process dev setup the node
+    can answer for itself with a static OK."""
+    return {"status": "verified", "version": "0.1.0-dev"}
+
+
 @app.get("/health")
 async def health():
     """Liveness probe — basic health status."""

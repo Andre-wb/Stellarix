@@ -8,9 +8,10 @@ public final class Bip39SeedProvider: SeedProvider {
     private let random: SecureRandomProvider
     private let wordlist: [String]
 
-    public init(random: SecureRandomProvider, bundle: Bundle = .module) throws {
+    public init(random: SecureRandomProvider, bundle: Bundle? = nil) throws {
         self.random = random
-        guard let url = bundle.url(forResource: "bip39_english", withExtension: "txt") else {
+        let b = bundle ?? .module
+        guard let url = b.url(forResource: "bip39_english", withExtension: "txt") else {
             throw SeedError.wordlistUnavailable
         }
         let raw = try String(contentsOf: url, encoding: .utf8)
@@ -23,7 +24,7 @@ public final class Bip39SeedProvider: SeedProvider {
     public func generate() throws -> Mnemonic {
         let entropy = random.nextBytes(32)       // 256 bits
         let hash = SHA256.hash(data: entropy)
-        let csByte = hash.prefix(1).first!
+        let csByte = Array(hash).first!
 
         // 256 bits entropy + 8 bits checksum = 264 bits = 24 × 11
         var bits = Array(repeating: false, count: 264)

@@ -2,6 +2,9 @@ package sol.vortexx.android.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -75,7 +78,20 @@ import java.util.Locale
 @HiltViewModel
 class RoomsListViewModel @Inject constructor(
     private val repo: RoomsRepository,
+    private val foldersRepo: sol.vortexx.android.folders.api.Folders,
 ) : ViewModel() {
+
+    val folders = foldersRepo.folders
+    val archived = foldersRepo.archived
+
+    private val _selectedFolder = kotlinx.coroutines.flow.MutableStateFlow("all")
+    val selectedFolder = _selectedFolder
+
+    fun selectFolder(id: String) { _selectedFolder.value = id }
+    fun archive(roomId: Long) = foldersRepo.archive(roomId)
+    fun unarchive(roomId: Long) = foldersRepo.unarchive(roomId)
+    fun createFolder(title: String, roomIds: Set<Long>) = foldersRepo.create(title, roomIds)
+    fun deleteFolder(id: String) = foldersRepo.delete(id)
 
     sealed interface ActionState {
         data object Idle : ActionState
@@ -137,11 +153,29 @@ fun RoomsListScreen(
     onOpenBots: () -> Unit = {},
     onOpenSearch: () -> Unit = {},
     onOpenDocs: () -> Unit = {},
+    onOpenContacts: () -> Unit = {},
+    onOpenPremium: () -> Unit = {},
     vm: RoomsListViewModel = hiltViewModel(),
 ) {
     val rooms by vm.rooms.collectAsState()
     val refreshing by vm.refreshing.collectAsState()
     val action by vm.action.collectAsState()
+    val folders by vm.folders.collectAsState()
+    val archivedIds by vm.archived.collectAsState()
+    val selectedFolder by vm.selectedFolder.collectAsState()
+
+    // Folder filter: "all" shows everything except archived; "archived"
+    // shows only archived; custom folders show only members.
+    val visibleRooms = remember(rooms, archivedIds, selectedFolder, folders) {
+        when (selectedFolder) {
+            "all"      -> rooms.filter { it.id !in archivedIds }
+            "archived" -> rooms.filter { it.id in archivedIds }
+            else       -> {
+                val ids = folders.firstOrNull { it.id == selectedFolder }?.roomIds ?: emptySet()
+                rooms.filter { it.id in ids }
+            }
+        }
+    }
 
     var showCreate by remember { mutableStateOf(false) }
     var showJoin by remember { mutableStateOf(false) }
@@ -162,6 +196,8 @@ fun RoomsListScreen(
                     DrawerLink("Bots")     { scope.launch { drawerState.close() }; onOpenBots() }
                     DrawerLink("Search")   { scope.launch { drawerState.close() }; onOpenSearch() }
                     DrawerLink("Gravitix docs") { scope.launch { drawerState.close() }; onOpenDocs() }
+                    DrawerLink("Contacts") { scope.launch { drawerState.close() }; onOpenContacts() }
+                    DrawerLink("Premium")  { scope.launch { drawerState.close() }; onOpenPremium() }
                     androidx.compose.material3.HorizontalDivider(Modifier.padding(vertical = 12.dp))
                     DrawerLink("Settings") { scope.launch { drawerState.close() }; onSettingsClick() }
                 }
@@ -212,12 +248,24 @@ fun RoomsListScreen(
         },
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
-            if (rooms.isEmpty() && !refreshing) EmptyState(
+            FolderTabs(
+                folders = folders,
+                selected = selectedFolder,
+                onSelect = vm::selectFolder,
+            )
+            if (visibleRooms.isEmpty() && !refreshing) EmptyState(
                 onCreate = { showCreate = true },
                 onJoin   = { showJoin = true },
             ) else LazyColumn(Modifier.fillMaxSize()) {
-                items(rooms, key = RoomEntity::id) { room ->
-                    RoomRow(room, onClick = { onRoomClick(room.id) })
+                items(visibleRooms, key = RoomEntity::id) { room ->
+                    RoomRow(
+                        room,
+                        onClick = { onRoomClick(room.id) },
+                        isArchived = room.id in archivedIds,
+                        onArchiveToggle = {
+                            if (room.id in archivedIds) vm.unarchive(room.id) else vm.archive(room.id)
+                        },
+                    )
                 }
             }
         }
@@ -252,6 +300,32 @@ fun RoomsListScreen(
 }
 
 @Composable
+private fun FolderTabs(
+    folders: List<sol.vortexx.android.folders.api.ChatFolder>,
+    selected: String,
+    onSelect: (String) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+    ) {
+        folders.forEach { f ->
+            val active = f.id == selected
+            androidx.compose.material3.AssistChip(
+                onClick = { onSelect(f.id) },
+                label = { Text(f.title) },
+                colors = androidx.compose.material3.AssistChipDefaults.assistChipColors(
+                    containerColor = if (active) VortexPurple else MaterialTheme.colorScheme.surfaceVariant,
+                ),
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
+        }
+    }
+}
+
+@Composable
 private fun DrawerLink(label: String, onClick: () -> Unit) {
     Text(
         text = label,
@@ -264,12 +338,22 @@ private fun DrawerLink(label: String, onClick: () -> Unit) {
     )
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun RoomRow(room: RoomEntity, onClick: () -> Unit) {
+private fun RoomRow(
+    room: RoomEntity,
+    onClick: () -> Unit,
+    isArchived: Boolean = false,
+    onArchiveToggle: () -> Unit = {},
+) {
+    var menuOpen by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = { menuOpen = true },
+            )
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -292,6 +376,7 @@ private fun RoomRow(room: RoomEntity, onClick: () -> Unit) {
             )
             Text(
                 text = buildString {
+                    if (isArchived) append("archived • ")
                     if (room.isChannel) append("channel • ")
                     else if (room.isDm)  append("dm • ")
                     append("${room.memberCount} members")
@@ -309,6 +394,16 @@ private fun RoomRow(room: RoomEntity, onClick: () -> Unit) {
             containerColor = VortexPurple,
             contentColor = MaterialTheme.colorScheme.onPrimary,
         ) { Text(room.unreadCount.toString()) }
+
+        androidx.compose.material3.DropdownMenu(
+            expanded = menuOpen,
+            onDismissRequest = { menuOpen = false },
+        ) {
+            androidx.compose.material3.DropdownMenuItem(
+                text = { Text(if (isArchived) "Unarchive" else "Archive") },
+                onClick = { menuOpen = false; onArchiveToggle() },
+            )
+        }
     }
 }
 

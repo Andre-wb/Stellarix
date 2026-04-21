@@ -12,5 +12,5 @@ public protocol MessageActions: Sendable {
     /// [Thread] so the caller can navigate into it; nil on error (no
     /// such message / network failure). Title falls back to the first
     /// 40 characters of the parent message's plaintext.
-    func openThread(messageId: Int64, title: String?) async -> Thread?
+    func openThread(messageId: Int64, title: String?) async -> Threads.Thread?
 }

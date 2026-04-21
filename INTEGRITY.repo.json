@@ -1,7 +1,7 @@
 {
   "payload": {
     "version": "0.1.0",
-    "built_at": 1776667114,
+    "built_at": 1776680670,
     "algorithm": "sha256",
     "root": "Vortex",
     "files": [
@@ -392,6 +392,602 @@
       {
         "path": "alembic/env.py",
         "sha256": "9fa6d7309e7fb25432599288ba283dd71e399fd3e2fdd301f0d63a1b0e3a14be"
+      },
+      {
+        "path": "android/README.md",
+        "sha256": "e1f274eeaf1af3a970bb30262ed7a1e027fd0d734162de98787c41f7f69ee198"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/af.json",
+        "sha256": "f5c8ad5e5f8c8519a6e3bf641118fe8a2c45dc8d71fd45552f0a8877e101dfbc"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ak.json",
+        "sha256": "923e3b6323a05ac7f85542fb644f4d0f262b58427ae5c7a49a47e262ea84acf3"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/am.json",
+        "sha256": "aa15c53289aa8f988ef6e5fcdf8bb7feacbf09bac9dffb17a2d8359186858b8a"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ar.json",
+        "sha256": "134b80328916670fe2b90d2e45d32eadd001f362807bdde186d6f98f63786233"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/as.json",
+        "sha256": "28f69b1f92845a69c35c5747daf09f4c928b349895ab26c0ff8d85ddc469a302"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ay.json",
+        "sha256": "72a2c2d8baf10ee756d181c420d4d1edc1b8fff280108ed7d8ea1461c43b76c5"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/az.json",
+        "sha256": "9015fc9da3cf4e6a103d2c7bdd4c07639739b18d4cf92f2d993d1687941faa23"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ba.json",
+        "sha256": "cc92363a13072ec6b7e97c03209474be35c41ee2f41019996066fbb6fdb89bb3"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/be.json",
+        "sha256": "e9ee9a822c953a8aaba79c02bad393f0c2fabd4e3d57859da7faf223429fad91"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/bg.json",
+        "sha256": "11b7c5986de4331b82fc387d79c96d6a1f6f514eb1ff502b1aff59d52e3269a8"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/bho.json",
+        "sha256": "89d806542138b83d3b11cd77f5ddb516490c1a6b9352939da51ddcef101407ea"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/bm.json",
+        "sha256": "658fe0880527f7c55b6a10190ceb20dab3490ed78674ad57ad07f24893e50c56"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/bn.json",
+        "sha256": "5e94a728463eb8b901ab943a493ee1f0ab5541439a36d04a02f8e23940b25b70"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/bo.json",
+        "sha256": "66c96f63a5044ad6f83eabdd762664644a4f38a6f86d0b05bde0fb965ef07e7a"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/bs.json",
+        "sha256": "189549b28cc3ee7fec5acbe3da19bbd99c58611c91e2c331acffe5f58e3561fe"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/bua.json",
+        "sha256": "2cf10f61488ebf8c1048b6b99e53b51a0829a9888df3a1e6e6de306f6e96239d"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ca.json",
+        "sha256": "dd6c24f66a4a4f1d655dbecc91c3e964407f31d7cea46b28ed72a50cda0c25a8"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ce.json",
+        "sha256": "9ae6810ade00bf3cacf4aaf50f662248e6f86c7cf33aed3e7c3145fb8c1cff65"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ceb.json",
+        "sha256": "ba8d821a86106cf58869d42d748e7d95a867039fabeb81a43d0bf39796bc977b"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ckb.json",
+        "sha256": "458d990d9e0d56916d2853d7568a7dd79ecda03b28b9d5555f0be72a25710735"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/co.json",
+        "sha256": "370d432b342c4b7b801fdf699b25cb4b1b9bace287d29aad4a252d485ea070cb"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/crh.json",
+        "sha256": "ee86630658f230439195c6cb68669f25e41b53d7405ecbb33db72d508d7396bd"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/cs.json",
+        "sha256": "804afcd7a280419c9e196978921920353b85e03debd317e030c22408fbcb4834"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/cv.json",
+        "sha256": "cf4604874cccde1dd98ec16442164e1a7a5f63dddeb7b8fb603fd9eac9455fda"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/cy.json",
+        "sha256": "762fcbd0aa7ba4a941e39bb5e6a2dc3483884914ae8375b6df55a825773b2a15"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/da.json",
+        "sha256": "d72cccb648bb37bb41caf03bb46f7fdab2e0845b0733a2f7aa3c0ff2ead5d685"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/de.json",
+        "sha256": "436c2ae2c2eed73dce8b09e6c8afe0f29ab39f8b31502ae5e15771c6071534da"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/doi.json",
+        "sha256": "4d72556b41d5ad2ec1118dc82681df363dcee18fd352d76bb8172d37b36820b1"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/dv.json",
+        "sha256": "8173721c0eb40018359f59bee844233d98ad991d6e0cd44c4365f4300619dc84"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ee.json",
+        "sha256": "f7ddca41bbafef1efa7e38fc51772fe5aae3babac629d260764c9fec0c8ee803"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/el.json",
+        "sha256": "dc381e551d2784f16b2f362e6d56b7c52b6561f86af28c0a38bbda0ff4a3c6b4"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/en.json",
+        "sha256": "1a08226c342ad07d4c85b9cd19c863fd049623529ece6ee6d93ba9730ffbddee"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/eo.json",
+        "sha256": "879d49686477966bc61ec5c42cdd4dde218289eaf17ce7263ed5529c48053c02"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/es.json",
+        "sha256": "e19a89f37a5613ed34a750daf1a80a56fffb162023b7b822f5b9243d6fb930c8"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/et.json",
+        "sha256": "07f12ebdc27007cd7a681c1adfb5d18506c6d4d0303db6c18ca9143f6e32181a"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/eu.json",
+        "sha256": "9e4bf37dd9378848d2e8b585593a98a7204d5052830a8a8e38137a74b583b92a"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/fa.json",
+        "sha256": "01b8a031f219bcaeb29fd7db4028687ef200ac20ad0043e71568960a18ecbed0"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ff.json",
+        "sha256": "45a3fa1b0df2664718a2640851824dd7d69a0cc50cc2a1be43e5767a8a512780"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/fi.json",
+        "sha256": "c44456619a67bab9c224741817c6dc9bdd8c0871de113f0a38714cabd2aa2745"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/fr.json",
+        "sha256": "13ccf95daf8d5116cf576cede0776c67a65a6a2e006737cb138ba1772cb1e617"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/fy.json",
+        "sha256": "e77ada9c3161f21360c891672196aec9bf3ac6b90e79559e303712113e89aa94"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ga.json",
+        "sha256": "91d185098d3f337bc9850e3718319363578fe80f9d1eb088a9c649161eab177d"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/gd.json",
+        "sha256": "7d3aee1bf7c6c114b0179e9d657aa86702955cb168792c71e98593656c61c1d2"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/gl.json",
+        "sha256": "1eb5ed2e7f76adf398dcc72ec6bd0aa21ac40498bd2552753f053a9411a5db41"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/gn.json",
+        "sha256": "b460beed534a9169f907d537df6d02b3b7dedee4d6f7d85448231c32e7124f32"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/gu.json",
+        "sha256": "a00f7e959978d1571855694453851ad99075bc546c40580e2cb2f588fe953621"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ha.json",
+        "sha256": "296ecc0dbb5b9585db8e8c84604c2936f54a1c987870545ecc213ba9b18f30d6"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/haw.json",
+        "sha256": "8a802d04a59c85c3de76a4ae9cec61a606a4039797e7ee0f8fc3f26e2337a130"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/he.json",
+        "sha256": "3d50de2ff118d792cc8864e11bc89fa03a4f147e9eb97049c50f8ce6571edf39"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/hi.json",
+        "sha256": "1f8e38a05cf994e51cb02a649541836f06d5e8f71db66582dbcf1c0d5d69ce6c"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/hmn.json",
+        "sha256": "26faa82ddb3a80473e146e893637c5471740932215b0e6757b619bc253289577"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/hr.json",
+        "sha256": "e8f39b3f47cc3041bf81829dc31bad251884494059369aff655fa120cd787bbc"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ht.json",
+        "sha256": "7b575562e6c44921863d55110053521c6756ad636573a73ad28a046de1eb46a7"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/hu.json",
+        "sha256": "1c97b6aa835a195442560cafb3aa15ef966ad31aacca9b9daefe07862854784c"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/hy.json",
+        "sha256": "7f184eeb0f567ebf9198aeada53c3a899549d8408673e197b70c3d848d02f269"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/id.json",
+        "sha256": "55f4fcfd27a71c07d7f9cfffd3e86638f1478e5e262b48bd91b044db3146cea7"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ig.json",
+        "sha256": "67f058dd8fdb89c44387c7d127cbd3de327c1e224ea171bf250fcdf59842779b"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ilo.json",
+        "sha256": "49b3497dcf1a2670e4f80911cae383c584f252c4c6272b3d66c222be3e89ab2c"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/is.json",
+        "sha256": "9743d538ea28f5bf978360236bc78e64fc2d786a45c5a760559bd151f912d140"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/it.json",
+        "sha256": "824aecbf3e06137e0725162a415ea6ea91e5787d24719ed2a92f824a6ec03c9b"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ja.json",
+        "sha256": "681beba0a0cade800df52ce67afe6c2e7f1668b6e14e11a9571dbdd9fdcd381c"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/jv.json",
+        "sha256": "3618ca6d1767a7c370e79fa9ea7db79f566334b722bd3d9fe71af7b2996c87c1"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ka.json",
+        "sha256": "7eb01f65ed877f82ef77948e424ce04516bf150332ab4233d01cb7d242bdd34b"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/kk.json",
+        "sha256": "02e2549108254f7fcb37ba0bbbf0182f07beac44f427092933c0fec307e7eeca"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/km.json",
+        "sha256": "1c7a1aaa0b955627f210e72fe0b08997063a0bdc276c39846c048c9b53f40986"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/kn.json",
+        "sha256": "f68a5d7da9470b794f2ead3ca2525c5a5d6ef2cc34ced2a851d274f0b6dd3f05"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ko.json",
+        "sha256": "0321646df9b00972b4471931c459edb4520c0d758f77393d8b59a81c57e98869"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/kri.json",
+        "sha256": "a5387f61f1aa6e85064dca8ba49134422ad2d80d6d3f7d409bbf04dc019fba78"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ku.json",
+        "sha256": "f085d0e86a658de54a5cd7749adf0f7d8c02ef79621d6b28de51b53db709dd3e"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/kv.json",
+        "sha256": "3e02cdeb4268248bfd4c22850c4367c5928818857b83093ad8ba3138186ecc77"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ky.json",
+        "sha256": "f0a3023b03ab766dc0e2cd46267859c0ccd98ee95b20932390684cca620a8e61"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/la.json",
+        "sha256": "5eb553f2a2824c5c40a2d8851205deb5f29c225422f7f06c4939b6adef5502f0"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/lb.json",
+        "sha256": "a01ca93bf4f44e76b5c8d30325d4a40c819993d934a5a0e3db7f4c68bb7b9d7f"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/lg.json",
+        "sha256": "0f4c335341682c73e53eababa2adef0db2aef7783c72d317c95eae0e082ab57c"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ln.json",
+        "sha256": "a5d6a69a5608163213fd47fc6e89c62d123fce849cafd4a1f9760c03baebf640"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/lo.json",
+        "sha256": "e7b44d6b8c5493a2d1b532c4c2698edd222a62887caa3d8898be8d412a88596f"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/lt.json",
+        "sha256": "52e76218ce1fa8d3f93c7ec1d9920826cfd6f5e5e17234547f2269ea6683b268"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/lus.json",
+        "sha256": "d88566b0c8487622cc65d63b4935c07308134e553b046c4b0777e04674bac5b4"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/lv.json",
+        "sha256": "bf5c730e4beebc115ab5fd130e981496904c5752aab00c8f061fd6c701dc6ab2"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/mai.json",
+        "sha256": "53f395e868c7a6e1f2a8e1e16034c260c9d1ae0a326f874ef34a16ac58a11a26"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/mg.json",
+        "sha256": "c5abd15df1ccd9714883228e0992e440ab715a2bd95bdf026bd3828f325c9175"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/mhr.json",
+        "sha256": "e0060adb790adb99faadbc13396a48b10a4bb042fa3d3e69af0798f5d37ca4ea"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/mi.json",
+        "sha256": "0f9d9eef2f80aad160bac12f4942dde37f97153726f974e82ae5e50569c8c752"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/mk.json",
+        "sha256": "c96e4e205370283450ff24e71354e8f00d7d25b4e5055a2aa5883d0167e6cf4d"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ml.json",
+        "sha256": "df871dc49be7f52076717cd89c60fa660939fd82c0e287a8b9229c062b3a0f71"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/mn.json",
+        "sha256": "649c719c75284a1246f6c9e181e751dc50d0368b9df032fec1cd9543abb4d6b5"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/mr.json",
+        "sha256": "5179fe8c57ff5e1cdb455722d3f30974ad58195ddf2d3ca7e810911be9e94e17"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ms.json",
+        "sha256": "2b0c8979960a3c97f8913d7f973e6fd36d95bb605789af7d39a34a36bbde0c32"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/mt.json",
+        "sha256": "f3be491f4a94a85a320bebe5f6c492d927a2fb98cc698b39c542a36cea38e5ca"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/my.json",
+        "sha256": "a742a8d7af810b78b1ca839316868e040d9a9a2effaf2705d48d2f594b8e5bf2"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ne.json",
+        "sha256": "d44139be0096ef054b03d16d43c2f55a36a9800fac60768cf025a65696ac47b5"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/nl.json",
+        "sha256": "eefa3c236492c212ead6d2e13aa2a42dab34b017da39d4dd001b0f832d9c096d"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/no.json",
+        "sha256": "08034c690931c9505774066a0faf908a931acb89c7a8a63cae7dcb040b5da106"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/nso.json",
+        "sha256": "86dabbe770e7238545cf7d9e439a2746cc136acb7bdadab9c48c2d6529fda57d"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ny.json",
+        "sha256": "5bed51d1e91e2815ef6fad65a21d1c39a242da7fdf8402566fedcedf46d66f70"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/oc.json",
+        "sha256": "7a85bac60953979ced9f984128b02d9a62a3baf22c425010137e3702a4b69372"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/om.json",
+        "sha256": "3a3cfdf66ced044cbde9148e810f0013f66fdb8b57b83521eb1ddcb18a2f2704"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/or.json",
+        "sha256": "a4d82b4eaa89539ed5285d9a6bd62a739e39bc48b059c8e6e0e355f7a038693b"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/os.json",
+        "sha256": "4e4184d2286b640bcd1c1859ad2f1cf1b0c7b0dc9073259bb7b5ce943025c092"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/pa.json",
+        "sha256": "400e631c225dbdd4a55e3b9350f184d8c5cd8ccbe9b05744406c5abd7f3c1404"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/pl.json",
+        "sha256": "2b6ee6629175c33c0dcc9ba7c4e22687b31cbcf709e0a539535cf2bd91ef9ab0"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ps.json",
+        "sha256": "c1e4b8b68ea47b587b8edf336c71720d6c13dd3002a3c643be725e19f000053b"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/pt.json",
+        "sha256": "daa4162be1751ef4d66d86470090d9422d466828350ea5f2c885d389d7d7848a"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/qu.json",
+        "sha256": "7df9821c522a56e3470f400d749a4192acf7871c094a324271e0d5eeb179cbbf"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ro.json",
+        "sha256": "b0756781e79fce3e0b30c59c6b05c34766dc34c387b315b8f15cf12cf6889cfb"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ru.json",
+        "sha256": "033afa817e6253cbb19e908805fd28b9637f0fe12e64e7ae3d9f043921603359"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/rw.json",
+        "sha256": "8762e6491c4da4ba9ebe7eab42897f37ea2f83dccb8e71aea8481a81601f8fc0"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/sa.json",
+        "sha256": "2d9dfe858cc5c446a14ff9750b801473f08500dd20de403a3666d98a21000d78"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/sah.json",
+        "sha256": "b33955248c14c2dd3c78966b35f507110fd8379d471d05b2ccc0201d728177cf"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/sd.json",
+        "sha256": "348b28d2ce91c8b448d468ed5d2dbf165f3e0a981be28bc00cb364f28eb23898"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/si.json",
+        "sha256": "e59b147baa81e5da861a8a68afbaa84f377f17fa2851bbe3310be7a317ca76fb"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/sk.json",
+        "sha256": "75f2a81280dd0605452fef6d51c430b9549af4ed3fb8212dc8278f70cf5659d9"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/sl.json",
+        "sha256": "4e1d4ad3f417f807eb6ada80ff953c40d883e4d06475fb1ad455614f8cf60738"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/sm.json",
+        "sha256": "255aba837092a617081a4718bebcf4a1e156ece726a0a4577fa70a099c67284c"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/sn.json",
+        "sha256": "7080898140a2f72bfb8390399aa895c659eaaf5c76ea5dc1c3c8bff350b1c462"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/so.json",
+        "sha256": "bd93edd20495bb02f58c35f008c259946eb96c9eea4da38242769bd76ed00d8a"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/sq.json",
+        "sha256": "129a01ff8d184b42c38be82be1a2b47e31ab5484749e73a993c5c907d63e2852"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/sr.json",
+        "sha256": "24092a7cec3e649f3b9b29194101767885dfcd043308b0163ef060b862407b62"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/st.json",
+        "sha256": "079aa0e56d5eb25c9a79e84be07350cb987718eaa260643e2eeca2b7c65f689c"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/su.json",
+        "sha256": "7d9536999c169977519b222cc2ca186d8b21c0eb8bb14c76142ebbf26a0c2254"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/sv.json",
+        "sha256": "89ab8e38387953f15527e44145698ad4f15cb979e469b53f02a54d993516c075"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/sw.json",
+        "sha256": "836ccd523630022b16c201ab81b2bbdfb32ad16ce6358c7bfecd85064c6029d8"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ta.json",
+        "sha256": "80806a67fcb2112e864935b7f32a2249e6698f13bfa7e33673f5b97fe77a72d9"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/te.json",
+        "sha256": "2e39572f31ba80202059515adb3402730c511d402af306030f0c908ae3acee12"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/tg.json",
+        "sha256": "b17ebaf98633d4d51723fc72e743d4d4fd0cb6e8f280d4271f8d192fcd7a86e3"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/th.json",
+        "sha256": "5dba5570cb26b65e8bf70c7ab2368b111ae953a49277db7f010300df2e49718c"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ti.json",
+        "sha256": "581605153fbdf18e5b2acca49de9cb3e6652980f936dca42a7d3277d7d49100a"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/tk.json",
+        "sha256": "e4656605e018a16263612124379bfb9dbdf1d8d5110d9c4fcb37b28265f583b7"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/tl.json",
+        "sha256": "8732a2ffd31a41128c09cdbbaa8f99df35189cb60ca921e6c3f244ac53966d7e"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/tn.json",
+        "sha256": "cf00c800dd4001d0b01b24a723264537113a64f5a600c4c810be247dcc9f391f"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/tr.json",
+        "sha256": "952e6f20d73c8babb33f676b362c853879aa0c20abe8a05a47eae7338c325eab"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/tt.json",
+        "sha256": "c89321a7f7918a082ae1ee877dd54079d4ad2dd2caa05ab2ed25ee4fce157482"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/tyv.json",
+        "sha256": "0d3bb0d0155bd2e2e920bd0d96009e8554b9890a862156b98db0a99f63b5d263"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/udm.json",
+        "sha256": "1abf9d888bf92119566d2603247a47ee15b8c69e4aeef2a54008a9c60d0f9197"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ug.json",
+        "sha256": "b409ad492cea2737aa44b948d97952466a26c5caf370c8d43bac0022ef190344"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/uk.json",
+        "sha256": "84cdafa70960a76fc00803cf051e8bc9d3a3cf35d67d15779e563047e66ef1d3"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/ur.json",
+        "sha256": "54d7fd7bd7b6db36fe3870ccc4b7b17db67c179ada518f09801dc4f4c4750ff2"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/uz.json",
+        "sha256": "82670381e0b9d1a70ba1e4b7e3a040c0c3eef67b6c3716567143809cdbcff0ea"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/vi.json",
+        "sha256": "984936a44b8fac96596ac5493140918299deb99f509939abb4b98bf52fe79d97"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/wo.json",
+        "sha256": "b5e0f5cff9882fcdccb6ae431169b7d0af46b32fee54c24f85a67ada9c42164c"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/xh.json",
+        "sha256": "b629d9fa8c8a0213c075303a98ecf4335cdc345958ff2e576a4bfa37ac8d8c64"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/yi.json",
+        "sha256": "751d3df78d9940e6ac52e50896058ccf06241a9e1a38e8da7e202b69fc002434"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/yo.json",
+        "sha256": "a2c17fb2779bf3ecc906f9d407c119191a49609004f2b295854ba3e66dab7fd7"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/zh-TW.json",
+        "sha256": "85e743686fa4d72beb496a4a8f5cab50e8e3ac40d555fbca5c2a3f4a4544f990"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/zh.json",
+        "sha256": "1c7c25a4ee0649f6c916a6b5c679fdb229c82dc90d2db224442c8605b3306827"
+      },
+      {
+        "path": "android/app/src/main/assets/locales/zu.json",
+        "sha256": "6ca3083cd551218d29b2e63b5d98d147adacf5618990b19457f38527c0b5ec62"
+      },
+      {
+        "path": "android/app/src/main/res/raw/bip39_english.txt",
+        "sha256": "2f5eed53a4727b4bf8880d8f3f199efc90e58503646d9ff8eff3a2ed3b24dbda"
+      },
+      {
+        "path": "android/gradle/libs.versions.toml",
+        "sha256": "2112e83001ac852ab5c95ca3eafa0f5975cad014a03a3f691f97af6a22706c6b"
       },
       {
         "path": "app/__init__.py",
@@ -1728,6 +2324,614 @@
       {
         "path": "install.sh",
         "sha256": "4a17b41e66166d192bdf47c237336018671895128191b01941dd58961c0ad6f5"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/af.json",
+        "sha256": "f5c8ad5e5f8c8519a6e3bf641118fe8a2c45dc8d71fd45552f0a8877e101dfbc"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ak.json",
+        "sha256": "923e3b6323a05ac7f85542fb644f4d0f262b58427ae5c7a49a47e262ea84acf3"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/am.json",
+        "sha256": "aa15c53289aa8f988ef6e5fcdf8bb7feacbf09bac9dffb17a2d8359186858b8a"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ar.json",
+        "sha256": "134b80328916670fe2b90d2e45d32eadd001f362807bdde186d6f98f63786233"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/as.json",
+        "sha256": "28f69b1f92845a69c35c5747daf09f4c928b349895ab26c0ff8d85ddc469a302"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ay.json",
+        "sha256": "72a2c2d8baf10ee756d181c420d4d1edc1b8fff280108ed7d8ea1461c43b76c5"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/az.json",
+        "sha256": "9015fc9da3cf4e6a103d2c7bdd4c07639739b18d4cf92f2d993d1687941faa23"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ba.json",
+        "sha256": "cc92363a13072ec6b7e97c03209474be35c41ee2f41019996066fbb6fdb89bb3"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/be.json",
+        "sha256": "e9ee9a822c953a8aaba79c02bad393f0c2fabd4e3d57859da7faf223429fad91"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/bg.json",
+        "sha256": "11b7c5986de4331b82fc387d79c96d6a1f6f514eb1ff502b1aff59d52e3269a8"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/bho.json",
+        "sha256": "89d806542138b83d3b11cd77f5ddb516490c1a6b9352939da51ddcef101407ea"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/bm.json",
+        "sha256": "658fe0880527f7c55b6a10190ceb20dab3490ed78674ad57ad07f24893e50c56"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/bn.json",
+        "sha256": "5e94a728463eb8b901ab943a493ee1f0ab5541439a36d04a02f8e23940b25b70"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/bo.json",
+        "sha256": "66c96f63a5044ad6f83eabdd762664644a4f38a6f86d0b05bde0fb965ef07e7a"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/bs.json",
+        "sha256": "189549b28cc3ee7fec5acbe3da19bbd99c58611c91e2c331acffe5f58e3561fe"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/bua.json",
+        "sha256": "2cf10f61488ebf8c1048b6b99e53b51a0829a9888df3a1e6e6de306f6e96239d"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ca.json",
+        "sha256": "dd6c24f66a4a4f1d655dbecc91c3e964407f31d7cea46b28ed72a50cda0c25a8"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ce.json",
+        "sha256": "9ae6810ade00bf3cacf4aaf50f662248e6f86c7cf33aed3e7c3145fb8c1cff65"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ceb.json",
+        "sha256": "ba8d821a86106cf58869d42d748e7d95a867039fabeb81a43d0bf39796bc977b"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ckb.json",
+        "sha256": "458d990d9e0d56916d2853d7568a7dd79ecda03b28b9d5555f0be72a25710735"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/co.json",
+        "sha256": "370d432b342c4b7b801fdf699b25cb4b1b9bace287d29aad4a252d485ea070cb"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/crh.json",
+        "sha256": "ee86630658f230439195c6cb68669f25e41b53d7405ecbb33db72d508d7396bd"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/cs.json",
+        "sha256": "804afcd7a280419c9e196978921920353b85e03debd317e030c22408fbcb4834"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/cv.json",
+        "sha256": "cf4604874cccde1dd98ec16442164e1a7a5f63dddeb7b8fb603fd9eac9455fda"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/cy.json",
+        "sha256": "762fcbd0aa7ba4a941e39bb5e6a2dc3483884914ae8375b6df55a825773b2a15"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/da.json",
+        "sha256": "d72cccb648bb37bb41caf03bb46f7fdab2e0845b0733a2f7aa3c0ff2ead5d685"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/de.json",
+        "sha256": "436c2ae2c2eed73dce8b09e6c8afe0f29ab39f8b31502ae5e15771c6071534da"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/doi.json",
+        "sha256": "4d72556b41d5ad2ec1118dc82681df363dcee18fd352d76bb8172d37b36820b1"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/dv.json",
+        "sha256": "8173721c0eb40018359f59bee844233d98ad991d6e0cd44c4365f4300619dc84"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ee.json",
+        "sha256": "f7ddca41bbafef1efa7e38fc51772fe5aae3babac629d260764c9fec0c8ee803"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/el.json",
+        "sha256": "dc381e551d2784f16b2f362e6d56b7c52b6561f86af28c0a38bbda0ff4a3c6b4"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/en.json",
+        "sha256": "1a08226c342ad07d4c85b9cd19c863fd049623529ece6ee6d93ba9730ffbddee"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/eo.json",
+        "sha256": "879d49686477966bc61ec5c42cdd4dde218289eaf17ce7263ed5529c48053c02"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/es.json",
+        "sha256": "e19a89f37a5613ed34a750daf1a80a56fffb162023b7b822f5b9243d6fb930c8"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/et.json",
+        "sha256": "07f12ebdc27007cd7a681c1adfb5d18506c6d4d0303db6c18ca9143f6e32181a"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/eu.json",
+        "sha256": "9e4bf37dd9378848d2e8b585593a98a7204d5052830a8a8e38137a74b583b92a"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/fa.json",
+        "sha256": "01b8a031f219bcaeb29fd7db4028687ef200ac20ad0043e71568960a18ecbed0"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ff.json",
+        "sha256": "45a3fa1b0df2664718a2640851824dd7d69a0cc50cc2a1be43e5767a8a512780"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/fi.json",
+        "sha256": "c44456619a67bab9c224741817c6dc9bdd8c0871de113f0a38714cabd2aa2745"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/fr.json",
+        "sha256": "13ccf95daf8d5116cf576cede0776c67a65a6a2e006737cb138ba1772cb1e617"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/fy.json",
+        "sha256": "e77ada9c3161f21360c891672196aec9bf3ac6b90e79559e303712113e89aa94"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ga.json",
+        "sha256": "91d185098d3f337bc9850e3718319363578fe80f9d1eb088a9c649161eab177d"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/gd.json",
+        "sha256": "7d3aee1bf7c6c114b0179e9d657aa86702955cb168792c71e98593656c61c1d2"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/gl.json",
+        "sha256": "1eb5ed2e7f76adf398dcc72ec6bd0aa21ac40498bd2552753f053a9411a5db41"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/gn.json",
+        "sha256": "b460beed534a9169f907d537df6d02b3b7dedee4d6f7d85448231c32e7124f32"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/gu.json",
+        "sha256": "a00f7e959978d1571855694453851ad99075bc546c40580e2cb2f588fe953621"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ha.json",
+        "sha256": "296ecc0dbb5b9585db8e8c84604c2936f54a1c987870545ecc213ba9b18f30d6"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/haw.json",
+        "sha256": "8a802d04a59c85c3de76a4ae9cec61a606a4039797e7ee0f8fc3f26e2337a130"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/he.json",
+        "sha256": "3d50de2ff118d792cc8864e11bc89fa03a4f147e9eb97049c50f8ce6571edf39"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/hi.json",
+        "sha256": "1f8e38a05cf994e51cb02a649541836f06d5e8f71db66582dbcf1c0d5d69ce6c"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/hmn.json",
+        "sha256": "26faa82ddb3a80473e146e893637c5471740932215b0e6757b619bc253289577"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/hr.json",
+        "sha256": "e8f39b3f47cc3041bf81829dc31bad251884494059369aff655fa120cd787bbc"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ht.json",
+        "sha256": "7b575562e6c44921863d55110053521c6756ad636573a73ad28a046de1eb46a7"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/hu.json",
+        "sha256": "1c97b6aa835a195442560cafb3aa15ef966ad31aacca9b9daefe07862854784c"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/hy.json",
+        "sha256": "7f184eeb0f567ebf9198aeada53c3a899549d8408673e197b70c3d848d02f269"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/id.json",
+        "sha256": "55f4fcfd27a71c07d7f9cfffd3e86638f1478e5e262b48bd91b044db3146cea7"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ig.json",
+        "sha256": "67f058dd8fdb89c44387c7d127cbd3de327c1e224ea171bf250fcdf59842779b"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ilo.json",
+        "sha256": "49b3497dcf1a2670e4f80911cae383c584f252c4c6272b3d66c222be3e89ab2c"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/is.json",
+        "sha256": "9743d538ea28f5bf978360236bc78e64fc2d786a45c5a760559bd151f912d140"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/it.json",
+        "sha256": "824aecbf3e06137e0725162a415ea6ea91e5787d24719ed2a92f824a6ec03c9b"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ja.json",
+        "sha256": "681beba0a0cade800df52ce67afe6c2e7f1668b6e14e11a9571dbdd9fdcd381c"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/jv.json",
+        "sha256": "3618ca6d1767a7c370e79fa9ea7db79f566334b722bd3d9fe71af7b2996c87c1"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ka.json",
+        "sha256": "7eb01f65ed877f82ef77948e424ce04516bf150332ab4233d01cb7d242bdd34b"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/kk.json",
+        "sha256": "02e2549108254f7fcb37ba0bbbf0182f07beac44f427092933c0fec307e7eeca"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/km.json",
+        "sha256": "1c7a1aaa0b955627f210e72fe0b08997063a0bdc276c39846c048c9b53f40986"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/kn.json",
+        "sha256": "f68a5d7da9470b794f2ead3ca2525c5a5d6ef2cc34ced2a851d274f0b6dd3f05"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ko.json",
+        "sha256": "0321646df9b00972b4471931c459edb4520c0d758f77393d8b59a81c57e98869"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/kri.json",
+        "sha256": "a5387f61f1aa6e85064dca8ba49134422ad2d80d6d3f7d409bbf04dc019fba78"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ku.json",
+        "sha256": "f085d0e86a658de54a5cd7749adf0f7d8c02ef79621d6b28de51b53db709dd3e"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/kv.json",
+        "sha256": "3e02cdeb4268248bfd4c22850c4367c5928818857b83093ad8ba3138186ecc77"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ky.json",
+        "sha256": "f0a3023b03ab766dc0e2cd46267859c0ccd98ee95b20932390684cca620a8e61"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/la.json",
+        "sha256": "5eb553f2a2824c5c40a2d8851205deb5f29c225422f7f06c4939b6adef5502f0"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/lb.json",
+        "sha256": "a01ca93bf4f44e76b5c8d30325d4a40c819993d934a5a0e3db7f4c68bb7b9d7f"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/lg.json",
+        "sha256": "0f4c335341682c73e53eababa2adef0db2aef7783c72d317c95eae0e082ab57c"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ln.json",
+        "sha256": "a5d6a69a5608163213fd47fc6e89c62d123fce849cafd4a1f9760c03baebf640"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/lo.json",
+        "sha256": "e7b44d6b8c5493a2d1b532c4c2698edd222a62887caa3d8898be8d412a88596f"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/lt.json",
+        "sha256": "52e76218ce1fa8d3f93c7ec1d9920826cfd6f5e5e17234547f2269ea6683b268"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/lus.json",
+        "sha256": "d88566b0c8487622cc65d63b4935c07308134e553b046c4b0777e04674bac5b4"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/lv.json",
+        "sha256": "bf5c730e4beebc115ab5fd130e981496904c5752aab00c8f061fd6c701dc6ab2"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/mai.json",
+        "sha256": "53f395e868c7a6e1f2a8e1e16034c260c9d1ae0a326f874ef34a16ac58a11a26"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/mg.json",
+        "sha256": "c5abd15df1ccd9714883228e0992e440ab715a2bd95bdf026bd3828f325c9175"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/mhr.json",
+        "sha256": "e0060adb790adb99faadbc13396a48b10a4bb042fa3d3e69af0798f5d37ca4ea"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/mi.json",
+        "sha256": "0f9d9eef2f80aad160bac12f4942dde37f97153726f974e82ae5e50569c8c752"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/mk.json",
+        "sha256": "c96e4e205370283450ff24e71354e8f00d7d25b4e5055a2aa5883d0167e6cf4d"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ml.json",
+        "sha256": "df871dc49be7f52076717cd89c60fa660939fd82c0e287a8b9229c062b3a0f71"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/mn.json",
+        "sha256": "649c719c75284a1246f6c9e181e751dc50d0368b9df032fec1cd9543abb4d6b5"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/mr.json",
+        "sha256": "5179fe8c57ff5e1cdb455722d3f30974ad58195ddf2d3ca7e810911be9e94e17"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ms.json",
+        "sha256": "2b0c8979960a3c97f8913d7f973e6fd36d95bb605789af7d39a34a36bbde0c32"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/mt.json",
+        "sha256": "f3be491f4a94a85a320bebe5f6c492d927a2fb98cc698b39c542a36cea38e5ca"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/my.json",
+        "sha256": "a742a8d7af810b78b1ca839316868e040d9a9a2effaf2705d48d2f594b8e5bf2"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ne.json",
+        "sha256": "d44139be0096ef054b03d16d43c2f55a36a9800fac60768cf025a65696ac47b5"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/nl.json",
+        "sha256": "eefa3c236492c212ead6d2e13aa2a42dab34b017da39d4dd001b0f832d9c096d"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/no.json",
+        "sha256": "08034c690931c9505774066a0faf908a931acb89c7a8a63cae7dcb040b5da106"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/nso.json",
+        "sha256": "86dabbe770e7238545cf7d9e439a2746cc136acb7bdadab9c48c2d6529fda57d"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ny.json",
+        "sha256": "5bed51d1e91e2815ef6fad65a21d1c39a242da7fdf8402566fedcedf46d66f70"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/oc.json",
+        "sha256": "7a85bac60953979ced9f984128b02d9a62a3baf22c425010137e3702a4b69372"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/om.json",
+        "sha256": "3a3cfdf66ced044cbde9148e810f0013f66fdb8b57b83521eb1ddcb18a2f2704"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/or.json",
+        "sha256": "a4d82b4eaa89539ed5285d9a6bd62a739e39bc48b059c8e6e0e355f7a038693b"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/os.json",
+        "sha256": "4e4184d2286b640bcd1c1859ad2f1cf1b0c7b0dc9073259bb7b5ce943025c092"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/pa.json",
+        "sha256": "400e631c225dbdd4a55e3b9350f184d8c5cd8ccbe9b05744406c5abd7f3c1404"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/pl.json",
+        "sha256": "2b6ee6629175c33c0dcc9ba7c4e22687b31cbcf709e0a539535cf2bd91ef9ab0"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ps.json",
+        "sha256": "c1e4b8b68ea47b587b8edf336c71720d6c13dd3002a3c643be725e19f000053b"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/pt.json",
+        "sha256": "daa4162be1751ef4d66d86470090d9422d466828350ea5f2c885d389d7d7848a"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/qu.json",
+        "sha256": "7df9821c522a56e3470f400d749a4192acf7871c094a324271e0d5eeb179cbbf"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ro.json",
+        "sha256": "b0756781e79fce3e0b30c59c6b05c34766dc34c387b315b8f15cf12cf6889cfb"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ru.json",
+        "sha256": "033afa817e6253cbb19e908805fd28b9637f0fe12e64e7ae3d9f043921603359"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/rw.json",
+        "sha256": "8762e6491c4da4ba9ebe7eab42897f37ea2f83dccb8e71aea8481a81601f8fc0"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/sa.json",
+        "sha256": "2d9dfe858cc5c446a14ff9750b801473f08500dd20de403a3666d98a21000d78"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/sah.json",
+        "sha256": "b33955248c14c2dd3c78966b35f507110fd8379d471d05b2ccc0201d728177cf"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/sd.json",
+        "sha256": "348b28d2ce91c8b448d468ed5d2dbf165f3e0a981be28bc00cb364f28eb23898"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/si.json",
+        "sha256": "e59b147baa81e5da861a8a68afbaa84f377f17fa2851bbe3310be7a317ca76fb"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/sk.json",
+        "sha256": "75f2a81280dd0605452fef6d51c430b9549af4ed3fb8212dc8278f70cf5659d9"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/sl.json",
+        "sha256": "4e1d4ad3f417f807eb6ada80ff953c40d883e4d06475fb1ad455614f8cf60738"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/sm.json",
+        "sha256": "255aba837092a617081a4718bebcf4a1e156ece726a0a4577fa70a099c67284c"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/sn.json",
+        "sha256": "7080898140a2f72bfb8390399aa895c659eaaf5c76ea5dc1c3c8bff350b1c462"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/so.json",
+        "sha256": "bd93edd20495bb02f58c35f008c259946eb96c9eea4da38242769bd76ed00d8a"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/sq.json",
+        "sha256": "129a01ff8d184b42c38be82be1a2b47e31ab5484749e73a993c5c907d63e2852"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/sr.json",
+        "sha256": "24092a7cec3e649f3b9b29194101767885dfcd043308b0163ef060b862407b62"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/st.json",
+        "sha256": "079aa0e56d5eb25c9a79e84be07350cb987718eaa260643e2eeca2b7c65f689c"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/su.json",
+        "sha256": "7d9536999c169977519b222cc2ca186d8b21c0eb8bb14c76142ebbf26a0c2254"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/sv.json",
+        "sha256": "89ab8e38387953f15527e44145698ad4f15cb979e469b53f02a54d993516c075"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/sw.json",
+        "sha256": "836ccd523630022b16c201ab81b2bbdfb32ad16ce6358c7bfecd85064c6029d8"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ta.json",
+        "sha256": "80806a67fcb2112e864935b7f32a2249e6698f13bfa7e33673f5b97fe77a72d9"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/te.json",
+        "sha256": "2e39572f31ba80202059515adb3402730c511d402af306030f0c908ae3acee12"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/tg.json",
+        "sha256": "b17ebaf98633d4d51723fc72e743d4d4fd0cb6e8f280d4271f8d192fcd7a86e3"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/th.json",
+        "sha256": "5dba5570cb26b65e8bf70c7ab2368b111ae953a49277db7f010300df2e49718c"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ti.json",
+        "sha256": "581605153fbdf18e5b2acca49de9cb3e6652980f936dca42a7d3277d7d49100a"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/tk.json",
+        "sha256": "e4656605e018a16263612124379bfb9dbdf1d8d5110d9c4fcb37b28265f583b7"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/tl.json",
+        "sha256": "8732a2ffd31a41128c09cdbbaa8f99df35189cb60ca921e6c3f244ac53966d7e"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/tn.json",
+        "sha256": "cf00c800dd4001d0b01b24a723264537113a64f5a600c4c810be247dcc9f391f"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/tr.json",
+        "sha256": "952e6f20d73c8babb33f676b362c853879aa0c20abe8a05a47eae7338c325eab"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/tt.json",
+        "sha256": "c89321a7f7918a082ae1ee877dd54079d4ad2dd2caa05ab2ed25ee4fce157482"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/tyv.json",
+        "sha256": "0d3bb0d0155bd2e2e920bd0d96009e8554b9890a862156b98db0a99f63b5d263"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/udm.json",
+        "sha256": "1abf9d888bf92119566d2603247a47ee15b8c69e4aeef2a54008a9c60d0f9197"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ug.json",
+        "sha256": "b409ad492cea2737aa44b948d97952466a26c5caf370c8d43bac0022ef190344"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/uk.json",
+        "sha256": "84cdafa70960a76fc00803cf051e8bc9d3a3cf35d67d15779e563047e66ef1d3"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/ur.json",
+        "sha256": "54d7fd7bd7b6db36fe3870ccc4b7b17db67c179ada518f09801dc4f4c4750ff2"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/uz.json",
+        "sha256": "82670381e0b9d1a70ba1e4b7e3a040c0c3eef67b6c3716567143809cdbcff0ea"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/vi.json",
+        "sha256": "984936a44b8fac96596ac5493140918299deb99f509939abb4b98bf52fe79d97"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/wo.json",
+        "sha256": "b5e0f5cff9882fcdccb6ae431169b7d0af46b32fee54c24f85a67ada9c42164c"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/xh.json",
+        "sha256": "b629d9fa8c8a0213c075303a98ecf4335cdc345958ff2e576a4bfa37ac8d8c64"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/yi.json",
+        "sha256": "751d3df78d9940e6ac52e50896058ccf06241a9e1a38e8da7e202b69fc002434"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/yo.json",
+        "sha256": "a2c17fb2779bf3ecc906f9d407c119191a49609004f2b295854ba3e66dab7fd7"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/zh-TW.json",
+        "sha256": "85e743686fa4d72beb496a4a8f5cab50e8e3ac40d555fbca5c2a3f4a4544f990"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/zh.json",
+        "sha256": "1c7c25a4ee0649f6c916a6b5c679fdb229c82dc90d2db224442c8605b3306827"
+      },
+      {
+        "path": "ios/Modules/Sources/I18N/Resources/locales/zu.json",
+        "sha256": "6ca3083cd551218d29b2e63b5d98d147adacf5618990b19457f38527c0b5ec62"
+      },
+      {
+        "path": "ios/Modules/Sources/Identity/Resources/bip39_english.txt",
+        "sha256": "2f5eed53a4727b4bf8880d8f3f199efc90e58503646d9ff8eff3a2ed3b24dbda"
+      },
+      {
+        "path": "ios/README.md",
+        "sha256": "62e57c611dfb020d2c77b93f9d6b0cc2e6e55e8136af0c5e436f6e41bf3a6d73"
+      },
+      {
+        "path": "ios/VortexApp/Assets.xcassets/AppIcon.appiconset/Contents.json",
+        "sha256": "6123724bf7bd341d49933f40561a891d09d1763a382ac3c90cabf4829dd10507"
+      },
+      {
+        "path": "ios/VortexApp/Assets.xcassets/Contents.json",
+        "sha256": "0fd49ba3c3585c709678e0046a821c3c60685ec7063720d30d3a3448be3a208b"
+      },
+      {
+        "path": "ios/VortexApp/Assets.xcassets/LaunchBackground.colorset/Contents.json",
+        "sha256": "82111edc58232cac0ba5876d1e467fbe521ee32bfbf4bcf86b9f72784e0cdf37"
+      },
+      {
+        "path": "ios/project.yml",
+        "sha256": "91229604d3f9af2b0d822597265ab87523efc69601d3eb299b91ff10f6e78a8e"
       },
       {
         "path": "jest.config.js",
@@ -4475,7 +5679,7 @@
       },
       {
         "path": "vortex_wizard/requirements.txt",
-        "sha256": "21808be0c16f3261c16a0ade24466f0a9d6e48d9f6715d82e924fd9ba95d19ad"
+        "sha256": "4c40267e6bb25478a339c21c73bd868413c2b5f5defa02093fe2fb9b022a2cf5"
       },
       {
         "path": "vortex_wizard/server.py",
@@ -4483,7 +5687,7 @@
       },
       {
         "path": "vortex_wizard/vortex-wizard.spec",
-        "sha256": "5a58c4daf6ba84e09e6ba487906b0c814b683c6c4e8959a5639f1fb72a0c6167"
+        "sha256": "a2bedd67dd65c9b0812d61fab92ed7327a85e6687ba0976a0b2126ecf3d75b61"
       },
       {
         "path": "vortex_wizard/web/admin/index.html",
@@ -5051,6 +6255,6 @@
       }
     ]
   },
-  "signature": "4c05222e31609c6392fa33975b1abecd6de5ee86266892406a2a71206636e4c16738779b65e837cbf6e182deca41bd4dd47fcbbca964de5b48a6ff43d22e9a01",
+  "signature": "2d82fc4652438d311313ae4df72f0cbb2fe99feaf17c492b2cabed7d3b5e57ee712a24e0e1e4ac0c4e8bbd3f3d38ee987a706cbe0aa680e91e9b2fb6fc79750a",
   "signed_by": "cbffd6cd8afabf3e91bf8df69878d41cf87a8f586f53cea2cff0a38e74c90a2c"
 }

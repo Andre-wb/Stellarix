@@ -11,18 +11,18 @@ public final class Argon2idHasher: PasswordHasher {
     public init() {}
 
     public func hash(password: Data, salt: Data, params: Argon2Params) throws -> Data {
-        let saltObj = Salt(bytes: [UInt8](salt))
+        let saltObj = Salt(bytes: salt)
         let result = try Argon2Swift.hashPasswordBytes(
-            password: [UInt8](password),
+            password: password,
             salt: saltObj,
-            iterations: Int32(params.iterations),
-            memory: Int32(params.memoryKiB),
-            parallelism: Int32(params.parallelism),
-            length: Int32(params.hashLen),
+            iterations: Int(params.iterations),
+            memory: Int(params.memoryKiB),
+            parallelism: Int(params.parallelism),
+            length: Int(params.hashLen),
             type: Argon2Type.id,
             version: Argon2Version.V13,
         )
-        return Data(result.hashBytes())
+        return result.hashData()
     }
 
     public func verify(password: Data, salt: Data, expected: Data, params: Argon2Params) throws -> Bool {

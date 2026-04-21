@@ -1,6 +1,10 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 import DB
 import Threads
+import Emoji
 
 /// Wave 12 chat UI. LazyVStack + ScrollViewReader for auto-scroll;
 /// text composer at the bottom; long-press context menu on each bubble
@@ -9,7 +13,7 @@ import Threads
 public final class ChatViewModel: ObservableObject {
     @Published public private(set) var messages: [MessageRecord] = []
     @Published public var draft: String = ""
-    @Published public var pendingThread: Thread?     // set when Open Thread succeeds
+    @Published public var pendingThread: Threads.Thread?     // set when Open Thread succeeds
 
     public let roomId: Int64
     private let sender: MessageSender
@@ -71,18 +75,22 @@ public struct ChatScreen: View {
     /// Called when the user taps "Open thread" and the server confirms
     /// creation. The parent router pushes a new ChatScreen at the
     /// thread's virtual room id.
-    private let onOpenThread: (Thread) -> Void
+    private let onOpenThread: (Threads.Thread) -> Void
+    private let emojiCatalog: EmojiCatalog
+    @State private var emojiOpen = false
 
     public init(
         roomId: Int64,
         sender: MessageSender,
         incoming: IncomingMessages,
         actions: MessageActions,
-        onOpenThread: @escaping (Thread) -> Void = { _ in },
+        emojiCatalog: EmojiCatalog,
+        onOpenThread: @escaping (Threads.Thread) -> Void = { _ in },
     ) {
         _vm = StateObject(wrappedValue: ChatViewModel(
             roomId: roomId, sender: sender, incoming: incoming, actions: actions,
         ))
+        self.emojiCatalog = emojiCatalog
         self.onOpenThread = onOpenThread
     }
 
@@ -96,7 +104,9 @@ public struct ChatScreen: View {
                                 .id(msg.id)
                                 .contextMenu {
                                     Button {
+                                        #if canImport(UIKit)
                                         UIPasteboard.general.string = msg.plaintext ?? ""
+                                        #endif
                                     } label: { Label("Copy", systemImage: "doc.on.doc") }
                                     Button("👍") { Task { await vm.react(msg, emoji: "👍") } }
                                     Button("❤️") { Task { await vm.react(msg, emoji: "❤️") } }
@@ -123,6 +133,8 @@ public struct ChatScreen: View {
             HStack {
                 TextField("Message", text: $vm.draft)
                     .textFieldStyle(.roundedBorder)
+                Button { emojiOpen.toggle() } label: { Text("😀") }
+                    .accessibilityLabel(emojiOpen ? "Hide emoji" : "Show emoji")
                 Button {
                     Task { await vm.submit() }
                 } label: {
@@ -132,10 +144,17 @@ public struct ChatScreen: View {
                 .disabled(vm.draft.trimmingCharacters(in: .whitespaces).isEmpty)
             }
             .padding(8)
+            if emojiOpen {
+                EmojiPickerView(catalog: emojiCatalog) { e in
+                    vm.draft += e
+                }
+            }
         }
         .background(Color(red: 0x07/255, green: 0x07/255, blue: 0x0E/255).ignoresSafeArea())
         .navigationTitle("Room #\(vm.roomId)")
+        #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
+        #endif
         .onAppear { vm.start() }
         .onDisappear { vm.stop() }
         .onChange(of: vm.pendingThread) { _, created in

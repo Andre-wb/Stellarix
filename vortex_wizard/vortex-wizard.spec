@@ -58,6 +58,11 @@ datas = [(s, d) for (s, d) in datas if (s, d) not in _seen and not _seen.add((s,
 # ── Hidden imports — anything imported dynamically / via string ───────────
 
 hiddenimports = [
+    # FastAPI multipart parser — needed for any endpoint with Form/File.
+    # fastapi imports it lazily, so PyInstaller's static analysis misses it.
+    "python_multipart",
+    "multipart",
+    "multipart.multipart",
     # uvicorn / starlette chosen at runtime
     "uvicorn.logging",
     "uvicorn.loops.auto",
@@ -106,6 +111,7 @@ for pkg in (
     "argon2",
     "blake3",
     "solders",
+    "python_multipart",  # fastapi Form/File parser — dynamically imported
     "curl_cffi",         # TLS fingerprinting (stealth mode)
     "pqcrypto",          # post-quantum fallback
     "oqs",               # liboqs-python (bundled native lib when present)

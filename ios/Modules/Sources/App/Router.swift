@@ -13,6 +13,8 @@ public enum Route: Hashable, Sendable {
     case ide
     case threads(roomId: Int64)
     case feeds(roomId: Int64)
+    case contacts
+    case premium
 }
 
 @MainActor

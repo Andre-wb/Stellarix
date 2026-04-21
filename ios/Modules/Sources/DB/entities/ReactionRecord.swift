@@ -7,6 +7,13 @@ public struct ReactionRecord: Codable, FetchableRecord, MutablePersistableRecord
     public var emoji: String
     public var createdAt: Int64
 
+    public init(messageId: Int64, userId: Int64, emoji: String, createdAt: Int64) {
+        self.messageId = messageId
+        self.userId = userId
+        self.emoji = emoji
+        self.createdAt = createdAt
+    }
+
     public static let databaseTableName = "reactions"
     public static let primaryKey = ["messageId", "userId", "emoji"]
 }

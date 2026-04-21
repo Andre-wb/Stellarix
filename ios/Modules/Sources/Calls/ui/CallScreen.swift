@@ -72,6 +72,7 @@ public struct CallScreen: View {
 
     public var body: some View {
         ZStack {
+            #if canImport(UIKit)
             if let remote = vm.remote {
                 VideoTrackView(track: remote)
                     .ignoresSafeArea()
@@ -90,6 +91,10 @@ public struct CallScreen: View {
                     .padding()
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             }
+            #else
+            Color.black.ignoresSafeArea()
+            Text(statusText).font(.title3).foregroundStyle(.white)
+            #endif
 
             VStack { Spacer(); controlBar }
         }
@@ -139,6 +144,7 @@ private struct ControlButton: View {
     }
 }
 
+#if canImport(UIKit)
 /// RTCMTLVideoView wrapper for SwiftUI. Re-binds `track` via
 /// `updateUIView` so the same surface smoothly swaps when the remote
 /// peer reconnects mid-call.
@@ -171,3 +177,4 @@ struct VideoTrackView: UIViewRepresentable {
         var bound: (RTCVideoTrack, RTCMTLVideoView)?
     }
 }
+#endif

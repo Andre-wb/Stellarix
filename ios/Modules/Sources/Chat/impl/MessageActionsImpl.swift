@@ -98,7 +98,7 @@ public final class MessageActionsImpl: MessageActions, @unchecked Sendable {
     /// roomId from the local cache — both the ECIES flow and the
     /// public-key flow guarantee the message row is already there
     /// before the user can tap "Open thread".
-    public func openThread(messageId: Int64, title: String?) async -> Thread? {
+    public func openThread(messageId: Int64, title: String?) async -> Threads.Thread? {
         guard let parent = try? await messages.byId(messageId) else { return nil }
         let headline = title
             ?? parent.plaintext.map { String($0.prefix(40)) }

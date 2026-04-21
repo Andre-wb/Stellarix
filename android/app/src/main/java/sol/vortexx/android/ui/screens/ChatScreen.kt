@@ -47,6 +47,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -69,6 +71,8 @@ import sol.vortexx.android.files.api.FileTransferService
 import sol.vortexx.android.files.api.TransferProgress
 import sol.vortexx.android.stickers.api.VoiceRecorder
 import sol.vortexx.android.threads.api.ThreadsRepository
+import sol.vortexx.android.emoji.api.EmojiCatalog
+import sol.vortexx.android.emoji.ui.EmojiPicker
 import sol.vortexx.android.ui.components.AttachmentBar
 import sol.vortexx.android.ui.components.ReadReceiptsPill
 import sol.vortexx.android.ui.components.TypingRow
@@ -94,6 +98,7 @@ class ChatViewModel @Inject constructor(
     private val files: FileTransferService,
     private val auth: sol.vortexx.android.auth.api.AuthRepository,
     val voiceRecorder: VoiceRecorder,
+    val emojiCatalog: EmojiCatalog,
 ) : ViewModel() {
 
     val selfUsername: kotlinx.coroutines.flow.Flow<String?> = auth.session.map {
@@ -315,6 +320,7 @@ fun ChatScreen(
             ComposerBar(
                 composer = composer,
                 voiceRecorder = vm.voiceRecorder,
+                emojiCatalog = vm.emojiCatalog,
                 onDraft  = vm::onDraftChange,
                 onSubmit = vm::submit,
                 onCancelMode = vm::cancelComposerMode,
@@ -430,12 +436,14 @@ private fun Bubble(
 private fun ComposerBar(
     composer: ChatViewModel.ComposerState,
     voiceRecorder: VoiceRecorder,
+    emojiCatalog: EmojiCatalog,
     onDraft: (String) -> Unit,
     onSubmit: () -> Unit,
     onCancelMode: () -> Unit,
     onVoice: (ByteArray) -> Unit,
     onFile: (android.net.Uri) -> Unit,
 ) {
+    var emojiOpen by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth()) {
         if (composer.replyToPreview != null || composer.editingId != null) {
             Row(
@@ -479,8 +487,19 @@ private fun ComposerBar(
                 placeholder = { Text("Message") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
             )
+            IconButton(
+                onClick = { emojiOpen = !emojiOpen },
+                modifier = Modifier.semantics {
+                    contentDescription = if (emojiOpen) "Hide emoji" else "Show emoji"
+                },
+            ) { Text("\uD83D\uDE00") }
             IconButton(onClick = onSubmit, enabled = composer.draft.isNotBlank()) {
                 Icon(Icons.Filled.Send, contentDescription = "Send", tint = VortexPurple)
+            }
+        }
+        if (emojiOpen) {
+            EmojiPicker(catalog = emojiCatalog) { emoji ->
+                onDraft(composer.draft + emoji)
             }
         }
     }

@@ -106,7 +106,10 @@ fun AuthScreen(
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = it },
-                label = { Text("Username") },
+                // Matches the web auth form: accepts "+15551234567" or
+                // "alice" — the node resolves both against the same
+                // user table.
+                label = { Text("Phone or username") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
             )

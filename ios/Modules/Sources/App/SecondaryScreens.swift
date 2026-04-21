@@ -135,7 +135,7 @@ public struct SearchScreen: View {
 public struct ThreadsScreen: View {
     private let repo: ThreadsRepository
     private let roomId: Int64
-    @State private var items: [Thread] = []
+    @State private var items: [Threads.Thread] = []
     public init(repo: ThreadsRepository, roomId: Int64) { self.repo = repo; self.roomId = roomId }
 
     public var body: some View {

@@ -27,6 +27,8 @@ import sol.vortexx.android.ui.screens.GravitixDocsScreen
 import sol.vortexx.android.ui.screens.IdeScreen
 import sol.vortexx.android.ui.screens.SpacesScreen
 import sol.vortexx.android.ui.screens.ThreadsScreen
+import sol.vortexx.android.contacts.ui.ContactsScreen
+import sol.vortexx.android.premium.ui.PremiumScreen
 
 object Routes {
     const val BOOTSTRAP = "bootstrap"
@@ -40,6 +42,8 @@ object Routes {
     const val IDE       = "ide"
     const val THREADS   = "threads/{roomId}"
     const val FEEDS     = "feeds/{roomId}"
+    const val CONTACTS  = "contacts"
+    const val PREMIUM   = "premium"
     const val CHAT      = "chat/{roomId}"
     const val CALL      = "call/{roomId}/{video}"
 
@@ -96,6 +100,8 @@ fun VortexNavHost(
                 onOpenBots      = { nav.navigate(Routes.BOTS) },
                 onOpenSearch    = { nav.navigate(Routes.SEARCH) },
                 onOpenDocs      = { nav.navigate(Routes.DOCS) },
+                onOpenContacts  = { nav.navigate(Routes.CONTACTS) },
+                onOpenPremium   = { nav.navigate(Routes.PREMIUM) },
             )
         }
         composable(Routes.SETTINGS) { SettingsScreen(onBack = { nav.popBackStack() }) }
@@ -161,5 +167,7 @@ fun VortexNavHost(
             val video  = entry.arguments?.getBoolean("video") ?: false
             CallScreen(roomId = roomId, initialVideo = video, onExit = { nav.popBackStack() })
         }
+        composable(Routes.CONTACTS) { ContactsScreen(onBack = { nav.popBackStack() }) }
+        composable(Routes.PREMIUM)  { PremiumScreen(onBack = { nav.popBackStack() }) }
     }
 }

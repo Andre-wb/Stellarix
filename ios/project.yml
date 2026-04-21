@@ -2,7 +2,7 @@ name: Vortex
 options:
   bundleIdPrefix: sol.vortexx
   deploymentTarget:
-    iOS: "16.0"
+    iOS: "17.0"
   createIntermediateGroups: true
   groupSortPosition: top
 
@@ -20,11 +20,44 @@ targets:
   Vortex:
     type: application
     platform: iOS
-    deploymentTarget: "16.0"
+    deploymentTarget: "17.0"
     sources:
       - VortexApp
     info:
       path: VortexApp/Info.plist
+      properties:
+        # Without a launch-screen declaration iOS falls back to the
+        # pre-iPhone-6 320x480 compatibility canvas, which visually
+        # presents as "the app runs in a small box in the middle of
+        # the screen". An empty UILaunchScreen is the minimum required
+        # to unlock native device resolution.
+        UILaunchScreen:
+          UIColorName: ""
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIStatusBarStyle: UIStatusBarStyleLightContent
+        UIViewControllerBasedStatusBarAppearance: false
+        # Bonjour discovery on the LAN — the "Find nodes on this
+        # network" bootstrap option browses `_vortex._tcp` so the user
+        # doesn't have to know a node's IP.
+        NSLocalNetworkUsageDescription: Vortex scans your local network for available nodes so you can connect without typing an IP.
+        NSBonjourServices:
+          - _vortex._tcp
+        # PhotosPicker (PHPickerViewController wrapper) runs
+        # out-of-process since iOS 14 and doesn't strictly need this
+        # key, but some pre-iOS-17 code paths still log a warning
+        # without it — keeping it is zero-cost.
+        NSPhotoLibraryUsageDescription: Vortex lets you pick a photo from your library to use as your profile avatar.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+          NSExceptionDomains:
+            localhost:
+              NSExceptionAllowsInsecureHTTPLoads: true
+              NSIncludesSubdomains: true
+            127.0.0.1:
+              NSExceptionAllowsInsecureHTTPLoads: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: sol.vortexx.app

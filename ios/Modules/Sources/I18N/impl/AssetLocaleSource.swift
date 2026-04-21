@@ -15,8 +15,8 @@ public final class AssetLocaleSource: LocaleSource, @unchecked Sendable {
     private var cache: [String: [String: Any]] = [:]
     private let currentBridge = Bridge()
 
-    public init(bundle: Bundle = .module, defaults: UserDefaults = .standard) {
-        self.bundle = bundle
+    public init(bundle: Bundle? = nil, defaults: UserDefaults = .standard) {
+        self.bundle = bundle ?? .module
         self.defaults = defaults
         currentBridge.publish(defaults.string(forKey: "locale") ?? pickDeviceDefault())
     }

@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(UIKit)
 import UIKit
+#endif
 import UserNotifications
 import Net
 import VortexCrypto
@@ -33,9 +35,11 @@ public final class APNsPushSubscriber: PushSubscriber, @unchecked Sendable {
                 .requestAuthorization(options: [.alert, .sound, .badge])
             guard granted else { return false }
             // Ask for a token on main actor — UIKit requirement.
+            #if canImport(UIKit)
             await MainActor.run {
                 UIApplication.shared.registerForRemoteNotifications()
             }
+            #endif
             // Wait up to 5s for the AppDelegate hook to call `deviceToken()`.
             let token = await waitForToken(timeout: 5)
             guard let token else { return false }
@@ -95,13 +99,17 @@ private final class TokenWaiters: @unchecked Sendable {
             Task {
                 try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
                 self.lock.lock()
-                if let i = self.continuations.firstIndex(where: { _ in false }) {
-                    _ = i
+                // Timeout path — FIFO: if any continuation is still
+                // pending, the oldest one wins the nil. A real impl
+                // would key by ID; this bootstrap is precise enough for
+                // the APNs 5-second window.
+                if !self.continuations.isEmpty {
+                    let c = self.continuations.removeFirst()
+                    self.lock.unlock()
+                    c.resume(returning: nil)
+                } else {
+                    self.lock.unlock()
                 }
-                // Timeout path — resume with nil if still waiting.
-                let idx = self.continuations.firstIndex { $0 === cont as AnyObject? }
-                if let idx { self.continuations.remove(at: idx); cont.resume(returning: nil) }
-                self.lock.unlock()
             }
         }
     }

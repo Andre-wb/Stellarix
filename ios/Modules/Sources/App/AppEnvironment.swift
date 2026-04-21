@@ -10,6 +10,7 @@ import Keys
 import WS
 import Chat
 import Files
+import Stickers
 import Calls
 import Push
 import Federation
@@ -20,8 +21,18 @@ import Threads
 import Feeds
 import Settings
 import I18N
+import Emoji
+import Drafts
+import Folders
+import Accounts
+import SavedGifs
+import Contacts
+import Scheduled
+import Premium
+import Reactions
 
 /// Composition root. Builds the whole graph in dependency order.
+@MainActor
 public final class AppEnvironment {
 
     public static let shared = AppEnvironment()
@@ -49,6 +60,15 @@ public final class AppEnvironment {
     public let feeds: FeedsFactory
     public let settings: SettingsFactory
     public let i18n: I18NFactory
+    public let emoji: EmojiFactory
+    public let drafts: DraftsFactory
+    public let folders: FoldersFactory
+    public let accounts: AccountsFactory
+    public let savedGifs: SavedGifsFactory
+    public let contacts: ContactsFactory
+    public let scheduled: ScheduledFactory
+    public let premium: PremiumFactory
+    public let reactions: ReactionsFactory
     public let http: HttpClient
     public let cryptoPreview: CryptoPreview
 
@@ -56,7 +76,7 @@ public final class AppEnvironment {
         let crypto = VortexCryptoFactory()
         let bootstrap = BootstrapFactory()
         let baseProv  = BaseUrlProviderFromPrefs(prefs: bootstrap.prefs)
-        let auth = AuthFactory(baseUrlProvider: baseProv)
+        let auth = AuthFactory(baseUrlProvider: baseProv, crypto: crypto)
 
         self.crypto = crypto
         self.bootstrap = bootstrap
@@ -95,6 +115,23 @@ public final class AppEnvironment {
         self.feeds = FeedsFactory(http: auth.http, db: db)
         self.settings = SettingsFactory(db: db, identity: identity.repo, auth: auth.repo)
         self.i18n = I18NFactory()
+        self.emoji = EmojiFactory()
+        self.drafts = DraftsFactory(http: auth.http)
+        self.folders = FoldersFactory()
+        self.savedGifs = SavedGifsFactory(http: auth.http)
+        self.contacts = ContactsFactory(http: auth.http)
+        self.scheduled = ScheduledFactory(http: auth.http)
+        self.premium = PremiumFactory(http: auth.http)
+        self.reactions = ReactionsFactory()
+        // Accounts: the http-factory closure returns the same shared
+        // client — a real multi-node implementation would instantiate a
+        // fresh URLSessionHttpClient pointed at the new baseUrl. The
+        // active-change callback lets App reset the chat/WS stack.
+        self.accounts = AccountsFactory(
+            store: auth.store,
+            http: { _ in auth.http },
+            onActiveChanged: { _, _ in },
+        )
     }
 }
 

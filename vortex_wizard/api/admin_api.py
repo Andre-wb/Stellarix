@@ -165,11 +165,13 @@ async def certs(request: Request) -> dict:
             from cryptography import x509
             data = cert.read_bytes()
             c = x509.load_pem_x509_certificate(data)
+            # _utc variants avoid naïve-datetime deprecation warnings in
+            # cryptography ≥ 42; timestamp()==epoch, no tz juggling needed.
             out["ssl"] = {
                 "subject": c.subject.rfc4514_string(),
-                "not_before": int(c.not_valid_before.timestamp()),
-                "not_after": int(c.not_valid_after.timestamp()),
-                "days_left": int((c.not_valid_after.timestamp() - time.time()) / 86400),
+                "not_before": int(c.not_valid_before_utc.timestamp()),
+                "not_after": int(c.not_valid_after_utc.timestamp()),
+                "days_left": int((c.not_valid_after_utc.timestamp() - time.time()) / 86400),
             }
         except Exception as e:
             out["ssl"] = {"error": str(e)}
@@ -488,10 +490,24 @@ def _node_spawn_cmd(repo_root: Path) -> list[str]:
     Frozen .app: re-invoke ourselves with --run-node (the __main__
     dispatcher routes us into run.py inside the bundle).
 
-    Dev checkout: plain ``python run.py`` with the venv interpreter.
+    Dev checkout: prefer the repo's own ``.venv/bin/python`` over
+    ``sys.executable``. If the wizard was launched with the system
+    interpreter (``python3 -m vortex_wizard`` without activating the
+    venv), ``sys.executable`` points at ``/usr/bin/python3`` and
+    re-using it means the node can't import ``sqlalchemy``, ``fastapi``,
+    etc. The venv is the canonical dev interpreter — fall back to
+    ``sys.executable`` only when no venv exists.
     """
     if getattr(sys, "frozen", False):
         return [sys.executable, "--run-node"]
+
+    for candidate in (
+        repo_root / ".venv" / "bin" / "python",
+        repo_root / "venv" / "bin" / "python",
+    ):
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return [str(candidate), str(repo_root / "run.py")]
+
     return [sys.executable, str(repo_root / "run.py")]
 
 

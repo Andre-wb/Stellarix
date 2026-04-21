@@ -1,11 +1,13 @@
 import Foundation
 import Net
+import VortexCrypto
 
 /// Assembles the Auth feature.
 ///
-/// Consumes Net's `httpBuilder` so the `HttpClient` is created AFTER the
-/// Keychain-backed token source exists — guaranteeing HTTP calls from
-/// any feature carry a Bearer header from the very first request.
+/// The repo needs a `KeyAgreement` so register calls can mint the
+/// user's long-term X25519 keypair and hand its public half to the
+/// node in the register payload — the node rejects registrations
+/// without it (see `app/authentication/password.py`).
 public struct AuthFactory {
     public let store: SecureStore
     public let repo: AuthRepository
@@ -14,18 +16,19 @@ public struct AuthFactory {
 
     public init(
         baseUrlProvider: BaseUrlProvider,
+        crypto: VortexCryptoFactory = VortexCryptoFactory(),
         store: SecureStore = KeychainSecureStore(),
     ) {
         self.store = store
-        // Build a two-phase graph: a lightweight HttpClient without auth
-        // first (so refresh() can call /authentication/refresh), then
-        // wrap it in the real repo. The real HttpClient that every
-        // feature downstream consumes uses this repo as its AuthTokenSource.
         let bootstrapHttp = URLSessionHttpClient(
             base: baseUrlProvider,
             tokens: NullAuthTokenSource(),
         )
-        let repo = AuthRepositoryImpl(http: bootstrapHttp, store: store)
+        let repo = AuthRepositoryImpl(
+            http: bootstrapHttp,
+            store: store,
+            keyAgreement: crypto.keyAgreement,
+        )
         self.repo = repo
         self.tokens = repo
         self.http = URLSessionHttpClient(base: baseUrlProvider, tokens: repo)

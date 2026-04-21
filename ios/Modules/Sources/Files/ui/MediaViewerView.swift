@@ -1,3 +1,4 @@
+#if canImport(UIKit)
 import SwiftUI
 import AVKit
 import UIKit
@@ -140,3 +141,5 @@ public struct MediaViewerView: View {
         .task { vm.start() }
     }
 }
+
+#endif

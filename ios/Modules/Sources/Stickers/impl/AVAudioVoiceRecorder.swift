@@ -11,9 +11,11 @@ public final class AVAudioVoiceRecorder: VoiceRecorder {
     public init() {}
 
     public func start() async throws -> VoiceSession {
+        #if os(iOS) || os(tvOS) || os(watchOS)
         let session = AVAudioSession.sharedInstance()
         try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
         try session.setActive(true)
+        #endif
 
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent("voice_\(UUID().uuidString)").appendingPathExtension("m4a")
