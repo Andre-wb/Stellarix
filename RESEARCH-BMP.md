@@ -1,65 +1,65 @@
-# Blind Mailbox Protocol (BMP) — Исследование
+# Blind Mailbox Protocol (BMP) — Research Note
 
-> Приватность метаданных в мессенджере без Tor, mixnet и PIR.
-> Разработано для Vortex Messenger.
+> Messenger-level metadata privacy without Tor, mixnets or PIR.
+> Designed for the Vortex Messenger.
 
 ---
 
-## 1. Blind Mailbox Protocol — концепция
+## 1. Blind Mailbox Protocol — the concept
 
-### Идея
+### Idea
 
-Сервер не маршрутизирует сообщения по `user_id`. Вместо этого:
+The server does **not** route messages by `user_id`. Instead:
 
-- Каждая пара пользователей вычисляет **общий "почтовый ящик"** из shared secret
-- Ящик имеет случайный ID, **меняющийся каждый час**
-- Сервер **не знает** какой ящик принадлежит какому пользователю
-- Cover traffic делает реальные операции неотличимыми от фейковых
+- Each pair of users derives a **shared "mailbox"** from a shared secret.
+- The mailbox carries a random ID that **rotates every hour**.
+- The server **does not know** which mailbox belongs to which user.
+- Cover traffic makes real operations indistinguishable from fake ones.
 
-### Математика
+### The math
 
-При первом контакте Алиса и Боб вычисляют общий секрет через ECDH:
+On first contact, Alice and Bob compute a shared secret via ECDH:
 
 ```
 S_AB = ECDH(Alice_private, Bob_public) = ECDH(Bob_private, Alice_public)
 ```
 
-Mailbox ID вычисляется детерминированно:
+The mailbox ID is derived deterministically:
 
 ```
 mailbox_id(t) = HMAC-SHA256(S_AB, floor(t / T))[0:16]
 
-где:
-  T = период ротации (3600 секунд = 1 час)
-  floor(t / T) = номер текущей эпохи
-  [0:16] = первые 16 байт (128-битный ID)
+where:
+  T            = rotation period (3600 seconds = 1 hour)
+  floor(t / T) = index of the current epoch
+  [0:16]       = first 16 bytes (a 128-bit ID)
 ```
 
-Оба знают `S_AB` -> оба вычисляют **одинаковый** mailbox_id в любой момент времени.
+Both sides know `S_AB` → both compute the **same** `mailbox_id` at any given moment.
 
-### Протокол отправки
+### Send protocol
 
 ```
-Алиса -> серверу:
+Alice -> server:
   POST /mailbox/a7f3b2c8e1d4...
-  Body: AES-256-GCM(сообщение, room_key)
+  Body: AES-256-GCM(message, room_key)
 
-Сервер:
-  Сохраняет в таблицу: {mailbox_id -> [сообщения]}
-  НЕ знает кто Алиса и кто получатель
+Server:
+  Stores in the table: {mailbox_id -> [messages]}
+  Does NOT know who Alice is and who the recipient is
 ```
 
-### Протокол получения
+### Receive protocol
 
 ```
-Боб каждые 2-3 секунды:
-  1. Вычисляет свои реальные mailbox ID (по одному на каждый контакт)
-  2. Генерирует 50 фейковых случайных mailbox ID
-  3. Перемешивает все в случайном порядке
-  4. Запрашивает каждый: GET /mailbox/{id}
-  5. Реальные ответы -> расшифровывает
-  6. Фейковые ответы -> отбрасывает
+Bob, every 2–3 seconds:
+  1. Computes his real mailbox IDs (one per contact)
+  2. Generates 50 fake random mailbox IDs
+  3. Shuffles them all into random order
+  4. Requests each one: GET /mailbox/{id}
+  5. Real responses  -> decrypt
+  6. Fake responses  -> discard
 
-Сервер видит 60 запросов к 60 разным ящикам.
-Не может определить какие 10 из 60 — реальные.
+The server sees 60 requests to 60 different mailboxes.
+It cannot tell which 10 of the 60 are real.
 ```
