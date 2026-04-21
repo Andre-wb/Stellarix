@@ -82,9 +82,17 @@ hiddenimports = [
     "webview.platforms.qt",
     # node extras
     "aiosqlite",
+    "sqlalchemy",
+    "sqlalchemy.orm",
+    "sqlalchemy.pool",
+    "sqlalchemy.sql",
+    "sqlalchemy.engine",
     "sqlalchemy.dialects.sqlite",
     "sqlalchemy.dialects.sqlite.aiosqlite",
+    "sqlalchemy.dialects.postgresql",
     "sqlalchemy.ext.asyncio",
+    "sqlalchemy.ext.declarative",
+    "sqlalchemy.ext.hybrid",
     "argon2",
     "vortex_chat",   # Rust extension (maturin-installed)
     "blake3",
@@ -123,6 +131,9 @@ for pkg in (
     "starlette",         # underlying ASGI framework
     "pywebpush",         # push notifications
     "alembic",           # db migrations
+    "sqlalchemy",        # ORM + engine — node's app/database.py relies on
+                         # runtime string-name imports that PyInstaller's
+                         # static analysis otherwise misses.
 ):
     try:
         d, b, h = collect_all(pkg)

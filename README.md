@@ -10,30 +10,401 @@
 <h1 align="center">VORTEX</h1>
 
 <p align="center">
-  <b>Fully decentralized P2P messenger with end-to-end encryption, mesh networking, live streaming, built-in IDE, bot programming language, and zero central servers</b>
+  <b>Fully decentralized P2P messenger with end-to-end encryption, mesh networking, live streaming, an on-chain peer registry, two built-in domain-specific languages (Gravitix for bots, Architex for UI), native clients for every major OS, and zero central servers.</b>
 </p>
 
+<!-- ── Core runtimes ───────────────────────────────────────────── -->
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/Rust-1.75+-DEA584?style=for-the-badge&logo=rust&logoColor=black" alt="Rust">
-  <img src="https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI">
-  <img src="https://img.shields.io/badge/WebRTC-P2P-333333?style=for-the-badge&logo=webrtc&logoColor=white" alt="WebRTC">
-  <img src="https://img.shields.io/badge/Tauri-5.0-FFC131?style=for-the-badge&logo=tauri&logoColor=black" alt="Tauri">
-  <img src="https://img.shields.io/badge/Version-5.0.0-blue?style=for-the-badge" alt="Version">
-  <img src="https://img.shields.io/badge/License-Apache_2.0-D22128?style=for-the-badge" alt="License">
+  <img src="https://img.shields.io/badge/TypeScript-5.4+-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Swift-5.10+-F05138?style=for-the-badge&logo=swift&logoColor=white" alt="Swift">
+  <img src="https://img.shields.io/badge/Kotlin-1.9+-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin">
+  <img src="https://img.shields.io/badge/Node.js-20+-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js">
 </p>
 
+<!-- ── Backend frameworks & storage ────────────────────────────── -->
+<p align="center">
+  <img src="https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI">
+  <img src="https://img.shields.io/badge/Uvicorn-ASGI-4B8BBE?style=for-the-badge" alt="Uvicorn">
+  <img src="https://img.shields.io/badge/SQLAlchemy-2.0+-C73B3E?style=for-the-badge" alt="SQLAlchemy">
+  <img src="https://img.shields.io/badge/Alembic-migrations-808080?style=for-the-badge" alt="Alembic">
+  <img src="https://img.shields.io/badge/PostgreSQL-15+-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/SQLite-WAL-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite">
+  <img src="https://img.shields.io/badge/Redis-pubsub-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis">
+  <img src="https://img.shields.io/badge/PyO3-bindings-000000?style=for-the-badge" alt="PyO3">
+</p>
+
+<!-- ── Clients & UI shells ─────────────────────────────────────── -->
+<p align="center">
+  <img src="https://img.shields.io/badge/SwiftUI-native-F05138?style=for-the-badge&logo=swift&logoColor=white" alt="SwiftUI">
+  <img src="https://img.shields.io/badge/Jetpack%20Compose-native-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Jetpack Compose">
+  <img src="https://img.shields.io/badge/Tauri-5.0-FFC131?style=for-the-badge&logo=tauri&logoColor=black" alt="Tauri">
+  <img src="https://img.shields.io/badge/PyWebview-wizard-2496ED?style=for-the-badge" alt="pywebview">
+  <img src="https://img.shields.io/badge/GRDB-iOS%20SQLite-003B57?style=for-the-badge" alt="GRDB">
+  <img src="https://img.shields.io/badge/Room-Android%20DB-4285F4?style=for-the-badge" alt="Room">
+  <img src="https://img.shields.io/badge/Hilt-DI-FFCD40?style=for-the-badge" alt="Hilt">
+  <img src="https://img.shields.io/badge/Ktor-HTTP-7F52FF?style=for-the-badge" alt="Ktor">
+</p>
+
+<!-- ── Domain-specific languages ───────────────────────────────── -->
+<p align="center">
+  <img src="https://img.shields.io/badge/Gravitix-bot%20DSL-DEA584?style=for-the-badge&logo=rust&logoColor=black" alt="Gravitix">
+  <img src="https://img.shields.io/badge/Architex-UI%20DSL-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="Architex">
+  <img src="https://img.shields.io/badge/Gravitix-96%20features-22C55E?style=for-the-badge" alt="Gravitix features">
+  <img src="https://img.shields.io/badge/Gravitix-165%20tests-22C55E?style=for-the-badge" alt="Gravitix tests">
+</p>
+
+<!-- ── Transport, real-time, federation ────────────────────────── -->
+<p align="center">
+  <img src="https://img.shields.io/badge/WebRTC-P2P-333333?style=for-the-badge&logo=webrtc&logoColor=white" alt="WebRTC">
+  <img src="https://img.shields.io/badge/WebSocket-RFC%206455-4B8BBE?style=for-the-badge" alt="WebSocket">
+  <img src="https://img.shields.io/badge/SFU-mass%20voice-FF6B6B?style=for-the-badge" alt="SFU">
+  <img src="https://img.shields.io/badge/BMP-blind%20mailbox-0EA5E9?style=for-the-badge" alt="BMP">
+  <img src="https://img.shields.io/badge/BLE-discovery-0082FC?style=for-the-badge&logo=bluetooth&logoColor=white" alt="BLE">
+  <img src="https://img.shields.io/badge/Wi--Fi%20Direct-mesh-00B4FF?style=for-the-badge" alt="Wi-Fi Direct">
+  <img src="https://img.shields.io/badge/Tor-hidden%20service-7D4698?style=for-the-badge&logo=torproject&logoColor=white" alt="Tor">
+  <img src="https://img.shields.io/badge/CDN%20relay-obfuscation-F38020?style=for-the-badge" alt="CDN relay">
+</p>
+
+<!-- ── Blockchain & registry ───────────────────────────────────── -->
+<p align="center">
+  <img src="https://img.shields.io/badge/Solana-registry-9945FF?style=for-the-badge&logo=solana&logoColor=white" alt="Solana">
+  <img src="https://img.shields.io/badge/Anchor-framework-512BD4?style=for-the-badge" alt="Anchor">
+  <img src="https://img.shields.io/badge/vortexx.sol-treasury-00FFA3?style=for-the-badge" alt="vortexx.sol">
+  <img src="https://img.shields.io/badge/TRON%20·%20ETH%20·%20BSC%20·%20TON%20·%20BTC-tipping-F7931A?style=for-the-badge" alt="Chains">
+</p>
+
+<!-- ── Cryptography ────────────────────────────────────────────── -->
 <p align="center">
   <img src="https://img.shields.io/badge/X25519-ECDH-green?style=flat-square" alt="X25519">
+  <img src="https://img.shields.io/badge/Ed25519-signatures-green?style=flat-square" alt="Ed25519">
   <img src="https://img.shields.io/badge/AES--256--GCM-Encryption-green?style=flat-square" alt="AES-256-GCM">
   <img src="https://img.shields.io/badge/Kyber--768-Post--Quantum-green?style=flat-square" alt="Kyber-768">
   <img src="https://img.shields.io/badge/Argon2id-Hashing-green?style=flat-square" alt="Argon2id">
   <img src="https://img.shields.io/badge/BLAKE3-MAC-green?style=flat-square" alt="BLAKE3">
   <img src="https://img.shields.io/badge/ECIES-Key--Distribution-green?style=flat-square" alt="ECIES">
   <img src="https://img.shields.io/badge/HKDF--SHA256-Derivation-green?style=flat-square" alt="HKDF">
+  <img src="https://img.shields.io/badge/Double%20Ratchet-forward%20secrecy-green?style=flat-square" alt="Double Ratchet">
+  <img src="https://img.shields.io/badge/Sealed%20Sender-metadata%20hiding-green?style=flat-square" alt="Sealed Sender">
+  <img src="https://img.shields.io/badge/Shamir-secret%20sharing-green?style=flat-square" alt="Shamir">
+  <img src="https://img.shields.io/badge/WebAuthn%2FPasskey-auth-green?style=flat-square" alt="WebAuthn">
   <img src="https://img.shields.io/badge/BIP39-Seed--Phrase-green?style=flat-square" alt="BIP39">
-  <img src="https://img.shields.io/badge/128-Languages-green?style=flat-square" alt="128 Languages">
+  <img src="https://img.shields.io/badge/JWT-session-green?style=flat-square" alt="JWT">
+  <img src="https://img.shields.io/badge/TLS%201.3-transport-green?style=flat-square" alt="TLS">
 </p>
+
+<!-- ── Build / packaging ───────────────────────────────────────── -->
+<p align="center">
+  <img src="https://img.shields.io/badge/PyInstaller-wizard-FFD43B?style=flat-square" alt="PyInstaller">
+  <img src="https://img.shields.io/badge/Maturin-PyO3%20builds-7FD4FF?style=flat-square" alt="Maturin">
+  <img src="https://img.shields.io/badge/XcodeGen-iOS%20project-147EFB?style=flat-square" alt="XcodeGen">
+  <img src="https://img.shields.io/badge/Gradle-Android%20build-02303A?style=flat-square&logo=gradle&logoColor=white" alt="Gradle">
+  <img src="https://img.shields.io/badge/Cargo-Rust%20build-DEA584?style=flat-square" alt="Cargo">
+  <img src="https://img.shields.io/badge/Anchor%20CLI-Solana%20build-512BD4?style=flat-square" alt="Anchor CLI">
+  <img src="https://img.shields.io/badge/Docker-Linux%20build-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker">
+</p>
+
+<!-- ── Ops, testing, observability ─────────────────────────────── -->
+<p align="center">
+  <img src="https://img.shields.io/badge/Pytest-backend-0A9EDC?style=flat-square&logo=pytest&logoColor=white" alt="Pytest">
+  <img src="https://img.shields.io/badge/Playwright-E2E-2EAD33?style=flat-square&logo=playwright&logoColor=white" alt="Playwright">
+  <img src="https://img.shields.io/badge/k6-loadtest-7D64FF?style=flat-square" alt="k6">
+  <img src="https://img.shields.io/badge/Locust-loadtest-00BA44?style=flat-square" alt="Locust">
+  <img src="https://img.shields.io/badge/Chaos%20Mesh-experiments-FF6A00?style=flat-square" alt="Chaos Mesh">
+  <img src="https://img.shields.io/badge/Prometheus-metrics-E6522C?style=flat-square&logo=prometheus&logoColor=white" alt="Prometheus">
+  <img src="https://img.shields.io/badge/Grafana-dashboards-F46800?style=flat-square&logo=grafana&logoColor=white" alt="Grafana">
+  <img src="https://img.shields.io/badge/Kubernetes-manifests-326CE5?style=flat-square&logo=kubernetes&logoColor=white" alt="Kubernetes">
+  <img src="https://img.shields.io/badge/systemd-unit-222?style=flat-square" alt="systemd">
+  <img src="https://img.shields.io/badge/nginx-reverse%20proxy-009639?style=flat-square&logo=nginx&logoColor=white" alt="nginx">
+</p>
+
+<!-- ── Rendering & PWA ─────────────────────────────────────────── -->
+<p align="center">
+  <img src="https://img.shields.io/badge/Liquid%20Glass%20PRO-WebGL2-06D6F0?style=flat-square" alt="Liquid Glass PRO">
+  <img src="https://img.shields.io/badge/Web%20Crypto%20API-native-4285F4?style=flat-square" alt="Web Crypto">
+  <img src="https://img.shields.io/badge/Service%20Worker-PWA-5A0FC8?style=flat-square" alt="Service Worker">
+  <img src="https://img.shields.io/badge/Push%20API-VAPID-FF8A00?style=flat-square" alt="Push">
+  <img src="https://img.shields.io/badge/FCM-Android%20push-FFCA28?style=flat-square&logo=firebase&logoColor=black" alt="FCM">
+  <img src="https://img.shields.io/badge/APNs-iOS%20push-000000?style=flat-square&logo=apple&logoColor=white" alt="APNs">
+</p>
+
+<!-- ── Release ─────────────────────────────────────────────────── -->
+<p align="center">
+  <img src="https://img.shields.io/badge/Version-1.0.0-blue?style=for-the-badge" alt="Version">
+  <img src="https://img.shields.io/badge/License-Apache_2.0-D22128?style=for-the-badge" alt="License">
+  <img src="https://img.shields.io/badge/146-Languages-green?style=for-the-badge" alt="146 Languages">
+  <img src="https://img.shields.io/badge/Locale%20JSON-19%2C420%20lines-22C55E?style=for-the-badge" alt="Locale LOC">
+  <img src="https://img.shields.io/badge/Deep%20Reference-422%20subsystems-0EA5E9?style=for-the-badge" alt="Deep reference">
+  <img src="https://img.shields.io/badge/iOS-659%20Swift%20files-F05138?style=for-the-badge&logo=swift&logoColor=white" alt="iOS files">
+  <img src="https://img.shields.io/badge/Android-192%20Kotlin%20files-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Android files">
+</p>
+
+---
+
+## What ships in Vortex 1.0.0
+
+Vortex 1.0.0 is the first release that couples a decentralised P2P node with a full platform around it — a discovery control plane, an on-chain registry, native clients for every major OS, and a localized documentation portal. The list below is what actually lives in this repo today.
+
+### Platform components
+
+| Component                | Path                        | What it is                                                                                                     |
+| ------------------------ | --------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **Vortex node**          | `app/`, `run.py`            | The messaging server itself. FastAPI + SQLAlchemy + Rust crypto core (`vortex_chat` via PyO3). Every user runs one. |
+| **Vortex Controller**    | `vortex_controller/`        | Discovery / registry **control plane** — 8 endpoint families, signed responses, PostgreSQL-backed, Ed25519-pinned. Does NOT relay messaging traffic. Runs on `:8800`. |
+| **Solana registry**      | `solana_program/`           | On-chain peer registry — 1,317 lines of Anchor/Rust. Per-node PDA at `["peer", pubkey]`, code-hash pinning, one-way `seal()`, heartbeat-based trust decay, 4-tier subscription pricing, staking vault, rewards. |
+| **Gravitix DSL**         | `Gravitix/`                 | Bot language. Rust VM, 96 features, 12.5 K lines, 165 tests passing, zero runtime deps. |
+| **Architex DSL**         | `Architex/`                 | Reactive UI language. TypeScript runtime, zero build step, renders to HTML / native view descriptors / headless diff. |
+| **iOS client**           | `ios/`                      | SwiftUI + SPM, **659 Swift files across 32 feature modules**, xcodegen-generated project, Argon2Swift, GRDB, URLSessionWebSocketTask, iOS 17+. |
+| **Android client**       | `android/`                  | Jetpack Compose + Hilt, **192 Kotlin files across 36 feature modules**, SOLID `api/impl/di` split per feature, Ktor + Room, min API 26. |
+| **Node Setup Wizard**    | `node_setup/`, `vortex_wizard/` | pywebview-based first-run UI. `vortex_wizard` is the PyInstaller bundle — one binary runs the wizard (default) or the node (`--run-node`). Cloudflare-tunnel mirror mode wired via HTTP/2. |
+| **Tauri desktop**        | `src-tauri/`                | Native desktop shell (macOS / Windows / Linux). |
+| **Liquid Glass PRO**     | `Liquid-Glass-PRO/`         | WebGL2 glass renderer used in the web client. |
+| **Docs portal**          | `../vortex-introduce-page/` | Static site with `/docs.html` — tree sidebar, accordion chapters, three roots (**Vortex / Gravitix / Architex**), client-side locale switching. |
+
+### What was added this commit
+
+- **Vortex Controller** — brand-new discovery service. Nodes self-register with an Ed25519 signature, controller signs all responses, clients pin the controller pubkey at release time. Ships with a static multi-page admin/stats site (`/`, `/nodes`, `/entries`, `/mirrors`, `/security`, `/admin`). Mirror health checker supports Tor SOCKS. Integrity gate middleware refuses to serve traffic from a tampered build.
+- **Solana on-chain registry (`vortex_registry`)** — Anchor program for the treasury + peer economy. Phase 5 = basic PDA registration. Phase 7 = permanent code-hash pinning and trust decay. Phase C = staking (0.1 SOL min). Phase D = rewards vault. 4 subscription tiers (1/3/6/12-month, priced $5→$38 at ~$150/SOL). Treasury wallet is the SNS owner of `vortexx.sol` — overridable via `TREASURY_PUBKEY` for forks/testnets.
+- **BMP (Blind Mailbox Protocol)** — the Vortex team's own metadata-obfuscation design. Per-contact shared secret via ECDH → hourly-rotated mailbox ID via `HMAC-SHA256(S_AB, floor(t/T))[0:16]`. Server never sees sender, recipient, or contact graph — only opaque 16-byte mailbox IDs. Cover traffic mixes ~50 fake mailbox polls with every real poll. See [`RESEARCH-BMP.md`](RESEARCH-BMP.md).
+- **iOS native client** — 20-wave plan from scaffold to TestFlight. Modules mirror Android 1-for-1 (Accounts, Auth, Bootstrap, Bots, Calls, Chat, Contacts, DB, Drafts, Emoji, Federation, Feeds, Files, Folders, I18N, Identity, Keys, Net, Premium, Push, Reactions, Rooms, SavedGifs, Scheduled, Search, Settings, Spaces, Stickers, Threads, VortexCrypto, WS, App).
+- **Android native client** — same feature surface, same wave plan. Each feature folder has `api/` (protocols) + `impl/` (concrete types) + `di/` (Hilt bindings). Room DB v4, Compose UI, encrypted JWT storage, Ktor client with retry + TLS handling.
+- **Locale system** — canonical English file + 145 translations, totaling **19,420 lines** across 147 JSON files. Shared verbatim between iOS, Android, web, docs, controller site. No server round-trip to change language.
+- **Docs site (`/docs.html`)** — tree-style sidebar, accordion chapters, three roots (**Vortex / Gravitix / Architex**), search, client-side locale switching.
+- **apiSurface + glossary (auto-generated)** — every one of 540+ REST endpoints gets a `Purpose / Authentication / Request / Response / Errors / Example` card; 37 glossary terms get `Definition / Where used / Related` cards. Generators live under `scripts/build_api_glossary.py` and friends.
+- **Deep reference** — 422-subsystem chapter set (`deepReference` locale tree) covering every internal module — federation, sealed sender, onion routing, post-quantum handshake, reputation, rate-limiter, WAF, and everything else below the API surface.
+- **Accordion docs scheme** — every chapter uses `hN / hN_a / hN_b / hN_c / hN_f` — *Description / How it works / History / Formula* — rendered as expandable panels in both the web and iOS readers.
+- **Integrity system** — signed `INTEGRITY.sig.json` (project root) + `INTEGRITY.repo.json` (repo-wide). Controller's `IntegrityGateMiddleware` and the wizard both refuse to run if hashes don't match. `scripts/integrity_repo.py` signs and verifies.
+- **Treasury & premium plumbing** — controller tracks `treasury_pubkey` + `admin_token`, exposes a bearer-token-guarded `/admin` dashboard, and forwards node register fees and premium subscriptions to the on-chain program.
+
+See [`vortex-introduce-page/docs.html`](../vortex-introduce-page/docs.html) for the navigable version of the full reference.
+
+---
+
+## The Vortex DSL Family
+
+Vortex ships **two domain-specific languages**, both first-class citizens in the ecosystem:
+
+```
+                    ┌──────────────────────────────┐
+                    │      The Vortex Runtime      │
+                    │    (Python + Rust + WebRTC)  │
+                    └──────────┬───────────────────┘
+                               │
+              ┌────────────────┴────────────────┐
+              │                                 │
+      ┌───────▼────────┐                ┌───────▼────────┐
+      │   GRAVITIX     │                │   ARCHITEX     │
+      │  (Rust VM)     │                │ (TS runtime)   │
+      │                │                │                │
+      │  Bots · tasks  │                │   UI · views   │
+      │  pipelines     │                │   reactive     │
+      │  .grv files    │                │   .arx files   │
+      └────────────────┘                └────────────────┘
+```
+
+| Language      | Role                               | Runtime       | File ext. | README                                                 |
+| ------------- | ---------------------------------- | ------------- | --------- | ------------------------------------------------------ |
+| **Gravitix**  | Bots, automations, pipelines       | Rust VM       | `.grv`    | [`Gravitix/README.md`](Gravitix/README.md)             |
+| **Architex**  | Declarative, reactive UI           | TypeScript    | `.arx`    | [`Architex/README.md`](Architex/README.md)             |
+
+Gravitix is **imperative-by-default with async orchestration**; Architex is **declarative-by-default with a reactive VDOM**. They do not overlap.
+
+---
+
+## The two-plane architecture
+
+Vortex separates **control plane** (discovery, registry, treasury) from **data plane** (messaging, files, media). The two never mix — the controller never sees ciphertext, the node never needs a shared database.
+
+```
+┌────────────────────────────── CONTROL PLANE ──────────────────────────────┐
+│                                                                           │
+│     ┌──────────────────┐                  ┌────────────────────────┐      │
+│     │ Vortex Controller│  ←─── register ──│  Solana vortex_registry│      │
+│     │   (FastAPI)      │     heartbeat    │      (Anchor / Rust)   │      │
+│     │  Ed25519-signed  │ ─── verify ────▶ │  PDA per node, PDA per │      │
+│     │     responses    │    code_hash     │  subscription, staking │      │
+│     └────────┬─────────┘                  └────────────────────────┘      │
+│              │                                                            │
+│              │  /v1/nodes/random  /v1/entries  /v1/register               │
+│              ▼                                                            │
+│     ┌──────────────────┐                                                  │
+│     │  Clients bootstrap   (controller pubkey pinned at release time)     │
+│     └──────────────────┘                                                  │
+└────────────────────────────────────┬──────────────────────────────────────┘
+                                     │  (addressed to returned node URL)
+┌────────────────────────────── DATA PLANE ────────────────────────────────┐
+│                                                                          │
+│    ┌──────────────┐   WSS / HTTPS   ┌──────────────┐   Federation        │
+│    │ Vortex Node  │  ◀────────────▶ │ Vortex Node  │  ◀──────────        │
+│    │  (FastAPI    │                 │  (FastAPI    │                     │
+│    │   + Rust)    │   BMP mailbox   │   + Rust)    │                     │
+│    └──────┬───────┘                 └──────┬───────┘                     │
+│           │                                │                             │
+│           ▼                                ▼                             │
+│    ┌──────────────┐                 ┌──────────────┐                     │
+│    │  SQLite /    │                 │  SQLite /    │                     │
+│    │  PostgreSQL  │                 │  PostgreSQL  │                     │
+│    └──────────────┘                 └──────────────┘                     │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+**Why the split matters:** a censor can seize the controller and every node keeps working (clients fall back to pinned mirror URLs or LAN discovery); a censor can seize a node and the network keeps working (users re-bootstrap via the controller); a censor can seize both and the Solana registry is still there, on-chain, permissionless.
+
+---
+
+## The Vortex Controller
+
+The controller is a dedicated FastAPI service under `vortex_controller/`. **It is not a server for messages** — it just helps clients find nodes and nodes find each other.
+
+### What it does
+
+- Accepts node self-registration (node signs payload with its Ed25519 identity).
+- Stores approved nodes (pubkey + endpoints + metadata + heartbeat) in PostgreSQL (SQLite fallback for dev).
+- Hands out random approved online nodes to bootstrapping clients.
+- Publishes a **signed** list of entry URLs so clients whose DNS can't resolve the controller domain (e.g. `trycloudflare` mirrors) can still find their way in.
+- Runs a **mirror health checker** that probes mirror URLs over plain HTTP or Tor SOCKS and reports status.
+- Hosts a static multi-page admin site (`/`, `/nodes`, `/entries`, `/mirrors`, `/security`, `/admin`) — the `/admin` data fetches are bearer-token-guarded.
+
+### Endpoints
+
+| Method | Path                          | Purpose                                                   |
+| ------ | ----------------------------- | --------------------------------------------------------- |
+| POST   | `/v1/register`                | Node self-registers with a signed payload.                |
+| POST   | `/v1/heartbeat`               | Liveness ping, signed.                                    |
+| GET    | `/v1/nodes/random?count=N`    | N random approved online nodes (controller-signed).       |
+| GET    | `/v1/nodes/lookup/{pubkey}`   | Resolve a specific node.                                  |
+| GET    | `/v1/entries`                 | Signed bootstrap entry URLs.                              |
+| GET    | `/v1/health`                  | Liveness + stats.                                         |
+| GET    | `/v1/mirrors`                 | Current mirror health status.                             |
+| GET    | `/v1/integrity`               | Integrity verification report for the running build.      |
+| —      | `/admin/*`                    | Treasury / revenue dashboard (bearer-token-guarded).      |
+| POST   | `/v1/backup`                  | Controller key-backup endpoints.                          |
+
+### Trust model
+
+- Controller's Ed25519 pubkey is **pinned into every Vortex client at release time**.
+- Nodes prove pubkey ownership by signing the registration payload.
+- Clients verify controller signatures on every response, so a compromised TLS channel still can't feed them fake node URLs.
+- `IntegrityGateMiddleware` refuses to serve any endpoint if the running build's hash doesn't match `INTEGRITY.sig.json`. With `INTEGRITY_STRICT=1` it refuses to boot at all.
+- Controller **never sees messaging traffic** — only nodes, endpoints, heartbeats, and mirror status.
+
+### Deployment
+
+```bash
+cd vortex_controller
+pip install -r requirements.txt
+
+export DATABASE_URL="postgresql://vortex:pw@localhost:5432/vortex_controller"
+export ENTRY_URLS="https://node1.example.com,https://node2.example.com"
+export TREASURY_PUBKEY="5ABkkipTZZEEPNR3cP4MCzftpAhqv6jvM4UTSLPGt5Qq"   # vortexx.sol owner by default
+export ADMIN_TOKEN="<random-string>"                                    # for /admin dashboard
+
+python -m vortex_controller.main
+```
+
+The Ed25519 keypair is generated on first run at `keys/controller.key` — **copy the pubkey from the log** and pin it in your client distribution.
+
+See `vortex_controller/README.md` and `vortex_controller/docs/DEPLOY.md` for the full operator guide.
+
+---
+
+## On-chain peer registry (Solana)
+
+`solana_program/programs/vortex_registry/` is a 1,317-line Anchor program that holds the permissionless truth about the network: who's a node, what build they're running, and who's paid for premium.
+
+### Phase 5 — basic registry
+
+- `initialize_config` sets register fee, treasury, and admin. Fee capped at 10 SOL; treasury wallet is the SNS owner of `vortexx.sol` by default.
+- `register` creates a PDA at `["peer", node_pubkey]` holding endpoints, metadata, heartbeat, and timestamps. Anyone with SOL for rent can self-register.
+- `update` and `deregister` let an owner mutate or tear down their PDA.
+
+### Phase 7 — code-integrity pinning
+
+- PDAs carry a `code_hash` field. Nodes report it on `register` and `checkin`.
+- `seal()` is a **one-way instruction** — once a node seals its code_hash, `is_sealed` flips forever. Re-sealing a different hash is refused on-chain.
+- Off-chain consumers compute a **trust weight** from `last_checkin` age, so stale nodes decay out of routing tables without any central action.
+
+### Phase C — staking
+
+- `MIN_STAKE_LAMPORTS = 0.1 SOL`, `MAX_STAKE_LAMPORTS` capped so a misplaced zero can't create a giant deposit.
+- Stake PDA at `["stake", node_pubkey]`; rewards PDA at `["reward", node_pubkey]`; treasury rewards vault at `["rewards_vault"]`.
+- Nodes without active stake are accepted for registration but do not earn from the rewards vault.
+
+### Phase D — subscriptions
+
+- Four plans indexed to `PLAN_DURATIONS_MONTHS = [1, 3, 6, 12]`.
+- Default prices (in lamports, at ~$150/SOL): `$5` / `$12` / `$20` / `$38`. The yearly tier stays strictly cheaper per-month than two 6-month plans so it doesn't become a trap.
+- Per-plan price hard-capped at 6 SOL (~$900) even if the admin key is compromised.
+- `SECONDS_PER_MONTH = 30 × 86_400` is used for deterministic end-timestamp math — no calendar edge cases between the contract and off-chain indexers.
+
+### Integration points
+
+- The **controller's `admin` endpoints** surface revenue aggregated across node fees and active subscriptions.
+- The **`Premium` modules** in the iOS and Android clients and in the web frontend read subscription state directly from the node, which verifies via RPC against the program.
+- The `solana_program/deploy.sh` script walks through `anchor build` → `anchor deploy` → `anchor keys list` and reminds you to replace the placeholder `declare_id!` with the deployed pubkey.
+
+---
+
+## Native clients
+
+Vortex 1.0.0 ships **first-party native clients for iOS and Android**, not just a WebView wrapper.
+
+### iOS — SwiftUI + SPM
+
+```
+ios/
+├── Modules/Sources/
+│   ├── App/                  ← composition root (AppEnvironment)
+│   ├── VortexCrypto/         ← X25519 / Ed25519 / AES-GCM / HKDF / Argon2id
+│   ├── Bootstrap/            ← vortexx.sol probe + manual URL
+│   ├── Net/                  ← URLSession + JWT refresh
+│   ├── Auth/ Identity/ DB/   ← Keychain-backed JWT, BIP39 seed, GRDB
+│   ├── Rooms/ Keys/ WS/      ← rooms, ECIES key distribution, URLSessionWebSocketTask
+│   ├── Chat/ Files/ Stickers/ ← chat UI, chunked upload, voice notes
+│   ├── Calls/ Push/          ← WebRTC, APNs
+│   ├── Federation/ Search/   ← multihop, global search
+│   ├── Spaces/ Bots/ Threads/ Feeds/  ← feature parity with web
+│   └── Premium/ I18N/ …      ← subscription state + 146 locales
+├── VortexApp/                ← @main, Info.plist, Assets
+├── project.yml               ← xcodegen spec → Vortex.xcodeproj
+└── README.md
+```
+
+**Stats:** 659 Swift files across 32 feature modules. Every feature ships `api/` protocols + one or more `impl/` types + feature DI via the explicit composition root. Wave 1–20 plan is identical to Android's.
+
+**Setup:**
+```bash
+brew install xcodegen
+cd ios && xcodegen && open Vortex.xcodeproj
+```
+
+### Android — Jetpack Compose + Hilt
+
+```
+android/app/src/main/java/sol/vortexx/android/
+├── VortexApp.kt              ← @HiltAndroidApp
+├── MainActivity.kt
+├── accounts/ auth/ backup/ bootstrap/ bots/
+├── calls/ chat/ contacts/ crypto/ db/
+├── drafts/ emoji/ federation/ feeds/ files/
+├── folders/ i18n/ identity/ keys/ multidevice/
+├── net/ premium/ push/ reactions/ rooms/
+├── savedgifs/ scheduled/ search/ settings/ spaces/
+├── stickers/ threads/ ui/ ws/
+└── …
+```
+
+**Stats:** 192 Kotlin files across 36 feature modules. Every feature is `api/` + `impl/` + `di/` (Hilt). Room DB v4 (12 tables). Compose UI, single version catalog, Ktor + JWT, encrypted JWT storage. Min API 26 (Android 8.0).
+
+**Setup:**
+```bash
+cd android && gradle wrapper --gradle-version 8.10
+./gradlew assembleDebug         # → app/build/outputs/apk/debug/app-debug.apk
+./gradlew installDebug          # push to connected device
+```
+
+Both clients read the same 147-locale JSON files used by the web and docs — there is one canonical string table for the whole platform.
 
 ---
 
@@ -307,8 +678,9 @@ Vortex combines:
 - **Post-quantum cryptography** via Kyber-768 lattice-based key encapsulation
 - **Peer-to-peer mesh networking** with automatic peer discovery over LAN (UDP broadcast), BLE, and Wi-Fi Direct
 - **Live audio/video streaming** using WebRTC with optional SFU for large groups
-- **A built-in IDE** with its own programming language (Gravitix) for building bots
+- **A built-in IDE** with two first-class DSLs — **Gravitix** (bots, Rust VM) and **Architex** (reactive UI, TypeScript runtime)
 - **A bot marketplace** with versioning, analytics, and one-click deployment
+- **BMP (Blind Mailbox Protocol)** — Vortex-designed metadata-obfuscation layer with HKDF-derived mailbox IDs and sealed sender routing
 - **Spaces** (community hubs with categories and rooms), **channels** (broadcast-style with posts/comments), **forums**, **voice channels**, **stories**, **statuses**, and more
 - **Blockchain payment verification** for donations during live streams (TRON, Ethereum, BSC, TON, Bitcoin)
 - **GDPR compliance** with data export, erasure, and portability endpoints
@@ -326,13 +698,14 @@ The backend is built with Python (FastAPI + SQLAlchemy), the frontend is vanilla
 6. **Privacy by Default**: Sealed sender, metadata padding, ephemeral identities, and warrant canary.
 7. **Self-Sovereign Identity**: BIP39 seed phrase recovery, no phone number required, passkey/WebAuthn support.
 8. **Offline-First**: Messages queue locally and sync when connectivity returns.
-9. **Extensible**: Gravitix language + bot marketplace allow users to extend functionality without modifying core code.
+9. **Extensible**: Gravitix (bots) and Architex (UI) are both user-writable DSLs — the platform is extensible without touching the core.
 10. **Open Source**: Apache 2.0 license. Fully auditable.
+11. **Localization-First**: 146 translations shared verbatim across iOS, Android, web and docs — 19,420 lines of JSON, single source of truth.
 
 ### 1.3 Architecture Overview
 
 ```
-+------------------------------------------------------------------+
++-------------------------------------------------------------------+
 |                        Vortex Node                                |
 |                                                                   |
 |  +------------------+  +------------------+  +------------------+ |
@@ -342,13 +715,13 @@ The backend is built with Python (FastAPI + SQLAlchemy), the frontend is vanilla
 |           |                      |                      |         |
 |           +----------+-----------+----------+-----------+         |
 |                      |                      |                     |
-|              +-------v-------+      +-------v-------+            |
-|              |  FastAPI App  |      |   SSL/TLS     |            |
-|              |  (ASGI)       |      |   Termination |            |
-|              +-------+-------+      +-------+-------+            |
+|              +-------v-------+      +-------v-------+             |
+|              |  FastAPI App  |      |   SSL/TLS     |             |
+|              |  (ASGI)       |      |   Termination |             |
+|              +-------+-------+      +-------+-------+             |
 |                      |                      |                     |
 |  +-------------------v----------------------v------------------+  |
-|  |                    Middleware Stack                          |  |
+|  |                    Middleware Stack                         |  |
 |  |  SecurityHeaders -> Logging -> CSRF -> TokenRefresh         |  |
 |  +-------------------+---------------------+-------------------+  |
 |                      |                     |                      |
@@ -375,21 +748,26 @@ The backend is built with Python (FastAPI + SQLAlchemy), the frontend is vanilla
 |  +-----------v-----------+   +-------------------------------+    |
 |  |   SQLAlchemy ORM      |   |   Peer-to-Peer Layer          |    |
 |  |   (Async Sessions)    |   |                               |    |
-|  +-----------+-----------+   | UDP Broadcast Discovery        |    |
-|              |               | BLE Transport                  |    |
-|  +-----------v-----------+   | Wi-Fi Direct                   |    |
-|  |   Database            |   | Federation Protocol            |    |
-|  |   (SQLite/PostgreSQL) |   | Gossip Protocol                |    |
+|  +-----------+-----------+   | UDP Broadcast Discovery       |    |
+|              |               | BLE Transport                 |    |
+|  +-----------v-----------+   | Wi-Fi Direct                  |    |
+|  |   Database            |   | Federation Protocol           |    |
+|  |   (SQLite/PostgreSQL) |   | Gossip Protocol               |    |
 |  +-----------------------+   +-------------------------------+    |
 |                                                                   |
 |  +-------------------------------+   +-----------------------+    |
-|  |   Gravitix Runtime (Rust)     |   |   Liquid Glass PRO    |    |
-|  |   Lexer -> Parser -> AST      |   |   (WebGL2 Renderer)   |    |
-|  |   -> Interpreter              |   +-----------------------+    |
-|  |   25 stdlib modules           |                                |
-|  |   LSP Server                  |                                |
-|  +-------------------------------+                                |
-+------------------------------------------------------------------+
+|  |   Gravitix Runtime (Rust)     |   |   Architex Runtime    |    |
+|  |   Lexer -> Parser -> AST      |   |   (TypeScript)        |    |
+|  |   -> Interpreter              |   |   Lexer -> Parser     |    |
+|  |   25 stdlib modules           |   |   -> Reactive VDOM    |    |
+|  |   LSP Server                  |   |   -> Multi-renderer   |    |
+|  +-------------------------------+   +-----------------------+    |
+|                                                                   |
+|  +-------------------------------+   +-----------------------+    |
+|  |   Liquid Glass PRO            |   |   BMP                 |    |
+|  |   (WebGL2 Renderer)           |   |   Blind Mailbox Layer |    |
+|  +-------------------------------+   +-----------------------+    |
++-------------------------------------------------------------------+
 ```
 
 ### 1.4 Technology Stack
@@ -403,6 +781,9 @@ The backend is built with Python (FastAPI + SQLAlchemy), the frontend is vanilla
 | Desktop Shell | Tauri | 5.0 | Native desktop wrapper (Rust-based) |
 | Frontend | Vanilla JavaScript | ES2022 | Single-page application |
 | Bot Language | Rust (Gravitix) | 1.75+ | Compiler, interpreter, LSP |
+| UI Language  | TypeScript (Architex) | 5.x  | Reactive VDOM, multi-renderer, type checker |
+| Docs portal  | Vanilla JS           | ES2022 | Tree-sidebar + accordion reader, 146 locales |
+| Metadata layer | BMP (HKDF + sealed sender) | — | Mailbox-ID obfuscation between transport and room keys |
 | Real-time | WebSocket | RFC 6455 | Bidirectional messaging |
 | Voice/Video | WebRTC | 1.0 | Peer-to-peer media |
 | Encryption | X25519 + AES-256-GCM | - | End-to-end encryption |
@@ -6887,7 +7268,7 @@ The Tauri v5 desktop application provides a native wrapper for Vortex.
 {
   "productName": "Vortex",
   "identifier": "com.vortex.chat",
-  "version": "5.0.0",
+  "version": "1.0.0",
   "app": {
     "windows": [
       {
@@ -6985,7 +7366,7 @@ Timeout: 15 seconds (configurable via PEER_TIMEOUT_SEC)
 Broadcast Packet Format:
 {
     "type": "vortex_announce",
-    "version": "5.0.0",
+    "version": "1.0.0",
     "device_name": "node-alpha",
     "host": "192.168.1.10",
     "port": 9000,
@@ -8114,7 +8495,7 @@ Keyboard shortcuts:
 Vortex is released under the **Apache License 2.0**.
 
 ```
-Copyright 2024-2026 Boris Maltsev
+Copyright 2026 Andrey Karavaev, Boris Maltsev
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -8128,6 +8509,18 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ```
+
+---
+
+## 36. Authors
+
+**Boris Maltsev**
+
+[![GitHub](https://img.shields.io/badge/GitHub-BorisMalts-181717?style=flat-square&logo=github)](https://github.com/BorisMalts)
+
+**Andrey Karavaev**
+
+[![GitHub](https://img.shields.io/badge/GitHub-Andre--wb-181717?style=flat-square&logo=github)](https://github.com/Andre-wb)
 
 ---
 

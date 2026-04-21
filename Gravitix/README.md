@@ -1,14 +1,91 @@
-# Gravitix
+<h1 align="center">Gravitix</h1>
 
-A high-performance scripting language for building bots. Written in Rust. Designed for the [Vortex](https://github.com/Andre-wb/Vortex) messenger, with multi-platform support.
+<p align="center">
+  <b>A high-performance scripting language for building bots. Written in Rust. Designed for the <a href="https://github.com/Andre-wb/Vortex">Vortex</a> messenger.</b>
+</p>
 
-```
+<p align="center">
+  <img src="https://img.shields.io/badge/Rust-1.75+-DEA584?style=for-the-badge&logo=rust&logoColor=black" alt="Rust">
+  <img src="https://img.shields.io/badge/Features-96_language_features-7C3AED?style=for-the-badge" alt="96 features">
+  <img src="https://img.shields.io/badge/Source-12.5K_lines-06D6F0?style=for-the-badge" alt="12.5K lines">
+  <img src="https://img.shields.io/badge/Tests-165_passing-22C55E?style=for-the-badge" alt="165 tests">
+  <img src="https://img.shields.io/badge/Runtime_deps-0-22C55E?style=for-the-badge" alt="Zero deps">
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Handlers-22c55e?style=flat-square" alt="Handlers">
+  <img src="https://img.shields.io/badge/Flows-22c55e?style=flat-square" alt="Flows">
+  <img src="https://img.shields.io/badge/Pattern_matching-22c55e?style=flat-square" alt="Pattern matching">
+  <img src="https://img.shields.io/badge/FSM-22c55e?style=flat-square" alt="FSM">
+  <img src="https://img.shields.io/badge/Pipe_operator-22c55e?style=flat-square" alt="Pipe">
+  <img src="https://img.shields.io/badge/Lambdas-22c55e?style=flat-square" alt="Lambdas">
+  <img src="https://img.shields.io/badge/Sandboxed-22c55e?style=flat-square" alt="Sandboxed">
+</p>
+
+---
+
+## Hello, bot
+
+```gravitix
 on /start {
     emit "Hello, {ctx.username}!"
 }
+
+on /add <item> {
+    state.list = (state.list or []) + [ctx.args.item]
+    emit "Added: {ctx.args.item}"
+}
+
+on /list {
+    emit "You have {len(state.list)} items"
+}
 ```
 
-**96 language features** | **12.5K lines Rust** | **165 tests** | **Zero dependencies at runtime**
+Three commands, a shared state map, a message for each user who runs the bot. The whole program above is ~10 lines and behaves like a real production bot — persistence, per-user state, typed command arguments, safe string interpolation.
+
+**96 language features** · **12.5K lines Rust** · **165 tests passing** · **zero runtime dependencies**
+
+---
+
+## The Vortex DSL family
+
+Gravitix has a sister language for UIs:
+
+| | **Gravitix** | **Architex** |
+|---|---|---|
+| What | Bot logic, event handlers, conversation flows | UI screens, reactive state, Mini Apps |
+| Runs on | Vortex node (sandboxed Rust interpreter) | Every Vortex client (web / iOS / Android) |
+| Syntax | `on /cmd { emit "…" }` | `@screen Name; col :: pad(24) …` |
+| Scope | Stateful, multi-user, long-lived | Stateful per-open, single-user, ephemeral |
+| Docs | `/Gravitix/README.md` + `gxd` in Vortex docs | `/Architex/README.md` + `arxd` in Vortex docs |
+
+Both are designed to coexist. A Gravitix bot can publish an Architex Mini App as a response (`emit screen "MyApp"`), and the Mini App can call back into the bot via `send(action: ...)` — a neat round-trip for command-driven UIs.
+
+---
+
+## Full reference in 146 languages
+
+Every Gravitix feature has a full-text chapter in the [Vortex docs site](https://github.com/Andre-wb/vortex-introduce-page). Navigate the docs tree:
+
+```
+Vortex Docs
+└─ Gravitix
+   ├─ Overview
+   └─ Deep reference  ▸  (34 sections)
+      ├─ Intro          bestpractices       bitwise
+      ├─ Builtins       complex_type        ctx
+      ├─ Emit           error               examples
+      ├─ Flows          functions           guard
+      ├─ Handlers       if                  loops
+      ├─ Match          math_calculus       math_complex
+      ├─ …              math_stats          math_transforms
+      ├─ Operators      pipe                quickstart
+      ├─ Schedule       state               strings
+      ├─ Structs        syntax              types
+      └─ Variables
+```
+
+Each leaf expands to an accordion with **Description**, **How it works**, **History**, and a **Formula / wire shape** panel. The reference ships in **146 locales** — the same JSON files serve the iOS app, the Android app, and the web docs.
 
 ---
 
@@ -1639,3 +1716,37 @@ error[G030]: function `greet` takes 1 argument, but 3 were provided
 ## License
 
 APACHE 2.0
+
+---
+
+## License
+
+Vortex is released under the **Apache License 2.0**.
+
+```
+Copyright 2026 Andrey Karavaev, Boris Maltsev
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+```
+
+---
+
+## Authors
+
+**Boris Maltsev**
+
+[![GitHub](https://img.shields.io/badge/GitHub-BorisMalts-181717?style=flat-square&logo=github)](https://github.com/BorisMalts)
+
+**Andrey Karavaev**
+
+[![GitHub](https://img.shields.io/badge/GitHub-Andre--wb-181717?style=flat-square&logo=github)](https://github.com/Andre-wb)

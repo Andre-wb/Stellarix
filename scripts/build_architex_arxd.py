@@ -1,0 +1,1033 @@
+#!/usr/bin/env python3
+"""
+Build the `arxd` i18n block — Architex deep reference.
+
+Mirrors the `gxd` (Gravitix deep) structure used by the web pages:
+  * every top-level section is a dict keyed `<section>` (e.g. `arxd.syntax`).
+  * inside each section, small numbered keys hold atomic strings:
+      h1..hN   — sub-section heading
+      p1..pN   — paragraph body copy
+      li1..liN — bullet points
+      cc1..ccN — code-block line comments (the "what this line does" hints)
+      td1..tdN — table cell text
+      ct1..ctN — caption / callout
+This lets the site render the reference without embedding HTML inside
+translation strings.
+
+Splices into iOS `en.json` and every locale in vortex-introduce-page.
+"""
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+
+def sect(**items: str) -> dict:
+    return items
+
+
+# ──────────────────────────────────────────────────────────────────────
+# intro
+# ──────────────────────────────────────────────────────────────────────
+
+intro = sect(
+    h1="What is Architex?",
+    h2="Who is this for?",
+    h3="How to read this reference",
+    p1="Architex is a declarative UI language built for Vortex Mini Apps. Instead of writing JavaScript that mutates the DOM, you describe the screen you want and the runtime keeps pixels in sync with state automatically.",
+    p2="The language is tiny: four declarations (<code>@screen</code>, <code>@theme</code>, <code>@import</code>, <code>@for</code>), one prefix for reactive variables (<code>~</code>), and one operator chain for styling (<code>::</code>).",
+    p3="If you have ever written HTML + CSS + JS, Architex will feel familiar but with 10× less boilerplate. If you haven't, Architex is also a gentle introduction to reactive programming because the language is so small you can hold it all in your head.",
+    p4="Each section of this reference builds on the previous ones. Jump in wherever you like if you already know another declarative UI framework; read top to bottom if you are starting fresh.",
+    li1="<strong>Declarative</strong> — describe the shape of the UI, not the steps to build it",
+    li2="<strong>Reactive</strong> — one assignment updates every dependent label, class, or node",
+    li3="<strong>Portable</strong> — the same <code>.arx</code> runs on web, iOS, and Android hosts",
+    li4="<strong>Tiny</strong> — parser + renderer ship under 30 KB gzipped",
+    ct1="Architex is domain-specific. It will not replace a general-purpose language — but for shipping a screen inside a chat it is faster than any framework we measured.",
+    ct2="Every construct in the language maps to one runtime primitive. There is no magic you can't explain.",
+)
+
+
+quickstart = sect(
+    h1="Your first screen",
+    h2="What just happened?",
+    h3="Running the screen",
+    h4="Edit and reload",
+    p1="Put this into a file called <code>hello.arx</code>:",
+    p2="Open the Architex tab in the Vortex bot studio, paste the file, hit Run. A preview pane renders the screen and hot-reloads on every save.",
+    p3="When you publish, your users open the Mini App from any chat — no install, no app store.",
+    p4="Re-read the example line by line: <code>@screen</code> is the root, <code>~name</code> is reactive, <code>col</code> is a vertical container, <code>::</code> starts a modifier chain, <code>&#123;~name&#125;</code> is an interpolation.",
+    cc1="// reactive variable — changes ripple to every reader",
+    cc2="// vertical container with padding + gap + centred children",
+    cc3="// interpolation inside a string",
+    cc4="// input bound to ~name — typing updates every reader instantly",
+    li1="Parsing: whitespace-sensitive, 2 spaces per indent level.",
+    li2="Execution: every reactive read is tracked; every write re-renders dependents.",
+    li3="Persistence: reactive state is in-memory only; wire up <code>send()</code> to persist.",
+    li4="Publishing: the file is the app — no bundler step, the host parses and runs the file live.",
+)
+
+
+syntax = sect(
+    h1="The four declarations",
+    h2="Reactive variables",
+    h3="Components",
+    h4="Modifiers",
+    h5="Actions",
+    p1="Every Architex program is built from four top-level declarations: <code>@screen</code>, <code>@theme</code>, <code>@import</code>, <code>@component</code>, plus the <code>@for</code> loop body. Each starts in column 0; everything indented below belongs to that block.",
+    p2="Reactive variables are written <code>~name</code> — the tilde prefix marks them as tracked cells. Read with <code>~name</code>, assign with <code>=</code>, compute with <code>:=</code>.",
+    p3="Components are bare identifiers on their own line: <code>text</code>, <code>button</code>, <code>image</code>, <code>col</code>, <code>row</code>, and so on. Their positional argument comes immediately after: <code>text ~message</code>, <code>button &quot;Save&quot;</code>.",
+    p4="Modifiers attach after <code>::</code>. You can chain as many as you like: <code>:: pad(24) gap(16) center color(#4f8ef7) bold size(20)</code>.",
+    p5="Actions live after <code>=&gt;</code>. One action per arrow; multiple arrows chain: <code>button &quot;Buy&quot; =&gt; ~busy = true =&gt; send(action: &quot;buy&quot;) =&gt; ~busy = false</code>.",
+    cc1="// a reactive variable declaration — the type is inferred from the value",
+    cc2="// type annotation is optional but helps autocomplete + error messages",
+    cc3="// components nest by indentation — 2 spaces per level, no tabs",
+    cc4="// modifiers attach to the component on the preceding line",
+    cc5="// one action per arrow — chain many arrows on one line if you need them in sequence",
+    td1="<code>@screen Name</code>",
+    td2="<code>@theme</code>",
+    td3="<code>@import &quot;./file.arx&quot;</code>",
+    td4="<code>@component Name args</code>",
+    td5="<code>@for item in ~list</code>",
+    td6="<code>@for item, idx in ~list</code>",
+    td7="Root of a renderable screen — every app has one.",
+    td8="Block of theme tokens — colours, radii, sizes.",
+    td9="Pull <code>@component</code> / <code>@screen</code> declarations from another file.",
+    td10="Define a reusable component with named parameters.",
+    td11="Render one child block per element of a reactive list.",
+    td12="Same as above but also bind the zero-based index.",
+)
+
+
+variables = sect(
+    h1="Reactive variables",
+    h2="Computed variables",
+    h3="Type annotations",
+    h4="Naming",
+    p1="A reactive variable holds a value and automatically notifies everyone who reads it when you write a new value. Declare with <code>=</code>, re-assign with <code>=</code>, update with <code>+=</code> / <code>-=</code> / <code>*=</code> / <code>/=</code>.",
+    p2="Computed variables derive their value from an expression that re-evaluates whenever any input changes. Declare with <code>:=</code> instead of <code>=</code>. No manual subscriptions, no stale-value bugs.",
+    p3="Annotate the type with <code>: Type</code> after the name. Supported types: <code>number</code>, <code>string</code>, <code>boolean</code>, <code>array</code>, <code>object</code>. Annotations are optional; the type is inferred from the initial value.",
+    p4="Use lowerCamelCase or snake_case; Architex doesn't enforce either. Keep names short: a screen with dozens of long names wastes indentation.",
+    p5="Scope: a reactive variable declared inside a <code>@screen</code> is visible only within that screen's body. <code>@theme</code> tokens are globally visible.",
+    p6="Lifecycle: state lives as long as the screen is mounted. Navigating away destroys it; navigating back re-creates it at the initial value.",
+    p7="Persistence: to outlive the screen, call <code>send(action: &quot;save&quot;, data: ~state)</code> and let the bot host persist.",
+    cc1="~count = 0",
+    cc2="~name: string = &quot;world&quot;",
+    cc3="~items: array = [&quot;a&quot;, &quot;b&quot;, &quot;c&quot;]",
+    cc4="~total := ~count * ~step  // computed — re-runs when either changes",
+    cc5="~greeting := &quot;Hello, &#123;~name&#125;!&quot;  // computed over a template string",
+    cc6="~count += 1  // increment shorthand",
+    cc7="~items = []  // clear by re-assignment",
+    li1="Must start with <code>~</code> for reactive cells.",
+    li2="After <code>~</code>, letters, digits, underscores: <code>~user_count</code>, <code>~page2</code>.",
+    li3="Case-sensitive: <code>~count</code> and <code>~Count</code> are different.",
+    li4="Keywords (<code>on</code>, <code>in</code>, <code>if</code>) are reserved even after <code>~</code>.",
+)
+
+
+state = sect(
+    h1="State lifecycle",
+    h2="Derived state",
+    h3="Resetting state",
+    p1="Every reactive cell lives as long as its enclosing <code>@screen</code> is mounted. Opening a screen runs its declarations top-to-bottom; leaving it via <code>back()</code> or <code>goto()</code> destroys them.",
+    p2="If you need state to survive navigation, derive it from the host: either POST to the bot with <code>send()</code> and re-fetch on open, or persist locally via a <code>store(key, value)</code> call.",
+    p3="Resetting: re-assign to the initial value. There is no <code>reset</code> keyword because re-assignment already does the job; the runtime diffs and re-renders only what changed.",
+    p4="Derived state is computed via <code>:=</code>. Architex tracks dependencies automatically, so you don't list them manually. Dependency tracking is precise per property, not per object.",
+    p5="Arrays and objects are compared by reference. To force a re-render, assign a new array / object. Mutation of the old one is ignored — an intentional trade for predictable update semantics.",
+    cc1="~list = [...~list, newItem]  // force re-render with a new array reference",
+    cc2="~obj = &#123;...~obj, name: &quot;x&quot;&#125;  // same pattern for objects",
+    li1="Scope: local to the enclosing <code>@screen</code>.",
+    li2="Lifetime: from <code>@screen</code> enter to exit.",
+    li3="Concurrency: single-threaded per screen. Updates are batched within one microtask.",
+    li4="Equality: strict (<code>===</code>) — assigning the same value re-triggers nothing.",
+)
+
+
+types = sect(
+    h1="Primitive types",
+    h2="Container types",
+    h3="Type coercion",
+    h4="Truthiness",
+    p1="Architex has five primitive types: <code>number</code>, <code>string</code>, <code>boolean</code>, <code>null</code>, and the composite <code>object</code> / <code>array</code>. Dates are passed through as strings (ISO 8601) or numbers (unix ms).",
+    p2="Numbers are 64-bit doubles (IEEE 754). Integer arithmetic up to 2^53 is exact.",
+    p3="Strings are UTF-8; length counts code points, not bytes. Interpolation uses curly braces.",
+    p4="Booleans are <code>true</code> / <code>false</code>. No implicit conversion from strings.",
+    p5="Arrays are ordered, 0-indexed. Access via <code>~arr[0]</code>; length via <code>~arr.length</code>.",
+    p6="Objects are unordered key→value maps. Access via <code>~obj.name</code> or <code>~obj[&quot;name&quot;]</code>.",
+    p7="Coercion: arithmetic operators coerce strings to numbers if the string looks numeric; otherwise an expression error fires at runtime.",
+    p8="Truthiness: falsy values are <code>false</code>, <code>0</code>, <code>&quot;&quot;</code>, <code>null</code>, and empty arrays / objects. Everything else is truthy.",
+    td1="<code>number</code>",
+    td2="<code>string</code>",
+    td3="<code>boolean</code>",
+    td4="<code>array</code>",
+    td5="<code>object</code>",
+    td6="<code>null</code>",
+    td7="64-bit IEEE 754 double",
+    td8="UTF-8 string with <code>&#123;...&#125;</code> interpolation",
+    td9="<code>true</code> or <code>false</code>",
+    td10="<code>[value, value, ...]</code>",
+    td11="<code>&#123;key: value, ...&#125;</code>",
+    td12="absence marker; falsy",
+    cc1="~n: number = 42",
+    cc2="~s: string = &quot;hi&quot;",
+    cc3="~b: boolean = true",
+    cc4="~a: array = [1, 2, 3]",
+    cc5="~o: object = &#123;name: &quot;alex&quot;&#125;",
+)
+
+
+operators = sect(
+    h1="Arithmetic operators",
+    h2="Comparison operators",
+    h3="Logical operators",
+    h4="Ternary",
+    h5="Assignment operators",
+    p1="Arithmetic follows standard precedence. Division by zero returns <code>Infinity</code> and logs a warning; modulo by zero returns <code>NaN</code>.",
+    p2="Comparison operators return <code>boolean</code>. <code>==</code> is strict equality (no type coercion).",
+    p3="Logical operators short-circuit left-to-right.",
+    p4="The ternary <code>cond ? a : b</code> works anywhere an expression is accepted; nest for enum-like lookups.",
+    p5="Compound assignment operators (<code>+=</code>, <code>-=</code>, <code>*=</code>, <code>/=</code>, <code>%=</code>) work on any reactive cell.",
+    td1="<code>+</code>",
+    td2="<code>-</code>",
+    td3="<code>*</code>",
+    td4="<code>/</code>",
+    td5="<code>%</code>",
+    td6="<code>==</code>",
+    td7="<code>!=</code>",
+    td8="<code>&lt;</code> <code>&lt;=</code>",
+    td9="<code>&gt;</code> <code>&gt;=</code>",
+    td10="<code>&amp;&amp;</code>",
+    td11="<code>||</code>",
+    td12="<code>!</code>",
+    td13="Addition (or string concatenation)",
+    td14="Subtraction",
+    td15="Multiplication",
+    td16="Division",
+    td17="Modulo",
+    td18="Strict equality",
+    td19="Strict inequality",
+    td20="Less than / less or equal",
+    td21="Greater than / greater or equal",
+    td22="Logical and (short-circuit)",
+    td23="Logical or (short-circuit)",
+    td24="Logical not",
+    cc1="~sum := ~a + ~b",
+    cc2="~ok := ~count &gt; 0 &amp;&amp; ~valid",
+    cc3="~label := ~count &gt; 0 ? &quot;Items: &#123;~count&#125;&quot; : &quot;Empty&quot;",
+    cc4="~count += 1  // same as ~count = ~count + 1",
+    cc5="~status := ~n &gt;= 10 ? &quot;max&quot; : ~n &gt;= 5 ? &quot;mid&quot; : &quot;low&quot;",
+)
+
+
+layout = sect(
+    h1="Two containers",
+    h2="Leaf components",
+    h3="Indentation = structure",
+    h4="Alignment",
+    p1="Architex has exactly two composable containers: <code>col</code> (vertical) and <code>row</code> (horizontal). Everything else is a leaf component.",
+    p2="Indent children one level deeper than their container. There is no closing tag — the parser uses indentation alone.",
+    p3="Containers accept <code>gap(px)</code> for space between children, <code>pad(px)</code> for inner padding, <code>center</code> to centre along the cross axis, <code>grow</code> to fill remaining space along the main axis.",
+    p4="Alignment modifiers are container-level: <code>center</code> in a <code>col</code> centres horizontally; in a <code>row</code> it centres vertically. <code>align(left)</code> / <code>align(right)</code> / <code>align(top)</code> / <code>align(bottom)</code> are explicit overrides.",
+    p5="Sizing: by default every component shrinks to fit its content. Use <code>w(px)</code>, <code>h(px)</code>, <code>grow</code>, or the explicit <code>maxW(px)</code> / <code>maxH(px)</code> to clamp.",
+    cc1="col :: pad(24) gap(16) center",
+    cc2="row :: gap(8) center",
+    cc3="col :: grow    // take all remaining vertical space",
+    cc4="row :: grow    // take all remaining horizontal space",
+    li1="<code>col</code> — stack children top to bottom",
+    li2="<code>row</code> — line children left to right",
+    li3="Nest freely: <code>col</code> inside <code>row</code> inside <code>col</code>…",
+    li4="Children with <code>grow</code> split remaining space equally unless explicit weights are given.",
+)
+
+
+components = sect(
+    h1="Text components",
+    h2="Interactive components",
+    h3="Container components",
+    h4="Media components",
+    h5="Feedback components",
+    p1="Leaf text components: <code>text</code> (body copy), <code>header</code> (heading), <code>label</code> (caption). They accept either a string literal or a reactive cell.",
+    p2="Interactive components: <code>button</code>, <code>input</code>, <code>toggle</code>, <code>slider</code>, <code>select</code>, <code>tabs</code>. Each binds to a reactive cell with the value argument after the component name.",
+    p3="Container components: <code>col</code>, <code>row</code>, <code>card</code>, <code>scroll</code>, <code>sheet</code>, <code>tabs</code>. Each has its own indent-bound body.",
+    p4="Media: <code>image</code>, <code>video</code>, <code>audio</code>, <code>icon</code>, <code>avatar</code>.",
+    p5="Feedback: <code>toast</code>, <code>badge</code>, <code>divider</code>, <code>spinner</code>, <code>progress</code>.",
+    cc1="text ~message",
+    cc2="header &quot;Settings&quot; :: bold size(24)",
+    cc3="button &quot;Save&quot; =&gt; ~draft = null",
+    cc4="input ~email :: placeholder(&quot;you@example.com&quot;)",
+    cc5="image &quot;/logo.png&quot; :: w(80) h(80) radius(16)",
+    cc6="toast ~show &quot;Saved!&quot; :: duration(2000)",
+    td1="<code>text</code>",
+    td2="<code>header</code>",
+    td3="<code>label</code>",
+    td4="<code>button</code>",
+    td5="<code>input</code>",
+    td6="<code>image</code>",
+    td7="<code>badge</code>",
+    td8="<code>divider</code>",
+    td9="<code>toast</code>",
+    td10="<code>tabs</code>",
+    td11="Body copy — reactive or literal",
+    td12="Heading — defaults bigger + bolder",
+    td13="Caption — visually subdued",
+    td14="Tap-able control with label and <code>=&gt;</code> handler",
+    td15="Text field bound to a reactive cell",
+    td16="URL-sourced picture",
+    td17="Pill-shaped tag",
+    td18="1px separator line",
+    td19="Non-blocking snackbar",
+    td20="Tab switcher bound to a string cell",
+)
+
+
+modifiers = sect(
+    h1="Spacing",
+    h2="Sizing",
+    h3="Colour",
+    h4="Typography",
+    h5="Visibility",
+    h6="Behaviour",
+    h7="Border and radius",
+    p1="Modifiers come after <code>::</code> and are always chainable. There is no declaration order to remember; conflicts resolve last-writer-wins within a family.",
+    p2="<strong>Spacing family</strong>: <code>pad(n)</code> (all sides), <code>pad(x, y)</code> (horizontal, vertical), <code>pad(t, r, b, l)</code> (CSS order), <code>gap(n)</code> (between children), <code>margin(n)</code> (outside edge).",
+    p3="<strong>Sizing family</strong>: <code>w(px)</code>, <code>h(px)</code>, <code>minW(px)</code>, <code>maxW(px)</code>, <code>minH(px)</code>, <code>maxH(px)</code>, <code>grow</code>, <code>center</code>.",
+    p4="<strong>Colour family</strong>: <code>color(#rrggbb)</code> (foreground), <code>bg(#rrggbb)</code> (background). Both accept theme tokens (<code>color(~primary)</code>) and 8-digit hex for alpha (<code>#00000080</code>).",
+    p5="<strong>Typography family</strong>: <code>size(px)</code>, <code>bold</code>, <code>italic</code>, <code>align(left|center|right)</code>, <code>lineHeight(px)</code>, <code>tracking(px)</code>.",
+    p6="<strong>Visibility family</strong>: <code>hidden(~flag)</code> unmounts the node when the flag is true; <code>visible(~flag)</code> is the inverse. Unmounted nodes shed their DOM — conditional UI is cheap.",
+    p7="<strong>Behaviour family</strong>: <code>debounce(ms)</code> on <code>input</code> throttles updates; <code>placeholder(&quot;…&quot;)</code> shows a hint; <code>format(kind, arg)</code> on <code>text</code> formats a number (<code>&quot;currency&quot;</code>, <code>&quot;percent&quot;</code>, <code>&quot;compact&quot;</code>).",
+    p8="<strong>Border / radius</strong>: <code>radius(px)</code> rounds corners; <code>border(#rrggbb)</code> draws a 1 px stroke; <code>border(px, #rrggbb)</code> sets thickness too.",
+    cc1=":: pad(24)",
+    cc2=":: pad(24, 16)  // horizontal 24, vertical 16",
+    cc3=":: w(100) h(40)",
+    cc4=":: grow",
+    cc5=":: color(#4f8ef7) bg(#eef)",
+    cc6=":: bold size(18)",
+    cc7=":: hidden(~loading)",
+    cc8=":: debounce(300)",
+    cc9=":: format(&quot;currency&quot;, &quot;USD&quot;)",
+    cc10=":: radius(12) border(2, #ccc)",
+    li1="Order within a family does not matter.",
+    li2="Colour modifiers resolve last-writer-wins.",
+    li3="Spacing applies before size, size before border.",
+    li4="Unknown modifiers are a parse error — intentional to protect forward compatibility.",
+)
+
+
+handlers = sect(
+    h1="Button handler",
+    h2="Input handler",
+    h3="Chaining actions",
+    h4="Host built-ins",
+    p1="Interactive components attach an action after <code>=&gt;</code>. A button's action fires on tap. An input's action fires on change (after <code>debounce</code> if configured).",
+    p2="You can chain multiple actions on the same line. They execute top-to-bottom in the same microtask, so the UI updates once at the end.",
+    p3="Actions can assign to reactive cells, call host built-ins, navigate, or <code>send()</code> a message back to the bot.",
+    p4="Host built-ins are platform-provided: <code>copy(~text)</code>, <code>share(~text)</code>, <code>haptic(&quot;light&quot;|&quot;medium&quot;|&quot;heavy&quot;)</code>, <code>vibrate(ms)</code>, <code>alert(&quot;...&quot;)</code>, <code>confirm(&quot;...&quot;) =&gt; ~ok = it</code>, <code>goto(&quot;ScreenName&quot;, arg: val)</code>, <code>back()</code>, <code>close()</code>.",
+    cc1="button &quot;Save&quot; =&gt; ~draft = null",
+    cc2="button &quot;Buy&quot; =&gt; ~busy = true =&gt; send(action: &quot;buy&quot;) =&gt; ~busy = false",
+    cc3="input ~email :: debounce(300) =&gt; send(action: &quot;validate&quot;, email: ~email)",
+    cc4="button &quot;Copy&quot; =&gt; copy(~invite) =&gt; toast = true",
+    cc5="button &quot;Open settings&quot; =&gt; goto(&quot;Settings&quot;, user: ~user)",
+    cc6="button &quot;Confirm&quot; =&gt; confirm(&quot;Delete?&quot;) =&gt; ~result = it",
+    td1="<code>~x = v</code>",
+    td2="<code>~x += v</code>",
+    td3="<code>send(action: ...)</code>",
+    td4="<code>goto(...)</code> / <code>back()</code>",
+    td5="<code>copy(~x)</code> / <code>share(~x)</code>",
+    td6="<code>haptic(&quot;light&quot;)</code>",
+    td7="<code>alert(...)</code> / <code>confirm(...)</code>",
+    td8="<code>close()</code>",
+    td9="Assignment",
+    td10="Compound update",
+    td11="Send message to the bot host",
+    td12="Navigation",
+    td13="Clipboard / share sheet",
+    td14="Haptic feedback",
+    td15="Modal prompt",
+    td16="Dismiss the Mini App",
+)
+
+
+control_flow = sect(
+    h1="Conditional visibility",
+    h2="Ternary in values",
+    h3="Switch-like via nested ternary",
+    h4="Multiple branches",
+    p1="Architex has no <code>if</code> statement at the top level of the syntax. Conditional UI is expressed through the <code>hidden(~flag)</code> / <code>visible(~flag)</code> modifiers or through ternary expressions in component values.",
+    p2="Ternary works anywhere a value is accepted: component argument, modifier argument, computed value.",
+    p3="For more than two branches, nest the ternary. Architex parses right-to-left so nesting reads naturally.",
+    p4="For <code>switch</code>-like logic over an object, use computed lookup: <code>~labels := &#123;home: &quot;Home&quot;, settings: &quot;Settings&quot;&#125;; text ~labels[~active]</code>.",
+    cc1="text &quot;Logged in&quot; :: visible(~user.authenticated)",
+    cc2="button &quot;Retry&quot; :: hidden(~loading)",
+    cc3="text ~count &gt; 0 ? &quot;You have &#123;~count&#125; items&quot; : &quot;Empty&quot;",
+    cc4="~status := ~n &gt;= 10 ? &quot;full&quot; : ~n &gt;= 5 ? &quot;mid&quot; : &quot;low&quot;",
+    cc5="text ~labels[~active] :: bold",
+    li1="No <code>if</code> block — use modifier or ternary.",
+    li2="No <code>else if</code> chain — use nested ternary.",
+    li3="No pattern matching — use lookup tables instead.",
+    li4="No early return — conditional branches are values, not statements.",
+)
+
+
+loops = sect(
+    h1="Basic @for",
+    h2="With index",
+    h3="Keys",
+    h4="Nested loops",
+    p1="Repeat a block of UI per element with <code>@for item in ~list</code>. Indent the body; every child renders once per element.",
+    p2="Bind the zero-based index with the two-name form: <code>@for item, idx in ~list</code>.",
+    p3="The runtime tracks identity by the element itself by default. Prepending to a 10 000-row list costs O(1) DOM work — the renderer diffs by reference, not by position.",
+    p4="Nest <code>@for</code> freely. Inner loops see outer loop bindings.",
+    p5="Iteration order is the array order. To reverse, iterate a computed reverse: <code>~reversed := [...].reverse()</code>.",
+    cc1="@for item in ~items",
+    cc2="  row :: gap(8) pad(4)",
+    cc3="    text ~item",
+    cc4="@for item, idx in ~items",
+    cc5="  row :: gap(8) pad(4)",
+    cc6="    badge ~idx",
+    cc7="    text ~item :: grow",
+    cc8="@for row in ~grid",
+    cc9="  @for cell in ~row",
+    cc10="    text ~cell :: pad(4)",
+    li1="Iteration body is indented one level deeper than the <code>@for</code> line.",
+    li2="Body can contain any component, including another <code>@for</code>.",
+    li3="Adding / removing at the end is free; diffing is identity-based.",
+    li4="Empty lists render nothing — no placeholder slot is reserved.",
+)
+
+
+theme = sect(
+    h1="Declaring a theme",
+    h2="Using tokens",
+    h3="Dark mode",
+    h4="Nested themes",
+    p1="A <code>@theme</code> block at the top of a file declares design tokens as reactive variables. Any modifier or component can reference them with <code>~tokenName</code>.",
+    p2="Tokens become ordinary reactive variables. A runtime dark-mode toggle is three lines: track <code>~isDark</code>, let the theme define tokens as ternaries, and one <code>toggle</code> component flips the variable.",
+    p3="Nested themes: a <code>@screen</code> can override specific tokens in a local <code>@theme</code> block. Unspecified tokens inherit from the outer scope.",
+    p4="Typical tokens: <code>~primary</code>, <code>~secondary</code>, <code>~danger</code>, <code>~bg</code>, <code>~bg2</code>, <code>~text</code>, <code>~text2</code>, <code>~radius</code>, <code>~spacing</code>.",
+    cc1="@theme",
+    cc2="  ~primary = #4f8ef7",
+    cc3="  ~danger = #e53935",
+    cc4="  ~bg = #ffffff",
+    cc5="  ~text = #212121",
+    cc6="  ~radius = 12",
+    cc7="header &quot;Title&quot; :: color(~primary) bold",
+    cc8="button &quot;Delete&quot; :: bg(~danger) color(#fff)",
+    cc9="// dark mode via a reactive theme",
+    cc10="~isDark = false",
+    cc11="~bg := ~isDark ? #111 : #fff",
+    cc12="~text := ~isDark ? #eee : #111",
+    li1="Tokens are reactive — flipping one updates every consumer.",
+    li2="Name tokens semantically (<code>~danger</code>), not literally (<code>~red</code>).",
+    li3="Prefer tokens over hex literals for every colour used more than twice.",
+    li4="Radii and spacing are good theme candidates too — consistency across a screen improves with shared tokens.",
+)
+
+
+imports = sect(
+    h1="Syntax",
+    h2="Resolution",
+    h3="Re-exporting",
+    h4="Circular imports",
+    p1="<code>@import &quot;./path/to/file.arx&quot;</code> pulls every <code>@component</code> and <code>@screen</code> from that file into the current scope. Paths are relative to the importing file.",
+    p2="Imports do not create namespaces. Names collide across imports — last-imported wins. Keep component names unique.",
+    p3="Re-exporting: there is no <code>re-export</code> keyword. To make a downstream file inherit components, import the upstream and declare your screens referencing them.",
+    p4="Circular imports are detected at parse time. A file <code>A</code> importing <code>B</code> importing <code>A</code> errors with the cycle path.",
+    cc1="@import &quot;./shared/ui.arx&quot;",
+    cc2="@import &quot;../theme.arx&quot;",
+    cc3="// after @import, components from shared/ui.arx are usable by name",
+    cc4="@screen Home",
+    cc5="  Avatar url=&quot;/me.png&quot;  // defined in shared/ui.arx",
+    li1="Paths are relative to the file doing the <code>@import</code>.",
+    li2="Extension <code>.arx</code> is required.",
+    li3="Multiple <code>@import</code>s execute top-to-bottom; ordering affects conflict resolution.",
+    li4="No wildcard imports — every file is an explicit path.",
+)
+
+
+components_define = sect(
+    h1="Defining a component",
+    h2="Parameters",
+    h3="Slots",
+    h4="Reusing components",
+    p1="Declare a reusable component with <code>@component Name param1 param2 ...</code>. Inside the body, named parameters are in scope as plain identifiers (without <code>~</code>).",
+    p2="Parameters can be typed with the same <code>: Type</code> syntax. Untyped params accept any value.",
+    p3="<code>slot</code> inside a component body marks where the caller's body plugs in — think React children or Vue default slot.",
+    p4="Components are pure: given the same parameters and slots, they render the same UI. Internal reactive state is allowed but typically flows from parameters.",
+    p5="Naming: PascalCase is conventional, not enforced. <code>Avatar</code>, <code>Card</code>, <code>UserRow</code>.",
+    cc1="@component Avatar url size",
+    cc2="  image url :: w(size) h(size) radius(size / 2)",
+    cc3="@component Card",
+    cc4="  col :: pad(16) radius(12) bg(#fff) shadow",
+    cc5="    slot",
+    cc6="// usage:",
+    cc7="Avatar url=&quot;/me.png&quot; size=64",
+    cc8="Card",
+    cc9="  header &quot;Inside a card&quot;",
+    cc10="  text &quot;Slot body&quot;",
+    li1="Components cannot contain <code>@screen</code> declarations.",
+    li2="Components cannot import (use outer-file imports instead).",
+    li3="Components can define their own reactive variables scoped to each instance.",
+    li4="Components can take <code>slot</code> to accept caller-provided children.",
+)
+
+
+reactivity = sect(
+    h1="How tracking works",
+    h2="Batching",
+    h3="Equality",
+    h4="Cycles",
+    p1="Every reactive read inside a computed expression or modifier argument registers a dependency. When any dependency changes, the expression re-evaluates in the next microtask.",
+    p2="Writes are batched: multiple assignments within one event handler fire exactly one render pass at the end. This is why <code>=&gt; ~a = 1 =&gt; ~b = 2</code> is cheap even with many readers.",
+    p3="Equality is strict (<code>===</code>). Writing the same value re-runs nothing. To force updates with reference types, assign a new array or object.",
+    p4="Cycles in computed dependencies (<code>~a := ~b + 1</code> and <code>~b := ~a - 1</code>) are detected at declaration time and reported as errors.",
+    p5="Async updates: a <code>send()</code> that returns a value updates the cell you assign the result to, scheduling a render pass when the Promise resolves.",
+    cc1="~count = 0",
+    cc2="~doubled := ~count * 2     // dependency: ~count",
+    cc3="~info := &quot;count: &#123;~count&#125;, doubled: &#123;~doubled&#125;&quot;  // depends on both",
+    cc4="button &quot;inc&quot; =&gt; ~count += 1",
+    cc5="// one tap ⇒ one render pass updating info",
+    li1="Fine-grained: only components that read the changed cell re-render.",
+    li2="Batched: multiple writes in one microtask ⇒ one render.",
+    li3="Deterministic: same inputs ⇒ same output, no ordering surprises.",
+    li4="Type-safe: modifier arguments are type-checked against their declared signatures.",
+)
+
+
+strings = sect(
+    h1="String literals",
+    h2="Interpolation",
+    h3="Escapes",
+    h4="Multi-line",
+    p1="Strings are double-quoted: <code>&quot;Hello&quot;</code>. Single quotes are also accepted for symmetry with JS.",
+    p2="Interpolation uses curly braces inside a string: <code>&quot;Hello, &#123;~name&#125;!&quot;</code>. Any expression is allowed — cells, computed values, function calls.",
+    p3="Escape characters: <code>\\n</code> (newline), <code>\\t</code> (tab), <code>\\&quot;</code> (quote), <code>\\\\</code> (backslash), <code>\\&#123;</code> (literal brace).",
+    p4="Multi-line: break at a newline inside the quotes. The runtime preserves whitespace exactly.",
+    p5="Templating: for a text block with several interpolations, a computed string is idiomatic. Store it in a cell and reference it from the UI.",
+    cc1="text &quot;hello&quot;",
+    cc2="text &quot;Hello, &#123;~name&#125;!&quot;",
+    cc3="text &quot;Total: &#123;~count * ~price&#125;&quot;",
+    cc4="text &quot;Newline: \\n end&quot;",
+    cc5="~greeting := &quot;Welcome back, &#123;~user.name&#125;!&quot;",
+    li1="Interpolation expressions are reactive — every read tracks a dependency.",
+    li2="Escaped braces render as literal braces.",
+    li3="Empty interpolation <code>&#123;&#125;</code> is invalid — the parser errors.",
+    li4="Concatenation uses <code>+</code> (string coercion) for simple cases; interpolation reads better for long templates.",
+)
+
+
+errors = sect(
+    h1="Parse errors",
+    h2="Runtime errors",
+    h3="Modifier errors",
+    h4="Debugging",
+    p1="Parse errors fire at file-load time. The runtime reports the line, column, and a hint. Common causes: mismatched indent, missing <code>=</code>, unknown modifier, unclosed string.",
+    p2="Runtime errors fire during evaluation. Most are reactive — an expression references an undeclared cell, or a type mismatch in arithmetic. The runtime logs, shows a red banner on the preview, and skips that frame's update.",
+    p3="Modifier errors (unknown modifier, wrong argument type) fire at parse time. Architex is strict about unknown modifiers to protect forward compatibility.",
+    p4="Debugging: wrap a suspect expression in <code>debug(...)</code>. The runtime logs every evaluation to the console without altering the value. Pair with the Architex inspector to step through state changes.",
+    p5="Editor integration: the Architex IDE in the Vortex bot studio underlines errors in real time, before the file is saved.",
+    cc1="// parse error: unknown modifier",
+    cc2="text &quot;x&quot; :: shadow    // ERROR: &quot;shadow&quot; is not a supported modifier",
+    cc3="// runtime error: undeclared cell",
+    cc4="text ~message          // ERROR: ~message was not declared in this screen",
+    cc5="// debug wrapper",
+    cc6="~total := debug(~count * ~step)",
+    li1="Parse errors halt execution before any rendering starts.",
+    li2="Runtime errors skip the offending frame; the UI otherwise stays responsive.",
+    li3="Fix-forward: change the file and save; the runtime hot-reloads.",
+    li4="No <code>try / catch</code> syntax — bot communication uses explicit <code>send()</code> with result assignment.",
+)
+
+
+host_builtins = sect(
+    h1="Clipboard and sharing",
+    h2="Haptics and vibration",
+    h3="Prompts",
+    h4="Navigation",
+    h5="Lifecycle",
+    p1="Host built-ins are platform-provided actions. They are the glue between the DSL and the surrounding app.",
+    p2="Clipboard: <code>copy(~text)</code> places the argument onto the clipboard; <code>paste() =&gt; ~x = it</code> reads the clipboard into a cell. <code>share(~text)</code> opens the system share sheet.",
+    p3="Haptics: <code>haptic(&quot;light&quot;|&quot;medium&quot;|&quot;heavy&quot;)</code> triggers feedback on supporting devices. <code>vibrate(ms)</code> is a longer-form buzz.",
+    p4="Prompts: <code>alert(&quot;message&quot;)</code> shows a modal with OK. <code>confirm(&quot;message&quot;) =&gt; ~ok = it</code> shows OK + Cancel; the <code>it</code> shorthand is the return value.",
+    p5="Navigation: <code>goto(&quot;ScreenName&quot;, arg: val, ...)</code> pushes a screen; <code>back()</code> pops one; <code>close()</code> dismisses the entire Mini App.",
+    p6="Lifecycle hooks: <code>@on mount</code>, <code>@on unmount</code>, <code>@on focus</code>, <code>@on blur</code>. Each takes a body block that runs when the event fires.",
+    cc1="button &quot;Copy invite&quot; =&gt; copy(~invite)",
+    cc2="button &quot;Share&quot; =&gt; share(~text)",
+    cc3="button &quot;Undo&quot; =&gt; haptic(&quot;light&quot;) =&gt; ~list = ~prevList",
+    cc4="button &quot;Delete&quot; =&gt; confirm(&quot;Sure?&quot;) =&gt; ~remove = it",
+    cc5="button &quot;Profile&quot; =&gt; goto(&quot;Profile&quot;, user: ~me)",
+    cc6="@on mount",
+    cc7="  send(action: &quot;fetch_initial&quot;)",
+)
+
+
+examples = sect(
+    h1="Counter",
+    h2="Todo",
+    h3="Profile",
+    h4="Killer features demo",
+    p1="Four canonical Mini Apps ship in <code>Architex/examples/</code>. Each is under 40 lines and stress-tests a different part of the language.",
+    p2="<strong>Counter</strong> — reactive state, computed, button handlers, text binding. Read it first; it introduces every syntactic construct in under 30 lines.",
+    p3="<strong>Todo</strong> — list rendering, add / remove, inline editing. Shows how <code>@for</code> interacts with reactive arrays and how inline <code>input</code> bindings work.",
+    p4="<strong>Profile</strong> — image, badges, conditional visibility, navigation. Shows <code>hidden</code> / <code>visible</code> modifiers and <code>goto</code> transitions.",
+    p5="<strong>Killer features</strong> — themes, imports, tabs, toasts, formatted numbers, ternaries, typed variables, multi-handler buttons. Everything at once.",
+    li1="Copy any example into the Architex tab to experiment.",
+    li2="Modify live — the preview hot-reloads on save.",
+    li3="Port patterns into your own screens — the examples are license-free for any use.",
+    li4="Suggest new examples via the bot marketplace; popular patterns get adopted.",
+)
+
+
+navigation = sect(
+    h1="goto / back / close",
+    h2="Deep links",
+    h3="Screen stack",
+    h4="Modal vs push",
+    p1="Architex uses a stack-based navigation model. <code>goto(&quot;Name&quot;, arg: val, ...)</code> pushes a screen; <code>back()</code> pops the top; <code>close()</code> dismisses the entire Mini App.",
+    p2="Arguments passed through <code>goto</code> become reactive variables inside the target screen — declare them at the top with the same names and default values.",
+    p3="Deep links: <code>openArx(url)</code> navigates to an external Architex Mini App; <code>openUrl(url)</code> opens in the system browser; <code>openChat(room_id)</code> jumps to a Vortex room.",
+    p4="Modal presentation: <code>present(&quot;Name&quot;)</code> instead of <code>goto</code> pushes as a sheet that the user can swipe to dismiss. <code>dismiss()</code> closes it.",
+    p5="State between screens: navigation destroys the old screen's state by default. Pass what you need through <code>goto</code> args; persist longer-lived data through <code>store(key, value)</code>.",
+    cc1="button &quot;Profile&quot; =&gt; goto(&quot;Profile&quot;, user: ~me)",
+    cc2="button &quot;Settings&quot; =&gt; present(&quot;Settings&quot;)",
+    cc3="button &quot;Cancel&quot; =&gt; dismiss()",
+    cc4="button &quot;Back&quot; =&gt; back()",
+    cc5="button &quot;Close app&quot; =&gt; close()",
+    cc6="button &quot;Docs&quot; =&gt; openUrl(&quot;https://docs.vortexx.sol&quot;)",
+    cc7="button &quot;Chat&quot; =&gt; openChat(room_id: ~roomId)",
+    li1="Push adds one screen; back removes one.",
+    li2="Modal dismiss is swipe-aware on iOS / Android.",
+    li3="Deep links cross app boundaries — users may see a permission prompt.",
+    li4="Going back preserves scroll position automatically.",
+    td1="<code>goto(name, args)</code>",
+    td2="<code>present(name, args)</code>",
+    td3="<code>back()</code>",
+    td4="<code>dismiss()</code>",
+    td5="<code>close()</code>",
+    td6="<code>openUrl(url)</code>",
+    td7="<code>openArx(url)</code>",
+    td8="<code>openChat(room_id)</code>",
+    td9="Push screen",
+    td10="Present modal",
+    td11="Pop screen",
+    td12="Dismiss modal",
+    td13="Close the whole Mini App",
+    td14="Open in browser",
+    td15="Open another Mini App",
+    td16="Jump to a Vortex room",
+)
+
+
+forms = sect(
+    h1="Input basics",
+    h2="Validation",
+    h3="Submit",
+    h4="Error display",
+    p1="Inputs bind two-way to a reactive cell: <code>input ~email</code>. Typing updates the cell; updating the cell updates the field.",
+    p2="Validation is a computed boolean: <code>~emailOk := ~email.matches(&quot;^[^@]+@[^@]+\\.[^@]+$&quot;)</code>. Use <code>hidden</code> / <code>visible</code> modifiers on error labels.",
+    p3="Submit is an ordinary button with chained actions. Block submission while validation fails via <code>disabled(!~formOk)</code>.",
+    p4="Error display: render a <code>text</code> or <code>label</code> with <code>visible(!~fieldOk)</code> to show only when invalid. Apply <code>color(~danger)</code> for visual emphasis.",
+    p5="Debouncing: add <code>:: debounce(300)</code> to delay network-backed validation until the user stops typing for 300 ms.",
+    p6="Placeholder: <code>:: placeholder(&quot;...&quot;)</code> shows a hint when the cell is empty. Hint disappears on first keystroke.",
+    p7="Input types: plain <code>input</code> is text; <code>input.email</code>, <code>input.number</code>, <code>input.password</code>, <code>input.tel</code>, <code>input.date</code> adjust keyboard and masking.",
+    cc1="input ~email :: placeholder(&quot;you@example.com&quot;)",
+    cc2="~emailOk := ~email.matches(&quot;^[^@]+@[^@]+\\.[^@]+$&quot;)",
+    cc3="label &quot;Invalid email&quot; :: color(~danger) visible(!~emailOk &amp;&amp; ~email != &quot;&quot;)",
+    cc4="button &quot;Submit&quot; :: disabled(!~emailOk) =&gt; send(action: &quot;submit&quot;, email: ~email)",
+    cc5="input.password ~pw :: placeholder(&quot;••••••••&quot;)",
+    cc6="input ~search :: debounce(300) =&gt; send(action: &quot;search&quot;, q: ~search)",
+    li1="Binding is two-way — typing mutates the cell and vice versa.",
+    li2="Validation is just a computed boolean cell.",
+    li3="Show / hide errors with visibility modifiers.",
+    li4="Disable submit button via <code>disabled</code>.",
+    li5="Debounce network-backed validation to avoid spam.",
+)
+
+
+animations = sect(
+    h1="Implicit transitions",
+    h2="Explicit animate",
+    h3="Enter / exit",
+    h4="Gestures",
+    p1="Architex animates implicitly when a reactive value drives a numeric or colour modifier. Default transition is 200 ms ease-out. Override with <code>:: animate(ms, curve)</code>.",
+    p2="Enter / exit transitions: conditionally rendered nodes (<code>hidden</code> / <code>visible</code>) animate in and out. Customise via <code>:: animate.enter(...)</code> and <code>:: animate.exit(...)</code>.",
+    p3="Curves: <code>ease-out</code> (default), <code>ease-in</code>, <code>ease-in-out</code>, <code>linear</code>, <code>spring</code>. Spring takes optional <code>stiffness</code> and <code>damping</code> arguments.",
+    p4="Gestures: <code>:: draggable</code> and <code>:: swipeable</code> attach platform-appropriate gesture recognisers. Combine with reactive state to animate on drag.",
+    p5="Reduced motion: the host respects the user's accessibility setting. When reduced-motion is on, animations shrink to under 100 ms and spring curves become linear.",
+    cc1="col :: animate(300, ease-in-out) bg(~highlight ? ~primary : ~bg)",
+    cc2="button &quot;Load&quot; :: animate(150, spring) bg(~busy ? ~danger : ~primary)",
+    cc3="text &quot;Welcome&quot; :: animate.enter(400, spring) visible(~show)",
+    cc4="col :: animate.exit(200, ease-in) hidden(~show)",
+    cc5="card :: draggable =&gt; ~offset = it.translateX",
+    li1="Default duration: 200 ms ease-out.",
+    li2="Spring curves feel more natural for interactive drag.",
+    li3="Reduced-motion hosts shorten everything automatically.",
+    li4="Exit transitions delay unmount until the animation finishes.",
+    td1="<code>animate(ms, curve)</code>",
+    td2="<code>animate.enter(ms, curve)</code>",
+    td3="<code>animate.exit(ms, curve)</code>",
+    td4="<code>draggable</code>",
+    td5="<code>swipeable</code>",
+    td6="<code>tap</code>",
+    td7="<code>longpress</code>",
+    td8="General-purpose transition",
+    td9="On mount",
+    td10="On unmount",
+    td11="Drag gesture",
+    td12="Swipe gesture",
+    td13="Tap gesture",
+    td14="Long-press gesture",
+)
+
+
+media = sect(
+    h1="Image",
+    h2="Video",
+    h3="Audio",
+    h4="Icons",
+    p1="<code>image</code> loads a picture from a URL or local asset path. Common modifiers: <code>w(px)</code>, <code>h(px)</code>, <code>radius(px)</code>, <code>fit(cover|contain|fill)</code>.",
+    p2="<code>video</code> plays a clip. Modifiers: <code>autoplay</code>, <code>loop</code>, <code>muted</code>, <code>controls</code>, <code>poster(url)</code>.",
+    p3="<code>audio</code> is an audio-only player. Same modifiers as <code>video</code> minus <code>poster</code>.",
+    p4="<code>icon</code> renders a built-in icon glyph by name: <code>icon &quot;heart&quot;</code>. Size via <code>size(px)</code>, colour via <code>color(...)</code>.",
+    p5="Placeholder: if the URL fails to load, <code>image</code> shows a silhouette, <code>video</code> shows the <code>poster</code>. Override via <code>:: onError(fallback_url)</code>.",
+    cc1="image &quot;/avatar.png&quot; :: w(80) h(80) radius(40) fit(cover)",
+    cc2="video &quot;/intro.mp4&quot; :: autoplay loop muted",
+    cc3="audio &quot;/song.mp3&quot; :: controls",
+    cc4="icon &quot;heart&quot; :: size(24) color(~danger)",
+    cc5="image ~url :: w(full) h(240) fit(cover) radius(12)",
+    li1="URLs are fetched with the host's cache policy.",
+    li2="Local assets are bundled with the Mini App.",
+    li3="Videos respect the user's autoplay-muted preference on iOS / Android.",
+    li4="Built-in icons cover ~400 common glyphs.",
+    td1="<code>image url</code>",
+    td2="<code>video url</code>",
+    td3="<code>audio url</code>",
+    td4="<code>icon name</code>",
+    td5="<code>:: fit(cover)</code>",
+    td6="<code>:: autoplay</code>",
+    td7="<code>:: loop</code>",
+    td8="<code>:: muted</code>",
+    td9="Static picture",
+    td10="Playable clip",
+    td11="Audio-only",
+    td12="Built-in glyph",
+    td13="Image fit mode",
+    td14="Play on mount",
+    td15="Replay on finish",
+    td16="No audio track",
+)
+
+
+network = sect(
+    h1="send() basics",
+    h2="Responses",
+    h3="Errors",
+    h4="Loading states",
+    p1="<code>send(action: &quot;name&quot;, ...args)</code> is the bridge to the bot host. The host receives a JSON RPC message, processes, and returns a result.",
+    p2="The result is assigned to a cell via <code>=&gt; ~result = it</code>. <code>it</code> is the shorthand for the return value.",
+    p3="Failures surface as <code>~result.error</code>. Check before reading <code>~result.data</code>. Use nested ternaries for loading / success / error states.",
+    p4="Loading states are your own boolean: flip a <code>~loading</code> cell before the call, flip back after. Show a <code>spinner</code> component gated on <code>~loading</code>.",
+    p5="Race conditions: if the user triggers <code>send</code> twice before the first resolves, the second overwrites the cell. To prevent, gate with <code>disabled(~loading)</code>.",
+    cc1="button &quot;Load&quot; =&gt; ~loading = true =&gt; send(action: &quot;fetch&quot;) =&gt; ~data = it =&gt; ~loading = false",
+    cc2="spinner :: visible(~loading)",
+    cc3="text ~data.title :: visible(!~loading &amp;&amp; !~data.error)",
+    cc4="text &quot;Error: &#123;~data.error&#125;&quot; :: color(~danger) visible(!~loading &amp;&amp; ~data.error)",
+    cc5="button &quot;Retry&quot; :: disabled(~loading) =&gt; send(action: &quot;fetch&quot;)",
+    li1="<code>send()</code> is the only way to reach the outside world.",
+    li2="The result is assigned to a cell via the <code>it</code> shorthand.",
+    li3="Errors travel as part of the result, not as exceptions.",
+    li4="Guard against double-submit with a <code>~loading</code> flag.",
+)
+
+
+accessibility_s = sect(
+    h1="Labels",
+    h2="Focus order",
+    h3="Dynamic Type",
+    h4="High contrast",
+    p1="Every interactive component can carry an accessibility label via <code>:: a11y(&quot;label&quot;)</code>. Screen readers announce the label on focus.",
+    p2="Focus order follows the source order by default. Override with <code>:: a11yOrder(n)</code> for special layouts.",
+    p3="Dynamic Type: text modifiers scale with the OS's accessibility font size up to 200 %% without clipping. The runtime re-lays-out containers on the fly.",
+    p4="High-contrast mode: modifiers with transparent backgrounds get opaque fills; borders bump from 1 px to 2 px. Automatic — no code needed beyond respecting theme tokens.",
+    p5="Colour contrast: Vortex's default theme meets WCAG AA (4.5:1) in both light and dark modes. Custom themes should test contrast with any colour-contrast tool before shipping.",
+    cc1="button &quot;⭐&quot; :: a11y(&quot;favourite&quot;)",
+    cc2="image &quot;/chart.png&quot; :: a11y(&quot;Weekly sales chart showing upward trend&quot;)",
+    cc3="col :: a11yOrder(1) ... // first in focus order",
+    cc4="text &quot;Heading&quot; :: a11y.role(&quot;heading&quot;) a11y.level(1)",
+    li1="Buttons without visible text must have an accessibility label.",
+    li2="Images must have alt text (a11y label).",
+    li3="Focus order defaults to source order — override only when needed.",
+    li4="Contrast ratios are tested automatically by the Mini App review process.",
+)
+
+
+performance = sect(
+    h1="Reactive granularity",
+    h2="List performance",
+    h3="Avoid work on every keystroke",
+    h4="Bundle size",
+    p1="Reactivity is fine-grained: only components that read a changed cell re-render. Nothing you write \"for free\" triggers a full tree re-render.",
+    p2="Lists of thousands of items are fine. The runtime diffs by element identity, so prepending is O(1). Avoid computed expressions that re-evaluate the entire list on every change — break the work into per-item computed cells.",
+    p3="High-frequency inputs: use <code>:: debounce(ms)</code> on any <code>input</code> that triggers network calls. 300 ms is usually right.",
+    p4="Bundle size: Architex parser + renderer is under 30 KB gzipped. Your <code>.arx</code> file adds its own size — keep images out of the bundle and load them by URL.",
+    p5="Profile: the Architex inspector shows per-component render counts and computed-cell evaluation counts. Any cell evaluating more than once per user interaction is a profiling target.",
+    cc1="// bad — entire list re-filters every keystroke",
+    cc2="~visible := ~list.filter(x =&gt; x.contains(~search))",
+    cc3="// good — debounced so it runs only after user stops typing",
+    cc4="~search :: debounce(300)",
+    cc5="// better — computed pre-filter + in-list search",
+    cc6="~byCategory := ~list.filter(x =&gt; x.category == ~cat)",
+    cc7="~visible := ~byCategory.filter(x =&gt; x.contains(~search))",
+    li1="Fine-grained reactivity means you rarely need manual memoisation.",
+    li2="List diffing is identity-based — prepending is free.",
+    li3="Debounce network-backed computed cells.",
+    li4="Profile with the inspector before optimising by intuition.",
+)
+
+
+runtime = sect(
+    h1="Parser",
+    h2="AST",
+    h3="Renderer",
+    h4="Hosts",
+    p1="The Architex runtime is a TypeScript package published as <code>architex</code>. It has four modules: <code>lexer</code>, <code>parser</code>, <code>renderer</code>, <code>reactive</code>.",
+    p2="The lexer reads source text and emits tokens. It is the only component that cares about whitespace — every downstream module works on tokens and AST nodes.",
+    p3="The parser builds an AST. AST nodes are typed and serialisable so they can be sent across process boundaries (useful for hot-reload and remote preview).",
+    p4="The renderer walks the AST with a render context provided by the host (web DOM / SwiftUI bridge / Compose bridge) and produces native views.",
+    p5="Hosts implement a narrow interface: <code>createNode</code>, <code>updateNode</code>, <code>removeNode</code>, plus modifier application. Adding a new host takes about 500 lines of glue code.",
+    cc1="// Lex",
+    cc2="scanLines(source) =&gt; Token[]",
+    cc3="// Parse",
+    cc4="parse(tokens) =&gt; Program",
+    cc5="buildTree(program) =&gt; Node",
+    cc6="// Reactive state",
+    cc7="const state = createState(defaults)",
+    cc8="// Render",
+    cc9="renderNode(node, renderCtx)",
+    li1="Lexer: whitespace-aware, 2-space indent.",
+    li2="Parser: produces a typed AST.",
+    li3="Renderer: walks the AST, delegates to the host.",
+    li4="Reactive: automatic dependency tracking + batched updates.",
+)
+
+
+compiler = sect(
+    h1="Token types",
+    h2="AST node types",
+    h3="Parse errors",
+    h4="Extending the language",
+    p1="Tokens are listed in <code>Architex/src/lexer/tokens.ts</code>: <code>AtKw</code>, <code>Reactive</code>, <code>Compute</code> (<code>:=</code>), <code>DColon</code> (<code>::</code>), <code>Arrow</code> (<code>=&gt;</code>), plus the usual operator and literal tokens.",
+    p2="AST node types in <code>Architex/src/ast/</code>: <code>Program</code>, <code>ScreenNode</code>, <code>ComponentNode</code>, <code>ListNode</code>, <code>ForNode</code>, <code>VarDeclNode</code>, <code>ComputedNode</code>, <code>HandlerNode</code>, <code>ThemeNode</code>, <code>ImportNode</code>, <code>SlotNode</code>, <code>StyleNode</code>.",
+    p3="Parse errors include the line number, column, and a one-line hint. The IDE highlights them in real time; the runtime reports them to the preview.",
+    p4="Extending: add a new modifier by registering its name in <code>Architex/src/parser/modifiers.ts</code> and providing a render-side implementation for each host.",
+    cc1="// example AST node",
+    cc2="&#123;",
+    cc3="  kind: &quot;ComponentNode&quot;,",
+    cc4="  name: &quot;text&quot;,",
+    cc5="  args: [&#123; kind: &quot;Reactive&quot;, name: &quot;message&quot; &#125;],",
+    cc6="  modifiers: [&#123; name: &quot;bold&quot; &#125;, &#123; name: &quot;size&quot;, args: [24] &#125;],",
+    cc7="  body: []",
+    cc8="&#125;",
+    li1="Tokens and AST types live in the open-source Architex package.",
+    li2="Parser errors are reported at line + column granularity.",
+    li3="Adding a new modifier requires host-side plus parser-side changes.",
+    li4="Adding a new component is similar but also needs a render-side type.",
+)
+
+
+testing = sect(
+    h1="Preview-based smoke",
+    h2="Snapshot tests",
+    h3="State tests",
+    h4="Integration tests",
+    p1="The simplest test is the live preview. Open your screen, exercise every button and input, watch the state move in the inspector.",
+    p2="Snapshot tests: the runtime can serialise the rendered tree to JSON. Compare snapshots before / after code changes with any diff tool.",
+    p3="State tests: drive reactive cells programmatically with <code>runtime.setCell(&quot;name&quot;, value)</code>; assert on rendered output. Good for regression testing computed logic.",
+    p4="Integration tests with the bot: the bot studio ships a &quot;record&quot; mode that captures every <code>send()</code> message; re-run tests replay the script.",
+    p5="CI: export snapshots as part of the bot release. A regression in rendering blocks the merge.",
+    cc1="// snapshot test (pseudo-code)",
+    cc2="const tree = architex.render(source, initialState)",
+    cc3="expect(tree).toMatchSnapshot()",
+    cc4="// state test",
+    cc5="runtime.setCell(&quot;count&quot;, 5)",
+    cc6="expect(runtime.render().find(&quot;text&quot;).value).toBe(&quot;Items: 5&quot;)",
+    li1="Preview is the first line of defence.",
+    li2="Snapshot tests catch accidental UI regressions.",
+    li3="State tests exercise computed logic without touching the DOM.",
+    li4="Integration tests replay <code>send()</code> scripts against the bot.",
+)
+
+
+debugging = sect(
+    h1="Inspector",
+    h2="debug() wrapper",
+    h3="Log",
+    h4="Source maps",
+    p1="The Architex inspector is a panel that shows every reactive cell, its current value, and its dependency graph. Click a cell to see the render chain triggered by its last change.",
+    p2="<code>debug(expr)</code> logs every evaluation of <code>expr</code> to the console without affecting the value. Use it to trace a suspect computed cell.",
+    p3="<code>log(&quot;...&quot;)</code> prints a message from an action handler. Works in the preview and in production, filtered by <code>LOG_LEVEL</code>.",
+    p4="Source maps: every parse error and runtime trace references the original <code>.arx</code> file line. Jump from the console to the IDE with a single click.",
+    p5="Breakpoints: the inspector supports breakpoints on cell writes. Execution pauses when the cell changes so you can inspect the call stack.",
+    cc1="~total := debug(~count * ~step)  // logs every evaluation",
+    cc2="button &quot;Save&quot; =&gt; log(&quot;saving&quot;) =&gt; send(action: &quot;save&quot;)",
+    cc3="// breakpoint in the inspector: &quot;Break when ~count changes&quot;",
+    li1="Inspector is the primary debugging tool.",
+    li2="<code>debug()</code> is a transparent trace wrapper.",
+    li3="<code>log()</code> works from any action handler.",
+    li4="Source maps connect errors to the source file for fast navigation.",
+)
+
+
+migration = sect(
+    h1="Version policy",
+    h2="Deprecations",
+    h3="Forward compat",
+    p1="Architex follows semver. Patches don't break anything. Minors add features. Majors can break things with a 12-month deprecation window.",
+    p2="Deprecated features continue to work through the whole minor series. The runtime logs a deprecation warning on first use; the IDE highlights deprecated code.",
+    p3="Forward compat: files written against an earlier minor version always render identically on a later runtime. We never retro-change semantics.",
+    p4="Breaking changes are announced in the changelog with migration guides. Automated migration tools cover most mechanical changes.",
+    p5="LTS: every major version has a 24-month support window for critical security fixes, even after the next major ships.",
+    li1="Patches: bug fixes only.",
+    li2="Minors: feature additions, backward compatible.",
+    li3="Majors: breaking changes, with 12-month deprecation.",
+    li4="LTS: 24-month security support per major.",
+)
+
+
+faq = sect(
+    h1="General",
+    h2="Comparison",
+    h3="Limits",
+    p1="Q: Can I write a full app in Architex? A: Architex is designed for Mini Apps — screens that live inside a chat. For a full native app you want SwiftUI / Compose / React.",
+    p2="Q: How does it compare to Flutter? A: Flutter is much broader but has a runtime of its own (Dart VM + Skia). Architex is tiny and runs on host primitives. If you need platform lock-in, Flutter; if you need reach, Architex.",
+    p3="Q: Why no <code>if</code> block? A: Because <code>hidden</code> / <code>visible</code> modifiers cover 95%% of UI conditionals more cleanly. For the other 5%%, ternary expressions work.",
+    p4="Q: Is Architex open source? A: Yes — see the GitHub repo. MIT-licensed runtime, no patent strings.",
+    p5="Q: Can I call native code? A: Only through host-exposed built-ins or bot <code>send()</code> actions. Direct native-bridge is intentionally not supported — it would break portability.",
+    p6="Q: Max screen complexity? A: The runtime comfortably handles 10 k reactive cells and 100 k list items. Beyond that, break into multiple screens.",
+    p7="Q: Can I persist state? A: Yes, via <code>store(key, value)</code> (per-Mini-App local) or <code>send(action: &quot;save&quot;)</code> to the bot (server-side).",
+    p8="Q: Does it work offline? A: Yes for pure-UI screens. Anything calling <code>send()</code> needs the network.",
+    p9="Q: How do I add a custom component? A: Either <code>@component</code> within Architex, or (if you need native primitives) contribute to the Architex host package.",
+    p10="Q: Performance overhead vs hand-written native? A: Typically 3-8 %% slower than hand-written SwiftUI / Compose. Human-imperceptible for normal screens.",
+    li1="Max screen: ~10 k cells, ~100 k list items.",
+    li2="Max file: 1 MB <code>.arx</code> source before warnings.",
+    li3="Max import depth: 16 levels.",
+    li4="Max component nesting: 32 levels.",
+)
+
+
+gotchas = sect(
+    h1="Indent tabs vs spaces",
+    h2="Closure over reactive vars",
+    h3="Async surprises",
+    h4="Type coercion",
+    p1="Architex uses 2 spaces per indent level. Tabs are rejected at parse time. Most IDEs convert automatically; if you see unexpected indent errors, check for mixed whitespace.",
+    p2="Closures in computed expressions read reactive cells at evaluation time, not at declaration time. <code>~a := ~b + 1</code> always uses the current <code>~b</code>, not the value at declaration.",
+    p3="Async <code>send()</code> assigns to the cell when the Promise resolves, which can be out-of-order if multiple sends are in flight. Guard with a <code>~loading</code> flag or a sequence number.",
+    p4="Type coercion: <code>&quot;5&quot; + 1</code> evaluates to <code>&quot;51&quot;</code>, not <code>6</code>. Use <code>Number(&quot;5&quot;)</code> or annotate the cell as <code>: number</code>.",
+    p5="Deeply nested reactive objects: mutating a property (<code>~obj.x = 5</code>) doesn't trigger updates on readers of <code>~obj</code>. Re-assign the whole object instead.",
+    p6="Modifier order within a family: colour modifiers resolve last-writer-wins. Don't chain two <code>color(...)</code> expecting a blend.",
+    p7="<code>@for</code> body must be indented exactly one level deeper. A child at two levels is not a parse error but a semantic mis-nest — the runtime treats it as a sibling of the <code>@for</code>.",
+    cc1="// WRONG — mutation not reactive",
+    cc2="~obj.x = 5",
+    cc3="// RIGHT — reassignment is reactive",
+    cc4="~obj = &#123;...~obj, x: 5&#125;",
+    cc5="// WRONG — string concatenation",
+    cc6="~sum := ~stringCount + 1",
+    cc7="// RIGHT — explicit conversion",
+    cc8="~sum := Number(~stringCount) + 1",
+    li1="Tabs are rejected — always 2 spaces.",
+    li2="Reactive cells in closures read current, not declaration-time, value.",
+    li3="Async <code>send()</code> can resolve out of order — guard with flags.",
+    li4="Reassign objects/arrays rather than mutating fields.",
+    li5="Colour modifiers resolve last-writer-wins.",
+)
+
+
+bestpractices = sect(
+    cc1="keep screens under 200 lines",
+    cc2="extract repeated UI into @component",
+    cc3="name theme tokens semantically (~primary, ~danger)",
+    cc4="use :: hidden for boolean UI, not ternary text",
+    cc5="debounce inputs that trigger network calls",
+    cc6="let the runtime diff arrays — avoid manual bookkeeping",
+    cc7="put long templates in computed cells",
+    cc8="avoid deep nesting — 3 levels of col/row is plenty",
+    cc9="use @import to share components, not data",
+    cc10="prefer grow + center over explicit w/h for responsiveness",
+    cc11="test with small + large state — empty lists, long lists",
+    cc12="use @on mount for initial data fetches",
+    p1="Architex rewards simplicity. Every screen that feels hard to read probably has one too many nesting levels, one too many inline ternaries, or one component doing two jobs.",
+    p2="When in doubt, extract. A 5-line <code>@component</code> is easier to grok than a 30-line <code>@screen</code> block.",
+    p3="Prefer modifiers over wrapping. A <code>text :: pad(16)</code> is better than wrapping in a <code>col :: pad(16)</code>.",
+    p4="Let the runtime do the work. Manual <code>hidden</code> flags for every item in a list are wasteful — the runtime already diffs.",
+    p5="Name things for the reader, not the compiler. <code>~isLoading</code> &gt; <code>~l</code>.",
+    li1="Under 200 lines per screen — split if longer",
+    li2="No more than 3 nesting levels — refactor if deeper",
+    li3="No more than 2 ternaries per expression — use a computed",
+    li4="No more than 1 screen per file — unless tightly coupled",
+)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Assemble arxd
+# ──────────────────────────────────────────────────────────────────────
+
+ARXD = {
+    "intro":         intro,
+    "quickstart":    quickstart,
+    "syntax":        syntax,
+    "variables":     variables,
+    "state":         state,
+    "types":         types,
+    "operators":     operators,
+    "layout":        layout,
+    "components":    components,
+    "modifiers":     modifiers,
+    "handlers":      handlers,
+    "control_flow":  control_flow,
+    "loops":         loops,
+    "theme":         theme,
+    "imports":       imports,
+    "define_comp":   components_define,
+    "reactivity":    reactivity,
+    "strings":       strings,
+    "errors":        errors,
+    "host_builtins": host_builtins,
+    "examples":      examples,
+    "bestpractices": bestpractices,
+    "navigation":    navigation,
+    "forms":         forms,
+    "animations":    animations,
+    "media":         media,
+    "network":       network,
+    "a11y":          accessibility_s,
+    "performance":   performance,
+    "runtime":       runtime,
+    "compiler":      compiler,
+    "testing":       testing,
+    "debugging":     debugging,
+    "migration":     migration,
+    "faq":           faq,
+    "gotchas":       gotchas,
+}
+
+
+def target_paths():
+    root = Path("/Users/borismaltsev/RustroverProjects")
+    yield root / "Vortex/ios/Modules/Sources/I18N/Resources/locales/en.json"
+    yield from sorted((root / "vortex-introduce-page/locales").glob("*.json"))
+
+
+def splice():
+    for p in target_paths():
+        if not p.exists():
+            continue
+        with p.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        data["arxd"] = ARXD
+        with p.open("w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+        print(f"wrote {p}")
+
+
+if __name__ == "__main__":
+    splice()
