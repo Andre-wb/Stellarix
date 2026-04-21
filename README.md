@@ -49,10 +49,12 @@
 
 <!-- ── Domain-specific languages ───────────────────────────────── -->
 <p align="center">
-  <img src="https://img.shields.io/badge/Gravitix-bot%20DSL-DEA584?style=for-the-badge&logo=rust&logoColor=black" alt="Gravitix">
-  <img src="https://img.shields.io/badge/Architex-UI%20DSL-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="Architex">
-  <img src="https://img.shields.io/badge/Gravitix-96%20features-22C55E?style=for-the-badge" alt="Gravitix features">
-  <img src="https://img.shields.io/badge/Gravitix-165%20tests-22C55E?style=for-the-badge" alt="Gravitix tests">
+  <a href="Gravitix/README.md"><img src="https://img.shields.io/badge/Gravitix-bot%20DSL-7C3AED?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAwIiBoZWlnaHQ9IjEwMDAiIHZlcnNpb249IjEuMCIgdmlld0JveD0iMCAwIDc1MCA3NTAiPjxwYXRoIGZpbGw9IiNmZmYiIGQ9Ik0zMDAgMTRxLTIgNSAzIDdsNCAyLTQgMnEtOSA1LTctNSAxLTctMy02LTUtMi00IDEwdjlsLTI1IDE0LTI4IDE2LTUwIDI4VjY1aC05djMybC00IDNxLTcgMy0zIDZoNGw0LTItMSAyMnYyMWwtOCA0LTUyIDMwLTQ2IDI1Yy0yIDAtMiA4LTIgNjMgMCA1NCAwIDYzLTIgNjVsLTE4IDExYy0xNSA5LTE1IDktMTUgNnEwLTQtNC00bC0zIDN2NXEwIDMtMTQgMTFsLTEzIDggMiA0YzEgMiAyIDIgMTItNHExMS02IDEyLTVsMSA2MHY1OGwtOCA1cS0xMCA0LTYgNyAxIDMgNy0xbDYtMiAxIDExLTQtMnEtNS0zLTYgMWMtMiAzLTEgNCAyMyAxN2wzMiAxOSA3IDQtNyA0LTggNSAyIDNjMiAzIDMgMyAxMS0ybDEwLTUtOSA2LTkgNiAyIDRxMCA0IDEyLTRsNC0zdjc1bDQtMXE1IDAgNC01di00bDUgMyA2IDMtNSA0cS05IDUtNSA4bDktNCA4LTQgNSAzIDk4IDU3LTExIDctMTIgOCAyIDNjMiAyIDMgMiAxNi01bDEzLTggNSAycTUgNSA2IDAgMy0zLTEtNGwtMy0yIDMtMiAxOC0xMGMxMi04IDE0LTggMTctN2wxMDIgNTlxNCA1IDggMGwxMDQtNjAgMTYgOHEyNCAxMyAxOSAxM2wtMyAxcS0zIDItMSA0IDIgMyA3IDBjNS0yIDUtMiAxOCA1bDE0IDhxNC0xIDQtNmwtMTItNy0xMS03IDUyLTMwIDUxLTMwIDggNCA5IDRxNC0zLTUtOGwtNi0zIDUtM3E4LTYgNyAxLTIgNiAzIDVoNXYtNzRsNyA0cTkgNSA5IDJsMi0zYzAtMS05LTgtMTEtOGwtNC0zIDYgM2MxMCA1IDEwIDUgMTIgMnE0LTMtOC05bC01LTMgOS02IDMyLTE4YzIzLTEzIDIzLTEzIDIxLTE2cS0yLTQtNi0xbC00IDJ2LTEybDcgM3E3IDQgNyAxIDQtMy02LTdsLTgtNSAxLTEyMCAxMiA3YzEwIDYgMTEgNiAxMiA0bDItNC0xMy04LTE0LTl2LTZxMC0zLTMtNC00IDAtNCA0YzAgMyAwIDMtMTYtNmwtMTgtMTItMS02NGMwLTU3IDAtNjMtMi02M2wtOS00LTExLTYtNDUtMjYtNDEtMjR2LTIxYzAtMjEgMC0yMSAzLTE5aDRxNC0zLTMtNmwtNC0zVjY1aC05djEzcTEgMTItMSAxM2wtMjQtMTMtNTEtMjktMjctMTZ2LTlxMS0xMi00LTEwLTQtMS0zIDh2N2wtNS0zLTYtMyA0LTNxNi0zIDItN2MtMS0yLTYgMC01MSAyN2wtMTQgOFYzMWgtMTh2MTdsLTMyLTE4LTMyLTE5em00NSAzMHEyMCAxMiAyMCAxNGwtMTQgOS01NCAzMGMtMS0xLTItNjAgMC02MWw4LTUgOC01IDUgM3ptMTA4LTggMSAzMXYzMWwtNC0yLTY1LTM4Yy0xLTEgMTAtOCAyNS0xNmwyNy0xNiA4IDV6TTI4OSA3MmMwIDI4IDAgMzEtMiAzMmwtMTIgNy05IDUtOC00Yy05LTUtMTAtNS0xMS0ycS0xIDEgNSA2bDcgNC02MCAzNSAyIDRjMiAyIDMgMiAxOC03bDIzLTEzIDE1LTkgMTAtNSAxMiA2IDEwIDZ2OTJsLTQgM3EtNyAyLTMgNmgzbDMtMSAxIDI4djI4aDd2LTMwbDEtMzEgMzQtMjAgMzUtMjB2MTMzaDE4VjE5MmwzNSAyMCAzNCAyMCAxIDMxdjMwaDd2LTI4YzAtMjcgMC0yOSAyLTI4cTcgMyA2LTEgMC0yLTQtNGwtNC0zdi05MmwxMC02IDEyLTYgMzIgMThjMjUgMTQgMzIgMTggMzQgMTdsMi00LTMwLTE5LTMwLTE3IDctNHE2LTUgNS02Yy0xLTMtMi0zLTExIDJsLTggNC0xMi03LTExLTZWNzJsMS0zMSAxOCAxMCAyNCAxNCA2MCAzNXY0MWwtNi0zYy02LTQtNi00LTgtMWwtMiA0IDggNSA4IDcgMSA0OS0xIDQ4aDl2LTkzYTExNTEgMTE1MSAwIDAgMSA5OCA1N3YxMTRsLTQwLTIzYy0zNy0yMS00MC0yMy00Mi0yMXY0bDQxIDI1IDQxIDIzdjIxaDVxNiAxIDUtNWMtMS0xMCAwLTEwIDE4IDFsMTcgOXYxMjJsLTYtNC0yNy0xNi0yMC0xMXYtMjlsOC00cTExLTYgNi05IDAtMi04IDJsLTYgNHYtNzBoLTl2NzNjLTEgMi0xOSAxNC0yMiAxNGwtNzgtNDUtMS02cTEtNi0zLTUtNC0xLTQgM2MwIDQtMSA0LTI0LTEwLTIxLTEyLTI0LTEzLTI2LTEybC0yIDMgMjYgMTUgMjYgMTV2ODFsLTEzLTctOTgtNTdxLTQtMi02IDFsLTEgNCAxMyA4IDYzIDM3LTQzLTI0Yy0zMS0xNy0zNS0xOS0zNi0xN2wtMiAzYTE0MTUgMTQxNSAwIDAgMCAxMTMgNjdjMiAxLTUgNS02MyAzOWwtNiAzLTI2LTE1LTI3LTE1Yy00IDMgMSA2IDIyIDE4bDI0IDE1LTIgMnEtNSAxLTIgNSAwIDMgNyAwbDUtMyAyMCAxMSA0OCAyOCAxMCA2djI3bC0zMSAxOC0zMiAxOSAxIDRjMiAyIDUgMSAzMi0xNWwzMC0xN3Y3YzAgOCAxIDggNCA4cTQgMiAzLTZjMC0xNCAwLTEzIDEyLTIwbDEyLTcgMjYgMTUgMjcgMTVjMSAyLTUgNS01MSAzMmwtNTIgMjktMzMtMTgtMy0yIDYtNCA3LTQtMi0zLTMtNC05IDUtOCA1LTQyLTI1Yy0zOS0yMi00Mi0yNC00NC0yMXEtMyAzIDAgNGw3NyA0NS0yMiAxNS00OSAyOC0yNyAxNS0xNC04LTIwLTExLTY0LTM5IDMyLTE4IDMzLTE5IDctNXExMC00IDUtOGMtMi0yLTQtMS0yMCA4bC00MiAyNS0yNCAxNC04LTUtOS00LTMgM3EtNCA0IDUgN2w2IDQtMyAyLTMzIDE4LTEwMi01OWMtMS0xIDEwLTggMjUtMTdsMjctMTUgMTIgN3ExMSA2IDExIDEwbDEgOXEtMSA5IDMgNyA0IDIgNC03IDAtOCAyLTdsMzAgMTdjMjUgMTUgMjggMTYgMzAgMTRsMS00LTMyLTE5LTMxLTE4di0yN2w4LTQgMzktMjMgMzEtMTggNSAzcTcgMyA3IDAgMy00LTItNWMtNC0xLTMtMyAyMy0xNyAyMC0xMiAyNS0xNSAyMS0xOGwtMjcgMTUtMjYgMTUtOC01LTI5LTE2LTI2LTE1LTctNCA1Ny0zNSA1Ny0zMy0xLTRjLTItMyA0LTctNjkgMzZsNDktMzBjMTctMTAgMTctMTAgMTUtMTQtMy0zIDQtNi0xMDEgNTRsLTE2IDl2LTQwYzAtMzQgMC00MCAyLTQybDUwLTI5LTEtM2MtMi0yLTcgMC0yNiAxMi0yNCAxNC0yNSAxNC0yNSAxMHEwLTMtNC0zLTQtMS0zIDZsLTEgNi02NyAzOC04IDVxLTEgMy0xMy00bC0xMS03Yy0xIDAtMi0xNi0yLTM4di0zNmwtNC0xaC00djcwbC02LTRxLTctMy04LTItNSAzIDYgOWw4IDR2MjhsLTI2IDE2LTI3IDE1VjM2MmwxMC01IDI1LTEzdjEzaDEwdi0yMWwzMi0xOCA0Mi0yNHExMS02IDgtOWwtMy0yLTc2IDQzLTMgMlYyMTNsMTAtNiA5LTUgNzktNDV2OTNoOWwtMS00OCAxLTQ5IDgtNyA4LTUtMi00Yy0yLTMtMi0zLTggMWwtNiAydi0zOWw5LTcgMTQtOCA3OS00NXptODctMjVxMCA1LTEgNGwtMS01IDEtNXptMCAyMC0xIDVWNjJ6bS0xMCA1NHY1M2wtMy0yLTExLTYtMjEtMTItMzEtMThjLTQtMi00LTEtNC0xNnEtMS0xMiAyLTEzYzEtMSA2Ni00MCA2OC00MHptNjMtMjggMjMgMTRxMyAxIDIgMTRsLTEgMTMtMzQgMjAtMzQgMjAtMS01M1Y2N2wxMiA3em0tNTMtN3EwIDQtMSAzbC0xLTQgMS0zem0tODcgNDMtMTQtOCA3LTUgNy00em0xODYtOC0xNCA4di0xN2w3IDR6bS05OSA2LTEgMy0xLTVxMC0zIDEtMnptMCAxN3EtMiA4LTIgMGwxLTR6bTc4IDM5djQybC05LTVjLTM0LTE5LTYxLTM1LTYxLTM3czI5LTE5IDYxLTM3bDktNXptLTEyMi0yMWMxOSAxMCAzNCAyMCAzNCAyMSAwIDItNDQgMjgtNjQgMzhsLTYgNHYtNDJsMS00MXptNDQgMTItMSAyLTEtMXEwLTQgMi0xbTAgMzFxMCA3LTEgNmwtMS03IDEtNnptMCAyMHEtMiA3LTIgMGwxLTN6bTAgMThxMCA0LTEgM2wtMS00cTAtNCAxLTN6bTAgMTdxLTIgNy0yIDBsMS00em0wIDMwLTEgMy0xLTUgMS0zem0wIDE3cS0yIDYtMiAwbDEtNHpNMTk3IDQzOGwtMSA0MS0yMS0xMS0zNS0yMC0xNS05YzAtMSA0LTQgNDEtMjVsMzAtMTZ6bTM5Ni0xOSAzMiAxOS0xNiAxMC01NCAzMGMtMiAxLTItNC0yLTM5di00MWg0em0tNDg5IDE1IDcgNC03IDVxLTggNS04IDJ2LTE0cS0xLTMgOCAzbTU1MC0zYzEgNyAwIDE1LTEgMTVsLTE0LTggMTQtOHptLTQ2OCA1MC04OSA1M2MtMiAxLTItNzUtMS03OHEyLTMgMTItOGwxMC02IDMzIDE5em00NjYtMjdjMiAyIDMgOCAyIDQxdjQwbC01LTItODctNTEgNy00YzMtMSAxOS0xMCAzNC0yMGwyOC0xNiAxMCA1ek04NyA1MDF2NDFsLTQtMi0xNS05LTE3LTEwLTExLTYtNi00di0yMWwyNi0xNSAyNi0xNGMxLTEgMSAxOCAxIDQwbTU4NC0zNyAyNiAxNSAxOSAxMXYyMWwtMjQgMTQtMjcgMTVjLTIgMi0yLTEtMi0zOXYtNDF6bS00NzUgMjUtNDMgMjUtMzMgMTktMjMgMTNjLTEtMSA3LTUgMTYtMTFsMjItMTIgMzItMTlxMzQtMTkgMjktMTVtNDA5IDI3IDMwIDIwLTIzLTEzem0tMzU4IDAgMjkgMTgtMTUgOC0xOSAxMS0yMSAxMy0xNyA5di04MXExLTMgNyAyem0yOTkgMTl2NDBsLTM2LTIwLTM1LTIyIDE1LTEwIDU1LTI5em0tMzQ5IDV2MzlsLTExIDctMTEgNi0zNi0yMC0zNS0yMSAxNC04cTc3LTQ1IDc4LTQ0em00MDYtMTQgNDMgMjUtMzUgMjEtMzYgMjAtMTAtNi0xMS02LTEtODFjMS0xLTEtMiA1MCAyN20tNDgzIDQzIDQ2IDI4LTUzIDMwLTEwLTQtOC01di0zMWwxLTMxem01MzUgMTctMSAzMS05IDctOCA0LTI2LTE1LTI2LTE2YzAtMiA2Ni00MSA2OC00MHEyIDIgMiAyOW0tNDU4IDEwcTEgMTMtNiA2bC03LTQtNC0yIDgtNSA4LTR6bTM3MSAwLTE0IDh2LTE2YzAtMiAxNCA2IDE0IDhtMCAwIi8+PHBhdGggZmlsbD0iI2ZmZiIgZD0ibTMwOCAzMDYtMSA0MS03IDQtMzUgMjFjLTI1IDE0LTI4IDE2LTI2IDE4czYgMCAzNC0xNmwzNC0xOWMxLTEgMSA5IDEgMjB2MjFoN3YtNDZsMTctMTBjMjMtMTMgMjMtMTMgMjItMTVsLTItMy0xOSAxMS0xOCAxMHYtNzloLTdabTEyNy00djQwbC0xOC0xMC0xOS0xMC0yIDNjLTEgMi0xIDIgMjIgMTVsMTYgMTAgMSAyM2MwIDIyIDAgMjMgNCAyMyAzIDEgMyAxIDMtMjEgMC0xMSAwLTIxIDEtMjBsMzQgMTljMjggMTcgMzIgMTggMzQgMTYgMy0yIDYgMC00Mi0yOGwtMjctMTV2LTgzaC03Wk0zMzMgNDM0Yy0xIDIgMSA0IDE3IDEzbDE5IDExLTQgMy0zNCAxOS0zMCAxOCAyIDJxMCA0IDEzLTVsMzUtMjAgMjQtMTMgMTggMTAgMzUgMjBjMTUgOSAxOCAxMCAxOSA4bDItMi02NC0zNy00LTMgMTctMTAgMTktMTJxNC04LTIyIDdsLTIwIDEyLTIwLTEyYy0xOC0xMC0yMS0xMS0yMi05bTAgMCIvPjwvc3ZnPg==&logoColor=white" alt="Gravitix"></a>
+  <a href="Architex/README.md"><img src="https://img.shields.io/badge/Architex-UI%20DSL-06D6F0?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA3NTAgNzUwIj48ZGVmcz48Y2xpcFBhdGggaWQ9ImI2ZTExYjc3ZTMiPjxwYXRoIGQ9Ik0gMCAxLjMgTCA3NDkgMS4zIEwgNzQ5IDc0OSBMIDAgNzQ5IFogTSAwIDEuMyAiIGNsaXAtcnVsZT0ibm9uemVybyIvPjwvY2xpcFBhdGg+PC9kZWZzPjxwYXRoIGZpbGw9IndoaXRlIiBkPSJNIDQ4Ni40IDMwMC41IEMgNDk2LjQgMzAwLjUgNTA1LjcgMjk2LjYgNTEyLjkgMjg5LjYgQyA1MTkuOSAyODIuNiA1MjMuOCAyNzMuMSA1MjMuOCAyNjMuMSBDIDUyMy44IDI1My4yIDUxOS45IDI0My44IDUxMi45IDIzNi43IEMgNTA1LjkgMjI5LjcgNDk2LjQgMjI1LjggNDg2LjQgMjI1LjggQyA0NzYuNSAyMjUuOCA0NjcuMiAyMjkuNyA0NjAgMjM2LjcgQyA0NTMgMjQzLjcgNDQ5LjEgMjUzLjIgNDQ5LjEgMjYzLjEgQyA0NDkuMSAyNzMuMSA0NTMgMjgyLjQgNDYwIDI4OS42IEMgNDY3LjIgMjk2LjYgNDc2LjUgMzAwLjUgNDg2LjQgMzAwLjUgWiBNIDQ3Ny42IDI1NC4zIEMgNDc5LjkgMjUxLjkgNDgzIDI1MC43IDQ4Ni40IDI1MC43IEMgNDg5LjkgMjUwLjcgNDkyLjggMjUxLjkgNDk1LjMgMjU0LjMgQyA0OTcuNiAyNTYuNiA0OTguOSAyNTkuNyA0OTguOSAyNjMuMSBDIDQ5OC45IDI2Ni41IDQ5Ny42IDI2OS41IDQ5NS4zIDI3MiBDIDQ5MyAyNzQuMyA0ODkuOSAyNzUuNiA0ODYuNCAyNzUuNiBDIDQ4MyAyNzUuNiA0ODAuMSAyNzQuMyA0NzcuNiAyNzIgQyA0NzUuMiAyNjkuNyA0NzQgMjY2LjUgNDc0IDI2My4xIEMgNDc0IDI1OS43IDQ3NS4yIDI1Ni43IDQ3Ny42IDI1NC4zIFogTSA0NzcuNiAyNTQuMyAiLz48cGF0aCBmaWxsPSJ3aGl0ZSIgZD0iTSA3NSA2NTYuOSBMIDkyLjYgNjM5LjMgTCAxMTAuMiA2NTYuOSBMIDkyLjYgNjc0LjYgWiBNIDc1IDY1Ni45ICIvPjxwYXRoIGZpbGw9IndoaXRlIiBkPSJNIDExOS4xIDYxMyBMIDMwMy45IDQyOC4xIEwgMzIxLjUgNDQ1LjcgTCAxMzYuNyA2MzAuNiBaIE0gMTE5LjEgNjEzICIvPjxnIGNsaXAtcGF0aD0idXJsKCNiNmUxMWI3N2UzKSI+PHBhdGggZmlsbD0id2hpdGUiIGQ9Ik0gNzQwLjIgMjIxLjQgTCA2ODUuNiAyMDAuMSBMIDY3MS44IDE2Ni44IEwgNjk1LjQgMTEzIEMgNjk3LjQgMTA4LjMgNjk2LjUgMTAyLjkgNjkyLjggOTkuMSBMIDY1MC4zIDU2LjYgQyA2NDYuNyA1My4xIDY0MS4xIDUyIDYzNi40IDU0IEwgNTgyLjYgNzcuNyBMIDU0OS41IDY0IEwgNTI4LjEgOS4yIEMgNTI2LjMgNC40IDUyMS42IDEuMyA1MTYuNSAxLjMgTCA0NTYuMyAxLjMgQyA0NTEuMSAxLjMgNDQ2LjUgNC40IDQ0NC42IDkuMiBMIDQyMy40IDY0IEwgMzkwLjEgNzcuOCBMIDMzNi4zIDU0LjIgQyAzMzEuNiA1Mi4xIDMyNi4yIDUzLjEgMzIyLjQgNTYuOCBMIDI4MCA5OS4zIEMgMjc2LjQgMTAyLjkgMjc1LjMgMTA4LjUgMjc3LjMgMTEzLjEgTCAzMDEgMTY3IEwgMjg3LjEgMjAwLjMgTCAyMzIuNCAyMjEuNiBDIDIyNy41IDIyMy40IDIyNC40IDIyOC4xIDIyNC40IDIzMy4yIEwgMjI0LjQgMjkzLjUgQyAyMjQuNCAyOTguNiAyMjcuNSAzMDMuMyAyMzIuNCAzMDUuMSBMIDI0MS4xIDMwOC42IEMgMjQxLjEgMzA5IDI0MC45IDMwOS41IDI0MC45IDMwOS44IEMgMjM2LjcgMzQyLjIgMjQyLjUgMzc1LjIgMjU3LjEgNDA0LjEgTCAxOC4xIDYyNi44IEMgNy4yIDYzNi45IDEgNjUxLjMgMSA2NjYuMyBDIDEgNjgwLjYgNi42IDY5NC4xIDE2LjcgNzA0LjQgTCA0NSA3MzIuNyBDIDU1LjMgNzQzIDY4LjggNzQ4LjYgODMuMyA3NDguNyBDIDk4LjIgNzQ4LjcgMTEyLjUgNzQyLjUgMTIyLjcgNzMxLjYgTCAyODQuNSA1NTguMyBMIDI2Ni4zIDU0MS4zIEwgMTA0LjUgNzE0LjcgQyA5OSA3MjAuNiA5MS4yIDcyMy44IDgzLjMgNzIzLjggQyA3NS41IDcyMy44IDY4IDcyMC43IDYyLjQgNzE1LjEgTCAzNC4xIDY4Ni44IEMgMjguOCA2ODEuMiAyNS45IDY3My45IDI1LjkgNjY2LjEgQyAyNS45IDY1OCAyOS4zIDY1MC40IDM1LjIgNjQ1IEwgMjgxLjQgNDE1LjUgQyAyODUuNiA0MTEuNCAyODYuNSA0MDUgMjgzLjUgNDAwLjEgQyAyNTEuMiAzNDUuMSAyNjAuNyAyNzUuOSAzMDYuNyAyMzEuNyBDIDMzOS4yIDIwMC40IDM4NS45IDE4Ny41IDQyOS44IDE5Ni43IEwgMzQ4LjcgMjc3LjggQyAzNDUuNSAyODEgMzQ0LjIgMjg2IDM0NS44IDI5MC41IEwgMzcyLjIgMzY5LjcgQyAzNzMuNSAzNzMuNCAzNzYuNCAzNzYuNCAzODAuMiAzNzcuNiBMIDQ1OS40IDQwNC4xIEMgNDYzLjkgNDA1LjcgNDY4LjcgNDA0LjQgNDcyLjEgNDAxLjEgTCA1MzguNiAzMzQuNyBDIDUzNy41IDM2OS4yIDUyMy4zIDQwMi43IDQ5OC42IDQyNy42IEMgNDYwLjkgNDY1LjIgNDA0LjEgNDc3LjcgMzU0IDQ1OS4yIEMgMzQ5LjQgNDU3LjUgMzQ0LjEgNDU4LjcgMzQwLjcgNDYyLjMgTCAyOTEgNTE1LjMgTCAzMDkuMiA1MzIuMyBMIDM1My4zIDQ4NS4yIEMgMzY5IDQ5MC4xIDM4NS4zIDQ5Mi41IDQwMS41IDQ5Mi41IEMgNDEyLjQgNDkyLjUgNDIzLjMgNDkxLjQgNDM0IDQ4OS4yIEwgNDQ0LjkgNTE3LjIgQyA0NDYuOCA1MjIgNDUxLjQgNTI1LjIgNDU2LjYgNTI1LjIgTCA1MTYuOCA1MjUuMiBDIDUyMS45IDUyNS4yIDUyNi42IDUyMiA1MjguNSA1MTcuMiBMIDU0OS44IDQ2Mi40IEwgNTgzLjEgNDQ4LjYgTCA2MzYuOSA0NzIuMiBDIDY0MS42IDQ3NC4zIDY0NyA0NzMuMyA2NTAuOCA0NjkuNiBMIDY5My4yIDQyNy4xIEMgNjk2LjggNDIzLjUgNjk3LjkgNDE3LjkgNjk1LjkgNDEzLjMgTCA2NzIuMiAzNTkuNCBMIDY4Ni4xIDMyNi4xIEwgNzQwLjggMzA0LjggQyA3NDUuNyAzMDMgNzQ4LjggMjk4LjMgNzQ4LjggMjkzLjIgTCA3NDguOCAyMzIuOSBDIDc0OC4yIDIyOCA3NDUuMSAyMjMuMyA3NDAuMiAyMjEuNCBaIE0gMjQ5LjYgMjc0LjYgTCAyNDkuNiAyNDEuNSBMIDI3Mi43IDIzMi41IEMgMjYyLjkgMjQ1LjQgMjU1LjEgMjU5LjUgMjQ5LjYgMjc0LjYgWiBNIDQ3Mi4xIDE4OS40IEwgNTM4LjEgMjExLjMgTCA1NjAgMjc3LjMgTCA1MDAuNCAzMzYuOSBMIDQzNC41IDMxNC45IEwgNDEyLjUgMjQ5IFogTSA0NTkuOCAzNzcuOCBMIDM5My45IDM1NS45IEwgMzcxLjkgMjg5LjkgTCAzOTMuMSAyNjguNyBMIDQxMy4yIDMyOC44IEMgNDE0LjQgMzMyLjUgNDE3LjQgMzM1LjUgNDIxLjEgMzM2LjcgTCA0ODEuMiAzNTYuOCBaIE0gNzIzLjMgMjg0LjggTCA2NzEuNiAzMDQuOCBDIDY2OC41IDMwNi4xIDY2NS45IDMwOC42IDY2NC42IDMxMS43IEwgNjQ2LjcgMzU0LjggQyA2NDUuNSAzNTcuOSA2NDUuNSAzNjEuNSA2NDYuOSAzNjQuNiBMIDY2OS4zIDQxNS41IEwgNjM4LjggNDQ2IEwgNTg3LjkgNDIzLjUgQyA1ODQuOCA0MjIuMSA1ODEuMiA0MjIuMSA1NzguMSA0MjMuNCBMIDUzNSA0NDEuMyBDIDUzMS45IDQ0Mi41IDUyOS40IDQ0NS4yIDUyOC4xIDQ0OC4zIEwgNTA4LjEgNDk5LjkgTCA0NjUgNDk5LjkgTCA0NTggNDgxLjkgQyA0NzkuNCA0NzQgNDk5LjQgNDYxLjUgNTE2LjIgNDQ0LjcgQyA1MjQuOSA0MzYgNTMyLjMgNDI2LjUgNTM4LjkgNDE2LjIgQyA1NjkuNSA0MDUuOCA1OTYuOSAzODUuOSA2MTYuNCAzNTkuOSBDIDYzNy40IDMzMS43IDY0OC42IDI5OC4zIDY0OC42IDI2My4xIEMgNjQ4LjYgMjI4LjMgNjM3LjcgMTk1LjEgNjE3IDE2Ny4xIEwgNTk2LjkgMTgxLjkgQyA2MTQuMiAyMDUuNiA2MjMuNCAyMzMuNyA2MjMuNCAyNjMuMSBDIDYyMy40IDI5MyA2MTQgMzIxLjMgNTk2LjEgMzQ1IEMgNTg1LjEgMzU5LjggNTcwLjkgMzcyLjIgNTU0LjkgMzgxLjUgQyA1NjIuNCAzNTkgNTY1IDMzNC43IDU2Mi4xIDMxMC42IEwgNTgzLjIgMjg5LjQgQyA1ODYuNSAyODYuMiA1ODcuNyAyODEuMiA1ODYuMiAyNzYuNyBMIDU1OS43IDE5Ny41IEMgNTU4LjUgMTkzLjcgNTU1LjUgMTkwLjggNTUxLjggMTg5LjUgTCA0NzIuNiAxNjMuMSBDIDQ2OC4xIDE2MS41IDQ2My4zIDE2Mi44IDQ1OS44IDE2NiBMIDQ1MCAxNzUuOCBDIDQyOS4yIDE2OS4zIDQwNy42IDE2Ny4zIDM4Ni40IDE2OS4zIEMgNDEyLjIgMTQyLjQgNDQ4LjMgMTI2LjIgNDg2LjQgMTI2LjIgQyA1MjAuMiAxMjYuMiA1NTIuNyAxMzguNiA1NzcuOCAxNjEuMSBMIDU5NC40IDE0Mi41IEMgNTY0LjcgMTE1LjkgNTI2LjQgMTAxLjMgNDg2LjQgMTAxLjMgQyA0MzAuNyAxMDEuMyAzNzguNSAxMzAuNCAzNDkuMSAxNzcuNSBDIDMzOC4yIDE4MS4zIDMyNy42IDE4Ni4xIDMxNy42IDE5Mi4yIEwgMzI2LjIgMTcxLjUgQyAzMjcuNCAxNjguNCAzMjcuNCAxNjQuOCAzMjYgMTYxLjcgTCAzMDMuNiAxMTAuOCBMIDMzNC4xIDgwLjMgTCAzODUgMTAyLjcgQyAzODguMSAxMDQuMSAzOTEuNyAxMDQuMSAzOTQuOCAxMDIuOSBMIDQzNy45IDg1IEMgNDQxIDgzLjcgNDQzLjUgODEuMSA0NDQuNyA3OCBMIDQ2NC44IDI2LjMgTCA1MDcuOSAyNi4zIEwgNTI4LjEgNzggQyA1MjkuNCA4MS4xIDUzMS45IDgzLjcgNTM1IDg1IEwgNTc4LjEgMTAyLjkgQyA1ODEuMiAxMDQuMSA1ODQuOCAxMDQuMSA1ODcuOSAxMDIuNyBMIDYzOC44IDgwLjMgTCA2NjkuMyAxMTAuOCBMIDY0Ni45IDE2MS43IEMgNjQ1LjUgMTY0LjggNjQ1LjUgMTY4LjQgNjQ2LjcgMTcxLjUgTCA2NjQuNiAyMTQuNiBDIDY2NS45IDIxNy43IDY2OC41IDIyMC4yIDY3MS42IDIyMS40IEwgNzIzLjMgMjQxLjUgWiBNIDcyMy4zIDI4NC44ICIvPjwvZz48L3N2Zz4=&logoColor=white" alt="Architex"></a>
+  <a href="Gravitix/README.md"><img src="https://img.shields.io/badge/Gravitix-96%20features-22C55E?style=for-the-badge" alt="Gravitix features"></a>
+  <a href="Gravitix/README.md"><img src="https://img.shields.io/badge/Gravitix-165%20tests-22C55E?style=for-the-badge" alt="Gravitix tests"></a>
+  <a href="#238-vortex-ide--in-browser-editor"><img src="https://img.shields.io/badge/Vortex%20IDE-live%20editor-F59E0B?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIj48cmVjdCB3aWR0aD0iOTIiIGhlaWdodD0iOTIiIHg9IjQiIHk9IjQiIGZpbGw9IiNmZmYiIHJ4PSIxNiIgcnk9IjE2Ii8+PHJlY3Qgd2lkdGg9IjkyIiBoZWlnaHQ9IjI4IiB4PSI0IiB5PSI0IiBmaWxsPSJyZ2JhKDAsMCwwLDAuMjUpIiByeD0iMTYiIHJ5PSIxNiIvPjxwYXRoIGZpbGw9InJnYmEoMCwwLDAsMC4yNSkiIGQ9Ik00IDIwaDkydjEySDR6Ii8+PGNpcmNsZSBjeD0iMjIiIGN5PSIxOCIgcj0iNCIgZmlsbD0iI2ZmZiIgb3BhY2l0eT0iLjkiLz48Y2lyY2xlIGN4PSIzNiIgY3k9IjE4IiByPSI0IiBmaWxsPSIjZmZmIiBvcGFjaXR5PSIuOSIvPjxjaXJjbGUgY3g9IjUwIiBjeT0iMTgiIHI9IjQiIGZpbGw9IiNmZmYiIG9wYWNpdHk9Ii45Ii8+PHRleHQgeD0iNTAiIHk9IjcyIiBmaWxsPSIjZmZmIiBmb250LWZhbWlseT0iJ1NGIFBybyBEaXNwbGF5JywgJ0hlbHZldGljYSBOZXVlJywgQXJpYWwsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMzgiIGZvbnQtd2VpZ2h0PSI4MDAiIGxldHRlci1zcGFjaW5nPSItMSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+R1g8L3RleHQ+PHJlY3Qgd2lkdGg9IjQwIiBoZWlnaHQ9IjMiIHg9IjMwIiB5PSI4MCIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjE1KSIgcng9IjEuNSIvPjwvc3ZnPg==&logoColor=white" alt="Vortex IDE"></a>
+  <a href="Liquid-Glass-PRO/README.md"><img src="https://img.shields.io/badge/Liquid%20Glass%20PRO-WebGL2%20renderer-06D6F0?style=for-the-badge" alt="Liquid Glass PRO"></a>
 </p>
 
 <!-- ── Transport, real-time, federation ────────────────────────── -->
@@ -60,7 +62,7 @@
   <img src="https://img.shields.io/badge/WebRTC-P2P-333333?style=for-the-badge&logo=webrtc&logoColor=white" alt="WebRTC">
   <img src="https://img.shields.io/badge/WebSocket-RFC%206455-4B8BBE?style=for-the-badge" alt="WebSocket">
   <img src="https://img.shields.io/badge/SFU-mass%20voice-FF6B6B?style=for-the-badge" alt="SFU">
-  <img src="https://img.shields.io/badge/BMP-blind%20mailbox-0EA5E9?style=for-the-badge" alt="BMP">
+  <a href="RESEARCH-BMP.md"><img src="https://img.shields.io/badge/BMP-blind%20mailbox-0EA5E9?style=for-the-badge" alt="BMP"></a>
   <img src="https://img.shields.io/badge/BLE-discovery-0082FC?style=for-the-badge&logo=bluetooth&logoColor=white" alt="BLE">
   <img src="https://img.shields.io/badge/Wi--Fi%20Direct-mesh-00B4FF?style=for-the-badge" alt="Wi-Fi Direct">
   <img src="https://img.shields.io/badge/Tor-hidden%20service-7D4698?style=for-the-badge&logo=torproject&logoColor=white" alt="Tor">
@@ -69,9 +71,9 @@
 
 <!-- ── Blockchain & registry ───────────────────────────────────── -->
 <p align="center">
-  <img src="https://img.shields.io/badge/Solana-registry-9945FF?style=for-the-badge&logo=solana&logoColor=white" alt="Solana">
-  <img src="https://img.shields.io/badge/Anchor-framework-512BD4?style=for-the-badge" alt="Anchor">
-  <img src="https://img.shields.io/badge/vortexx.sol-treasury-00FFA3?style=for-the-badge" alt="vortexx.sol">
+  <a href="solana_program/README.md"><img src="https://img.shields.io/badge/Solana-registry-9945FF?style=for-the-badge&logo=solana&logoColor=white" alt="Solana"></a>
+  <a href="solana_program/README.md"><img src="https://img.shields.io/badge/Anchor-framework-512BD4?style=for-the-badge" alt="Anchor"></a>
+  <a href="https://solscan.io/account/5ABkkipTZZEEPNR3cP4MCzftpAhqv6jvM4UTSLPGt5Qq"><img src="https://img.shields.io/badge/vortexx.sol-treasury-00FFA3?style=for-the-badge" alt="vortexx.sol"></a>
   <img src="https://img.shields.io/badge/TRON%20·%20ETH%20·%20BSC%20·%20TON%20·%20BTC-tipping-F7931A?style=for-the-badge" alt="Chains">
 </p>
 
@@ -88,7 +90,7 @@
   <img src="https://img.shields.io/badge/Double%20Ratchet-forward%20secrecy-green?style=flat-square" alt="Double Ratchet">
   <img src="https://img.shields.io/badge/Sealed%20Sender-metadata%20hiding-green?style=flat-square" alt="Sealed Sender">
   <img src="https://img.shields.io/badge/Shamir-secret%20sharing-green?style=flat-square" alt="Shamir">
-  <img src="https://img.shields.io/badge/BMP-blind%20mailbox-green?style=flat-square" alt="BMP">
+  <a href="RESEARCH-BMP.md"><img src="https://img.shields.io/badge/BMP-blind%20mailbox-green?style=flat-square" alt="BMP"></a>
   <img src="https://img.shields.io/badge/WebAuthn%2FPasskey-auth-green?style=flat-square" alt="WebAuthn">
   <img src="https://img.shields.io/badge/BIP39-Seed--Phrase-green?style=flat-square" alt="BIP39">
   <img src="https://img.shields.io/badge/JWT-session-green?style=flat-square" alt="JWT">
@@ -122,7 +124,7 @@
 
 <!-- ── Rendering & PWA ─────────────────────────────────────────── -->
 <p align="center">
-  <img src="https://img.shields.io/badge/Liquid%20Glass%20PRO-WebGL2-06D6F0?style=flat-square" alt="Liquid Glass PRO">
+  <a href="Liquid-Glass-PRO/README.md"><img src="https://img.shields.io/badge/Liquid%20Glass%20PRO-WebGL2-06D6F0?style=flat-square" alt="Liquid Glass PRO"></a>
   <img src="https://img.shields.io/badge/Web%20Crypto%20API-native-4285F4?style=flat-square" alt="Web Crypto">
   <img src="https://img.shields.io/badge/Service%20Worker-PWA-5A0FC8?style=flat-square" alt="Service Worker">
   <img src="https://img.shields.io/badge/Push%20API-VAPID-FF8A00?style=flat-square" alt="Push">
@@ -133,10 +135,10 @@
 <!-- ── Release ─────────────────────────────────────────────────── -->
 <p align="center">
   <img src="https://img.shields.io/badge/Version-1.0.0-blue?style=for-the-badge" alt="Version">
-  <img src="https://img.shields.io/badge/License-Apache_2.0-D22128?style=for-the-badge" alt="License">
-  <img src="https://img.shields.io/badge/146-Languages-green?style=for-the-badge" alt="146 Languages">
-  <img src="https://img.shields.io/badge/Locale%20JSON-19%2C420%20lines-22C55E?style=for-the-badge" alt="Locale LOC">
-  <img src="https://img.shields.io/badge/Deep%20Reference-422%20subsystems-0EA5E9?style=for-the-badge" alt="Deep reference">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-D22128?style=for-the-badge" alt="License"></a>
+  <a href="static/locales/README.md"><img src="https://img.shields.io/badge/146-Languages-green?style=for-the-badge" alt="146 Languages"></a>
+  <a href="static/locales/README.md"><img src="https://img.shields.io/badge/Locale%20JSON-19%2C420%20lines-22C55E?style=for-the-badge" alt="Locale LOC"></a>
+  <a href="#what-ships-in-vortex-100"><img src="https://img.shields.io/badge/Deep%20Reference-422%20subsystems-0EA5E9?style=for-the-badge" alt="Deep reference"></a>
   <img src="https://img.shields.io/badge/iOS-659%20Swift%20files-F05138?style=for-the-badge&logo=swift&logoColor=white" alt="iOS files">
   <img src="https://img.shields.io/badge/Android-192%20Kotlin%20files-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Android files">
 </p>
@@ -614,10 +616,21 @@ Both clients read the same 147-locale JSON files used by the web and docs — th
   - [22.25 Standard Library Reference](#2225-standard-library-reference)
   - [22.26 LSP Server](#2226-lsp-server)
   - [22.27 Complete Feature List (96 Features)](#2227-complete-feature-list-96-features)
-- [23. Liquid Glass PRO](#23-liquid-glass-pro)
-  - [23.1 Glass Variants](#231-glass-variants)
-  - [23.2 Rendering Pipeline](#232-rendering-pipeline)
-  - [23.3 Optical Effects](#233-optical-effects)
+- [23. Architex — Reactive UI Language & Built-in IDE](#23-architex--reactive-ui-language--built-in-ide)
+  - [23.1 Design goals](#231-design-goals)
+  - [23.2 The four declarations](#232-the-four-declarations)
+  - [23.3 Reactive variables & computed](#233-reactive-variables--computed)
+  - [23.4 Components, modifiers, actions](#234-components-modifiers-actions)
+  - [23.5 Reactive algebra — the core formulas](#235-reactive-algebra--the-core-formulas)
+  - [23.6 Rendering pipeline](#236-rendering-pipeline)
+  - [23.7 Host adapters](#237-host-adapters)
+  - [23.8 Vortex IDE — in-browser editor](#238-vortex-ide--in-browser-editor)
+  - [23.9 Liquid Glass PRO — glass rendering for Architex components](#239-liquid-glass-pro--glass-rendering-for-architex-components)
+    - [23.9.1 Glass variants](#2391-glass-variants)
+    - [23.9.2 Rendering pipeline (5 stages)](#2392-rendering-pipeline-5-stages)
+    - [23.9.3 Optical formulas](#2393-optical-formulas)
+  - [23.10 Comparison](#2310-comparison)
+  - [23.11 Further reading](#2311-further-reading)
 - [24. Tauri Desktop Application](#24-tauri-desktop-application)
 - [25. Node Setup Wizard](#25-node-setup-wizard)
 - [26. Transport Protocols](#26-transport-protocols)
@@ -7158,82 +7171,311 @@ gravitix lsp --tcp --port 6789
 
 ---
 
-## 23. Liquid Glass PRO
+## 23. Architex — Reactive UI Language & Built-in IDE
 
-Liquid Glass PRO is an advanced glassmorphism rendering engine included with Vortex for creating photorealistic glass UI effects.
+Architex is Vortex's **second first-class DSL** (sibling to Gravitix). Where Gravitix writes the bot's logic, Architex writes the Mini App's UI — a declarative, reactive, fine-grained runtime with a TypeScript implementation, zero build step, and host adapters for DOM, SwiftUI, and Jetpack Compose so **the same `.arx` file renders identically across web, iOS, and Android**.
 
-### 23.1 Glass Variants
+This section documents every moving part: language surface, reactive algebra, rendering pipeline, host adapters, the built-in IDE that authors both Gravitix + Architex, and the Liquid Glass PRO renderer that powers the glass UI components Architex exposes.
 
-| Variant | IOR (Index of Refraction) | Character |
-|---------|--------------------------|-----------|
-| `clear` | 1.45 | Near-invisible soda-lime glass. Minimal distortion. |
-| `frosted` | 1.47 | Ground-glass scatter effect. Multi-scale noise. |
-| `smoke` | 1.52 | Neutral-density tint. Dark, moody aesthetic. |
-| `tinted-blue` | 1.47 | Cobalt blue glass. Cool-toned filter. |
-| `tinted-violet` | 1.49 | UV-filter amethyst. Purple haze effect. |
-| `tinted-amber` | 1.53 | Amber/honey-gold. Warm vintage feel. |
-| `mirror` | 1.785 | First-surface silver mirror (SF11 glass). High reflectivity. |
-| `ice` | 1.309 | Polycrystalline ice. Frozen, crystalline appearance. |
-| `bronze` | 1.58 | Copper dichroic. Metallic warm tones. |
-| `emerald` | 1.575 | Chrome-doped beryl. Deep green gemstone effect. |
-| `rose` | 1.46 | Rose quartz. Soft pink translucency. |
-| `obsidian` | 1.49 | Volcanic rhyolite glass. Dark, glassy, with subtle reflections. |
+### 23.1 Design goals
 
-### 23.2 Rendering Pipeline
+1. **No build step.** The `.arx` file is the app. No bundler, no transpiler, no `node_modules` on the serving path.
+2. **Zero runtime dependencies.** The entire runtime is ~30 KB gzipped TypeScript with no transitive packages.
+3. **Fine-grained reactivity.** Only components that actually read a changed cell re-render — no virtual DOM diff.
+4. **Tri-host.** DOM, SwiftUI, Compose. One source, three renderers, no per-host forks.
+5. **Bot-authorable.** A Gravitix bot can ship an Architex Mini App as a message; the recipient's client renders it inline.
+6. **Predictable.** Strict indentation (2 spaces), strict equality (`===`), strict modifiers (unknown modifier = parse error).
 
-The rendering pipeline consists of 5 stages:
+### 23.2 The four declarations
+
+Every Architex program starts one of four declarations in column 0:
+
+| Syntax                      | Purpose                                                                  |
+| --------------------------- | ------------------------------------------------------------------------ |
+| `@screen Name`              | Root renderable screen. One Mini App ships with one or more screens.     |
+| `@theme`                    | Design tokens as reactive variables (palette, spacing, radii).           |
+| `@import "./file.arx"`      | Pull `@component` and `@screen` definitions from another file.           |
+| `@component Name(args)`     | Reusable component — parameter list + body.                              |
+| `@for item in ~list`        | Reactive list rendering — re-runs the body for each element.             |
+
+Indentation is strict: **2 spaces per level, no tabs**. Everything indented below a declaration belongs to it.
+
+### 23.3 Reactive variables & computed
+
+Reactive cells start with `~`:
+
+```architex
+~count        = 0              # mutable cell
+~name: string = "world"        # optional type annotation
+~items: array = ["a", "b"]
+```
+
+Computed cells use `:=` and re-evaluate when any read dependency changes:
+
+```architex
+~total    := ~count * ~step
+~greeting := "Hello, {~name}!"
+```
+
+**Dependency capture is automatic** — if the expression reads `~a`, the cell depends on `~a`. No subscription API, no stale-value bugs.
+
+### 23.4 Components, modifiers, actions
+
+Containers: `col` (vertical), `row` (horizontal). Leaves: `text`, `header`, `label`, `button`, `input`, `image`, `icon`, `avatar`, `badge`, `divider`, `toast`, `tabs`, `video`, `audio`, `spinner`.
+
+Modifiers chain after `::` — five families: **spacing**, **sizing**, **colour**, **typography**, **behaviour**:
+
+```architex
+button "Save" :: pad(12, 18) bg(~primary) color(#fff) radius(8) bold
+input ~email  :: placeholder("you@example.com") debounce(300)
+text ~total   :: format("currency", "USD")
+col           :: visible(~show) animate(200, ease-out)
+```
+
+Actions after `=>`, chainable:
+
+```architex
+button "Buy"  => ~busy = true => send(action: "buy") => ~busy = false
+button "Copy" => copy(~invite) => toast = true
+button "Del"  => confirm("Sure?") => ~remove = it
+```
+
+### 23.5 Reactive algebra — the core formulas
+
+The reactive system is a **directed dependency graph** of cells. Every write propagates to the transitive closure of readers, batched per microtask.
+
+**Cell state:**
+```
+Cell<T> = { value: T, version: u64, subs: Set<Effect> }
+Effect  = { run: () -> void, reads: Set<Cell>, scheduled: bool }
+```
+
+**Read tracking (while an Effect runs):**
+```
+read(cell):
+    currentEffect.reads.add(cell)
+    cell.subs.add(currentEffect)
+    return cell.value
+```
+
+**Write propagation:**
+```
+write(cell, next):
+    if next === cell.value: return         # strict equality, cheap no-op
+    cell.value    = next
+    cell.version += 1
+    for effect in cell.subs:
+        schedule(effect)                   # enqueue into the microtask
+```
+
+**Batched flush (one per microtask tick):**
+```
+flush():
+    while queue is not empty:
+        e = queue.pop()
+        e.scheduled = false
+        clearSubs(e)                       # prune stale deps
+        e.run()                            # re-capture deps as it runs
+```
+
+**Computed cells** are just `Effect`s whose side effect is writing back to their own `Cell`, producing a **topologically correct** re-evaluation: if `~c := ~a + ~b` and you write to both `~a` and `~b` in one handler, `~c` re-runs **once**, not twice.
+
+**Complexity:**
+- `read` / `write` — `O(1)` amortised (set insert).
+- `flush` — `O(E)` where `E` is the number of transitively dirty effects; each runs at most once per flush.
+- No full-tree diff, no reconciliation pass. **Render cost ≈ the number of nodes that actually read a changed cell.**
+
+### 23.6 Rendering pipeline
+
+```
+source.arx
+    │
+    ▼
+lexer.scanLines(source)     # indentation-sensitive line splitter
+    │
+    ▼  Token[]
+parser.parse(tokens)        # → Program (flat declaration list)
+    │
+    ▼
+parser.buildTree(program)   # → Node (typed AST with modifiers + actions)
+    │
+    ▼
+runtime.mount(ast, host)    # walks AST, creates reactive element tree
+    │
+    ▼
+renderer (host-specific)    # DOM / SwiftUI / Compose primitives
+    │
+    ▼
+reactive.link()             # every modifier/text arg subscribes to read cells
+```
+
+The whole pipeline fits in ~30 KB gzipped. Each stage has its own folder under `Architex/src/` — see `Architex/src/README.md` for the file-by-file breakdown.
+
+### 23.7 Host adapters
+
+A host implements a narrow interface — `createNode`, `updateNode`, `removeNode`, plus modifier application. Adding a new host ≈ 500 lines of glue.
+
+| Host      | Primitive                              | Notes                                          |
+| --------- | -------------------------------------- | ---------------------------------------------- |
+| Web       | Vanilla DOM + CSS custom properties   | Theme tokens become CSS variables.             |
+| iOS       | SwiftUI views                          | Each modifier maps to a native style.          |
+| Android   | Jetpack Compose                        | Gesture modifiers → Compose equivalents.       |
+| Headless  | Structured descriptor tree (JSON)      | For tests + SSR.                               |
+
+The same `.arx` renders identically on all three — no per-host source forks.
+
+### 23.8 Vortex IDE — in-browser editor
+
+The Architex authoring surface is the **built-in Vortex IDE**, hosted at `/ide` in the web client and mirrored in the iOS + Android clients. Writes Gravitix and Architex side-by-side so bot + UI ship together.
+
+**Feature set:**
+
+- Monaco-style code editor with syntax highlighting for both `.grv` and `.arx`.
+- Inline diagnostics from the parser (position-carrying errors).
+- Auto-completion from stdlib + local identifiers + modifier names.
+- Live preview pane — every save hot-reloads the Architex runtime and re-mounts the screen, preserving reactive state where possible.
+- Project explorer — create / rename / delete / publish projects backed by `bots_workspace/` on the node.
+- Git-like history — every save is a signed commit; rollback any revision (`ide_versioning.py`).
+- Monitor tab — live log tail, CPU + memory sampling, crash capture (`ide_monitoring.py`).
+- Docs sidebar — mirrors `/docs.html`, same `hN / hN_a / hN_b / hN_c / hN_f` accordion scheme (`ide-docs/`).
+- REPL — quick language experiments without creating a project.
+- Dev-settings panel — hot reload, raw AST dump, token dump, profile sampler.
+
+**Backend surface:**
+
+| Endpoint family                 | Purpose                                                |
+| ------------------------------- | ------------------------------------------------------ |
+| `POST /api/bots/ide/projects`   | Create / rename / delete / list.                       |
+| `POST /api/bots/ide/run/<id>`   | Start a Gravitix interpreter under budget limits.     |
+| `POST /api/bots/ide/arx/preview`| Parse + mount an Architex screen, return descriptor.   |
+| `GET  /api/bots/ide/logs/<id>`  | SSE stream of runtime logs.                            |
+| `POST /api/bots/ide/publish`    | Signed-snapshot publish to the marketplace.            |
+| `GET  /api/bots/ide/history/<id>` | Commit list + diff.                                 |
+
+**Sandboxing:** Gravitix runs in a Rust VM with instruction/wall/heap budgets; Architex runs in an iframe preview that can't reach other routes. Every HTTP call from user code goes through an allow-list (per-bot + per-project), and the IDE's own session token never leaves the editor process.
+
+### 23.9 Liquid Glass PRO — glass rendering for Architex components
+
+Architex's glass, mirror, and iridescent component variants (`image :: liquid-glass(frosted)`, `col :: liquid-glass(mirror)`, `card :: liquid-glass(ice)`) are powered by **Liquid Glass PRO** — an advanced glassmorphism WebGL2 rendering engine bundled at `Liquid-Glass-PRO/` in this repo. Architex components declare the effect declaratively; the runtime wires the DOM node to the LGP engine.
+
+#### 23.9.1 Glass variants
+
+| Variant         | IOR (Index of Refraction) | Character                                                              |
+| --------------- | ------------------------- | ---------------------------------------------------------------------- |
+| `clear`         | 1.45                      | Near-invisible soda-lime glass. Minimal distortion.                     |
+| `frosted`       | 1.47                      | Ground-glass scatter effect. Multi-scale noise.                         |
+| `smoke`         | 1.52                      | Neutral-density tint. Dark, moody aesthetic.                            |
+| `tinted-blue`   | 1.47                      | Cobalt blue glass. Cool-toned filter.                                   |
+| `tinted-violet` | 1.49                      | UV-filter amethyst. Purple haze effect.                                 |
+| `tinted-amber`  | 1.53                      | Amber/honey-gold. Warm vintage feel.                                    |
+| `mirror`        | 1.785                     | First-surface silver mirror (SF11 glass). High reflectivity.            |
+| `ice`           | 1.309                     | Polycrystalline ice. Frozen, crystalline appearance.                    |
+| `bronze`        | 1.58                      | Copper dichroic. Metallic warm tones.                                   |
+| `emerald`       | 1.575                     | Chrome-doped beryl. Deep green gemstone effect.                         |
+| `rose`          | 1.46                      | Rose quartz. Soft pink translucency.                                    |
+| `obsidian`      | 1.49                      | Volcanic rhyolite glass. Dark, glassy, with subtle reflections.         |
+
+#### 23.9.2 Rendering pipeline (5 stages)
 
 ```
 1. WebGL2 Caustics + Refraction
-   ├── html2canvas: Captures background behind glass element
-   ├── Snell's Law: Calculates refraction angles per-pixel
-   ├── Sellmeier Dispersion: Wavelength-dependent IOR (BK7, SF11, NK51A, NBK10, F2)
-   ├── Beer-Lambert Absorption: Per-channel chromatic absorption
-   ├── Frosted Scatter: Multi-scale noise for ground glass
-   ├── Voronoi Caustics: PCG2D hashing for caustic patterns
-   └── Fresnel Reflection: Angle-dependent reflection coefficient
+   ├── html2canvas        Captures background behind glass element
+   ├── Snell's Law        Refraction angles per-pixel
+   ├── Sellmeier Dispersion  Wavelength-dependent IOR (BK7, SF11, NK51A, NBK10, F2)
+   ├── Beer-Lambert Absorption  Per-channel chromatic absorption
+   ├── Frosted Scatter    Multi-scale noise for ground glass
+   ├── Voronoi Caustics   PCG2D hashing for caustic patterns
+   └── Fresnel Reflection Angle-dependent reflection coefficient
 
 2. PBR Specular
-   ├── Anisotropic GGX: Microfacet distribution
-   ├── Cook-Torrance BRDF: Physically-based specular reflection
-   ├── Kulla-Conty Multi-bounce: Energy-conserving multi-bounce specular
-   └── Thin-Film Iridescence: Born & Wolf model, 320nm film thickness
+   ├── Anisotropic GGX           Microfacet distribution
+   ├── Cook-Torrance BRDF        Physically-based specular reflection
+   ├── Kulla-Conty Multi-bounce  Energy-conserving multi-bounce specular
+   └── Thin-Film Iridescence     Born & Wolf model, 320 nm film thickness
 
 3. SVG Filters
-   ├── Chromatic Aberration: Color fringing at edges
-   └── Micro-distortion: Subtle surface imperfections
+   ├── Chromatic Aberration      Color fringing at edges
+   └── Micro-distortion          Subtle surface imperfections
 
 4. Spring Physics
-   ├── Cursor Tracking: Glass responds to mouse movement
-   └── Gyroscope: Mobile device tilt affects refraction angle
+   ├── Cursor Tracking           Glass responds to mouse movement
+   └── Gyroscope                 Mobile device tilt affects refraction angle
 
 5. CSS Fallback
-   └── backdrop-filter: blur() for browsers without WebGL2
+   └── backdrop-filter: blur()   For browsers without WebGL2
 ```
 
-### 23.3 Optical Effects
+#### 23.9.3 Optical formulas
 
-**Snell's Law Refraction:**
+**Snell's Law — Refraction at the air/glass interface:**
+
 ```
-sin(theta_i) / sin(theta_r) = n2 / n1
-where n1 = 1.0 (air), n2 = glass IOR
+sin(θ_i) / sin(θ_r) = n₂ / n₁
+
+where:
+  n₁ = 1.0         (air)
+  n₂ = glass IOR   (1.309 → 1.785 across the variant set)
+  θ_i = incident angle from surface normal
+  θ_r = refracted angle inside the glass
 ```
 
-**Sellmeier Dispersion (wavelength-dependent IOR):**
+**Sellmeier Dispersion — Wavelength-dependent IOR:**
+
 ```
-n^2(lambda) = 1 + B1*lambda^2/(lambda^2 - C1) + B2*lambda^2/(lambda^2 - C2) + B3*lambda^2/(lambda^2 - C3)
+n²(λ) = 1
+      + B₁·λ² / (λ² − C₁)
+      + B₂·λ² / (λ² − C₂)
+      + B₃·λ² / (λ² − C₃)
 ```
 
-5 glass types are modeled with Sellmeier coefficients:
-- BK7 (borosilicate crown): Standard optical glass
-- SF11 (dense flint): High dispersion for mirror variant
-- NK51A (phosphate crown): Low dispersion
-- NBK10 (borosilicate): Medium dispersion
-- F2 (flint): High IOR
+The five Sellmeier-parameterised glass types:
 
-**Voronoi Caustics:**
+| Glass type | Role                              | Dispersion |
+| ---------- | --------------------------------- | ---------- |
+| BK7        | Borosilicate crown — standard     | Standard   |
+| SF11       | Dense flint — `mirror` variant    | High       |
+| NK51A      | Phosphate crown                   | Low        |
+| NBK10      | Borosilicate                      | Medium     |
+| F2         | Flint — high IOR                  | High       |
+
+**Fresnel Reflection — angle-dependent reflectance (Schlick approximation):**
+
+```
+F(θ) = F₀ + (1 − F₀) · (1 − cos θ)⁵
+
+where:
+  F₀ = ((n₁ − n₂) / (n₁ + n₂))²
+```
+
+**Beer-Lambert Absorption — per-channel chromatic absorption:**
+
+```
+I(λ, d) = I₀(λ) · exp(−α(λ) · d)
+
+where:
+  I₀(λ) = incident intensity at wavelength λ
+  α(λ)  = absorption coefficient per channel (R, G, B)
+  d     = path length through the glass
+```
+
+**Cook-Torrance BRDF — physically-based specular:**
+
+```
+f_specular = (D · F · G) / (4 · (N·L) · (N·V))
+
+where:
+  D = GGX normal distribution       (microfacet)
+  F = Fresnel                        (Schlick)
+  G = Smith geometry                 (shadow/masking)
+  N = surface normal
+  L = light direction
+  V = view direction
+```
+
+**Voronoi Caustics — PCG2D hash:**
+
 ```glsl
-// PCG2D hash for Voronoi cell centers
+// Voronoi cell-centre hash — used for caustic patterns projected through the glass
 vec2 hash(vec2 p) {
     uvec2 q = uvec2(ivec2(p)) * uvec2(1664525u, 1013904223u);
     q = (q.x ^ q.y) * uvec2(1664525u, 1013904223u);
@@ -7241,21 +7483,56 @@ vec2 hash(vec2 p) {
 }
 ```
 
-**Cook-Torrance BRDF:**
+**Thin-Film Iridescence — Born & Wolf interference model:**
+
 ```
-f_specular = D * F * G / (4 * dot(N,L) * dot(N,V))
+Reflectance ∝  | r₁₂ + r₂₃ · e^(−i·2δ) |²
+
 where:
-  D = GGX normal distribution
-  F = Fresnel (Schlick approximation)
-  G = Smith geometry function
+  δ     = (2π / λ) · n · d · cos θ
+  r₁₂   = Fresnel coefficient at first interface
+  r₂₃   = Fresnel coefficient at second interface
+  n     = film refractive index
+  d     = 320 nm (thin-film thickness for Architex glass)
+  θ     = refraction angle inside the film
 ```
 
-**Thin-Film Iridescence:**
+Interference across the 320 nm film produces the angle-dependent hue shift visible on the `ice`, `emerald`, and `bronze` variants.
+
+**Anisotropic GGX — microfacet distribution with directional roughness:**
+
 ```
-Based on Born & Wolf thin-film interference model
-Film thickness: 320nm
-Produces color shifts based on viewing angle
+D(h) = 1 / (π · α_x · α_y · ( (h_x / α_x)² + (h_y / α_y)² + h_z² )² )
+
+where:
+  h       = half-vector between L and V
+  α_x, α_y = roughness along the two tangent axes
 ```
+
+Anisotropy lets `mirror` and `bronze` variants show the elongated highlights seen on brushed metal.
+
+### 23.10 Comparison
+
+|                                         | Architex | SwiftUI | Jetpack Compose | React Native | Flutter |
+| --------------------------------------- | -------- | ------- | --------------- | ------------ | ------- |
+| Runtime size                            | ~30 KB   | —       | —               | ~600 KB      | ~5 MB   |
+| Build step                              | **no**   | yes     | yes             | yes          | yes     |
+| Portable across iOS + Android + web     | **yes**  | no      | no              | partial      | yes     |
+| Reactive state by default               | yes      | yes     | yes             | no           | no      |
+| Declarative                             | yes      | yes     | yes             | yes          | yes     |
+| Writable by non-frontend devs           | **yes**  | no      | no              | no           | no      |
+| Ships inside a chat message             | **yes**  | no      | no              | no           | no      |
+
+### 23.11 Further reading
+
+- [`Architex/README.md`](Architex/README.md) — full language spec, examples, project layout.
+- `Architex/src/*/README.md` — per-stage implementation details (lexer, parser, ast, reactive, runtime, renderer).
+- `Liquid-Glass-PRO/README.md` — 1000+ line operator guide for the glass renderer.
+- `static/js/architex-runtime.js` — browser-side runtime shim.
+- `static/js/ide/` — IDE implementation.
+- `scripts/build_architex_docs.py` + `build_architex_arxd.py` — locale generators for the `architexDocs` + `arxd` docs trees (~900 sections across 146 languages).
+
+---
 
 ---
 
