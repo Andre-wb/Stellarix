@@ -425,23 +425,23 @@ Both clients read the same 147-locale JSON files used by the web and docs — th
   - [2.4 Desktop App (Tauri)](#24-desktop-app-tauri)
   - [2.5 Node Setup Wizard](#25-node-setup-wizard)
 - [3. Configuration Reference](#3-configuration-reference)
-  - [3.1 Authentication Settings](#31-authentication-settings)
-  - [3.2 Network and Server Settings](#32-network-and-server-settings)
-  - [3.3 Database Settings](#33-database-settings)
-  - [3.4 File Upload Settings](#34-file-upload-settings)
-  - [3.5 WAF Settings](#35-waf-settings)
-  - [3.6 Peer Discovery Settings](#36-peer-discovery-settings)
+  - [3.1 Authentication Settings](#32-authentication-settings)
+  - [3.2 Network and Server Settings](#33-network-and-server-settings)
+  - [3.3 Database Settings](#34-database-settings)
+  - [3.4 File Upload Settings](#35-file-upload-settings)
+  - [3.5 WAF Settings](#36-waf-settings)
+  - [3.6 Peer Discovery Settings](#37-peer-discovery-settings)
   - [3.7 Registration Settings](#37-registration-settings)
   - [3.8 Privacy Settings](#38-privacy-settings)
   - [3.9 Transport and Obfuscation Settings](#39-transport-and-obfuscation-settings)
-  - [3.10 AI and Translation Settings](#310-ai-and-translation-settings)
-  - [3.11 VAPID Push Notification Settings](#311-vapid-push-notification-settings)
-  - [3.12 Sealed Sender Settings](#312-sealed-sender-settings)
-  - [3.13 Redis Settings](#313-redis-settings)
-  - [3.14 Post-Quantum Settings](#314-post-quantum-settings)
-  - [3.15 SFU Settings](#315-sfu-settings)
-  - [3.16 SSL and TLS Settings](#316-ssl-and-tls-settings)
-  - [3.17 TURN Server Settings](#317-turn-server-settings)
+  - [3.10 AI and Translation Settings](#320-ai-and-translation-settings)
+  - [3.11 VAPID Push Notification Settings](#321-vapid-push-notification-settings)
+  - [3.12 Sealed Sender Settings](#322-sealed-sender-settings)
+  - [3.13 Redis Settings](#323-redis-settings)
+  - [3.14 Post-Quantum Settings](#324-post-quantum-settings)
+  - [3.15 SFU Settings](#325-sfu-settings)
+  - [3.16 SSL and TLS Settings](#326-ssl-and-tls-settings)
+  - [3.17 TURN Server Settings](#327-turn-server-settings)
 - [4. API Reference: Authentication](#4-api-reference-authentication)
   - [4.1 POST /api/authentication/register](#41-post-apiauthenticationregister)
   - [4.2 POST /api/authentication/login](#42-post-apiauthenticationlogin)
@@ -633,50 +633,63 @@ Both clients read the same 147-locale JSON files used by the web and docs — th
   - [23.11 Further reading](#2311-further-reading)
 - [24. Tauri Desktop Application](#24-tauri-desktop-application)
 - [25. Node Setup Wizard](#25-node-setup-wizard)
-- [26. Transport Protocols](#26-transport-protocols)
-  - [26.1 UDP Peer Discovery](#261-udp-peer-discovery)
-  - [26.2 BLE Transport](#262-ble-transport)
-  - [26.3 Wi-Fi Direct Transport](#263-wi-fi-direct-transport)
-  - [26.4 Mesh Networking](#264-mesh-networking)
-  - [26.5 Federation Protocol](#265-federation-protocol)
-- [27. Deployment Guide](#27-deployment-guide)
-  - [27.1 Docker Deployment](#271-docker-deployment)
-  - [27.2 Docker Compose](#272-docker-compose)
-  - [27.3 Kubernetes Deployment](#273-kubernetes-deployment)
-  - [27.4 Monitoring with Prometheus](#274-monitoring-with-prometheus)
-  - [27.5 Reverse Proxy (nginx)](#275-reverse-proxy-nginx)
-  - [27.6 Systemd Service](#276-systemd-service)
-- [28. Development Guide](#28-development-guide)
-  - [28.1 Environment Setup](#281-environment-setup)
-  - [28.2 Running Tests](#282-running-tests)
-  - [28.3 Project Structure](#283-project-structure)
-  - [28.4 Adding New Features](#284-adding-new-features)
-  - [28.5 Code Style](#285-code-style)
-- [29. Testing Reference](#29-testing-reference)
-  - [29.1 Test Configuration](#291-test-configuration)
-  - [29.2 Test Fixtures](#292-test-fixtures)
-  - [29.3 Test Suites](#293-test-suites)
-  - [29.4 Running Specific Tests](#294-running-specific-tests)
-- [30. Troubleshooting](#30-troubleshooting)
-  - [30.1 Common Issues](#301-common-issues)
-  - [30.2 Database Issues](#302-database-issues)
-  - [30.3 WebSocket Issues](#303-websocket-issues)
-  - [30.4 Peer Discovery Issues](#304-peer-discovery-issues)
-  - [30.5 SSL and TLS Issues](#305-ssl-and-tls-issues)
-  - [30.6 Encryption Issues](#306-encryption-issues)
-- [31. Performance Tuning](#31-performance-tuning)
-  - [31.1 Database Optimization](#311-database-optimization)
-  - [31.2 WebSocket Optimization](#312-websocket-optimization)
-  - [31.3 File Upload Optimization](#313-file-upload-optimization)
-  - [31.4 Memory Management](#314-memory-management)
-  - [31.5 Connection Pooling](#315-connection-pooling)
-- [32. Migration Guide](#32-migration-guide)
-  - [32.1 Database Migrations](#321-database-migrations)
-  - [32.2 Version Upgrade Path](#322-version-upgrade-path)
-  - [32.3 Data Export and Import](#323-data-export-and-import)
-- [33. Internationalization](#33-internationalization)
-- [34. Accessibility](#34-accessibility)
-- [35. License](#35-license)
+- [26. Blind Mailbox Protocol (BMP)](#26-blind-mailbox-protocol-bmp)
+  - [26.1 Problem statement](#261-problem-statement)
+  - [26.2 Threat model](#262-threat-model)
+  - [26.3 Core construction](#263-core-construction)
+  - [26.4 Cover traffic](#264-cover-traffic)
+  - [26.5 Anonymity set math](#265-anonymity-set-math)
+  - [26.6 Security properties](#266-security-properties)
+  - [26.7 Performance](#267-performance)
+  - [26.8 Comparison to alternatives](#268-comparison-to-alternatives)
+  - [26.9 Operational considerations](#269-operational-considerations)
+  - [26.10 Implementation map](#2610-implementation-map)
+  - [26.11 Known limits](#2611-known-limits)
+  - [26.12 Further reading](#2612-further-reading)
+- [27. Transport Protocols](#27-transport-protocols)
+  - [27.1 UDP Peer Discovery](#271-udp-peer-discovery)
+  - [27.2 BLE Transport](#272-ble-transport)
+  - [27.3 Wi-Fi Direct Transport](#273-wi-fi-direct-transport)
+  - [27.4 Mesh Networking](#274-mesh-networking)
+  - [27.5 Federation Protocol](#275-federation-protocol)
+- [28. Deployment Guide](#28-deployment-guide)
+  - [28.1 Docker Deployment](#281-docker-deployment)
+  - [28.2 Docker Compose](#282-docker-compose)
+  - [28.3 Kubernetes Deployment](#283-kubernetes-deployment)
+  - [28.4 Monitoring with Prometheus](#284-monitoring-with-prometheus)
+  - [28.5 Reverse Proxy (nginx)](#285-reverse-proxy-nginx)
+  - [28.6 Systemd Service](#286-systemd-service)
+- [29. Development Guide](#29-development-guide)
+  - [29.1 Environment Setup](#291-environment-setup)
+  - [29.2 Running Tests](#292-running-tests)
+  - [29.3 Project Structure](#293-project-structure)
+  - [29.4 Adding New Features](#294-adding-new-features)
+  - [29.5 Code Style](#295-code-style)
+- [30. Testing Reference](#30-testing-reference)
+  - [30.1 Test Configuration](#301-test-configuration)
+  - [30.2 Test Fixtures](#302-test-fixtures)
+  - [30.3 Test Suites](#303-test-suites)
+  - [30.4 Running Specific Tests](#304-running-specific-tests)
+- [31. Troubleshooting](#31-troubleshooting)
+  - [31.1 Common Issues](#311-common-issues)
+  - [31.2 Database Issues](#312-database-issues)
+  - [31.3 WebSocket Issues](#313-websocket-issues)
+  - [31.4 Peer Discovery Issues](#314-peer-discovery-issues)
+  - [31.5 SSL and TLS Issues](#315-ssl-and-tls-issues)
+  - [31.6 Encryption Issues](#316-encryption-issues)
+- [32. Performance Tuning](#32-performance-tuning)
+  - [32.1 Database Optimization](#321-database-optimization)
+  - [32.2 WebSocket Optimization](#322-websocket-optimization)
+  - [32.3 File Upload Optimization](#323-file-upload-optimization)
+  - [32.4 Memory Management](#324-memory-management)
+  - [32.5 Connection Pooling](#325-connection-pooling)
+- [33. Migration Guide](#33-migration-guide)
+  - [33.1 Database Migrations](#331-database-migrations)
+  - [33.2 Version Upgrade Path](#332-version-upgrade-path)
+  - [33.3 Data Export and Import](#333-data-export-and-import)
+- [34. Internationalization](#34-internationalization)
+- [35. Accessibility](#35-accessibility)
+- [36. License](#36-license)
 
 ---
 
@@ -7630,9 +7643,273 @@ The Node Setup Wizard is a separate web interface served at the root URL on firs
 
 ---
 
-## 26. Transport Protocols
+## 26. Blind Mailbox Protocol (BMP)
 
-### 26.1 UDP Peer Discovery
+BMP is Vortex's **metadata-hiding transport layer**, designed in-house specifically for this project. Where E2E encryption hides *what* you say, BMP hides *who talks to whom, how often, and when*. It sits between the node's HTTPS entry and the room-key / message-routing subsystems. **No Tor, no mixnet, no PIR, no trusted hardware.** Just cryptographically-derived mailbox IDs plus constant-time cover traffic.
+
+The reference research write-up lives at [`RESEARCH-BMP.md`](RESEARCH-BMP.md) (short-form). This section is the **full specification** — threat model, math, wire shape, runtime complexity, batteries, security arguments, known limits.
+
+### 26.1 Problem statement
+
+Even with perfect E2E encryption the server **still knows**:
+
+- That user *Alice* sent a message at 14:03:17.
+- That user *Bob* received a message at 14:03:17.
+- Therefore Alice and Bob talk to each other.
+
+This is **metadata**, and it's enough for nation-state adversaries to build a full social graph, time-correlate typing with physical movement, flag whistle-blowers, and prosecute activists — **without ever breaking a single ciphertext**. Mainstream messengers (Signal, Telegram, WhatsApp, iMessage) don't meaningfully hide this: they all route on `user_id → user_id`, so the server **has** to know the pair.
+
+Vortex's BMP closes this gap. **Messages are routed on opaque 128-bit mailbox IDs that rotate every hour**, and no user identifier appears in any request the server sees.
+
+### 26.2 Threat model
+
+BMP is designed against a **globally-passive** and **locally-active** adversary:
+
+| Adversary capability                                        | BMP guarantee                                                                 |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| Reads every byte on every wire to/from the server           | Cannot learn who talks to whom — all requests carry opaque mailbox IDs.       |
+| Subpoenas the server's full database                        | DB holds `{mailbox_id → [ciphertext]}` — no `user_id → user_id` mapping exists. |
+| Coerces the server into active attacks                      | Server still can't inject — messages are Ed25519-signed inside the ciphertext; clients reject unsigned or wrong-key entries. |
+| Runs a timing-correlation attack across multiple users      | Cover traffic randomises poll cadence per user; ≈ 5× decoy ratio breaks trivial correlation. |
+| Compromises one of the two endpoints                        | **Not defended** — an endpoint compromise reveals that endpoint's contacts by design (they hold the shared secrets). |
+
+BMP is **not** a replacement for Tor when you need IP-level anonymity. It hides the application-layer social graph. IP-layer hiding is orthogonal — combine BMP with Tor / stealth transports for both layers.
+
+### 26.3 Core construction
+
+#### 26.3.1 Shared secret
+
+On first contact, Alice and Bob compute an X25519 ECDH shared secret:
+
+```
+S_AB = ECDH(priv_Alice, pub_Bob)
+     = ECDH(priv_Bob,   pub_Alice)
+     = X25519 scalar multiplication on Curve25519
+```
+
+Both sides derive the **same** 32-byte `S_AB`. The server never sees either private key, therefore never sees `S_AB`.
+
+#### 26.3.2 Mailbox ID derivation
+
+The per-pair, per-epoch mailbox ID is:
+
+```
+mailbox_id(t) = HMAC-SHA256( S_AB , epoch(t) )[0 : 16]
+
+where:
+  t         = current UNIX time in seconds
+  T         = 3600                             # rotation period (1 hour)
+  epoch(t)  = floor(t / T)                     # 8-byte big-endian integer
+  [0 : 16]  = first 128 bits of the HMAC output
+```
+
+**Properties:**
+
+- **Deterministic** — both sides compute identical IDs without network coordination.
+- **Future-secret** — the server cannot predict next hour's ID without `S_AB`.
+- **Backward-secret** — even if `S_AB` leaks later, past mailbox IDs remain unidentifiable *in aggregate* (the server still sees the set of IDs it saw, but can't attribute them to *pairs* without testing all known pubkey pairs).
+- **Collision probability** — for `N` active pairs on a node, expected collision count within one epoch:
+  ```
+  E[collisions] ≈ N² / 2^129
+  ```
+  For N = 10⁸ (100 million active pairs) this is ≈ 10⁻²³. Effectively zero.
+
+#### 26.3.3 Wire format
+
+**Send** (Alice → server):
+
+```
+POST /api/bmp/mailbox/<mailbox_id_hex>
+Content-Type: application/octet-stream
+
+body = cbor_encode({
+    "ct":      AES-256-GCM(plaintext, room_key, nonce),
+    "nonce":   96-bit random,
+    "sig":     Ed25519(priv_sender, sha256(ct || nonce)),
+    "sender_pub": Ed25519 public key of sender,
+    "kid":     room-key epoch identifier (so recipient picks the right key)
+})
+
+headers:
+    X-Envelope-Version: 1
+    X-Padding:          <pad-to-1024-or-4096 constant-size bucket>
+```
+
+**Receive** (Bob, polling):
+
+```
+GET /api/bmp/mailbox/<mailbox_id_hex>?since=<cursor>
+
+→ 200 { "envelopes": [ <cbor blob>, ... ], "cursor": <next> }
+→ 404                                      # mailbox empty or doesn't exist
+```
+
+Every request carries an identical padded envelope so the on-wire size reveals nothing about the payload class.
+
+### 26.4 Cover traffic
+
+Real privacy requires making **every request indistinguishable from noise**.
+
+Every active client runs a **constant-rate poller**:
+
+```python
+# Per-client, independent of whether user has messages
+every 2.0 - 3.0 seconds (jittered):                       # Poisson-like cadence
+    real_ids    = [ mailbox_id(contact) for contact in my_contacts ]
+    decoy_ids   = [ random_128_bit_id()  for _ in range(DECOY_COUNT) ]
+    all_ids     = shuffle(real_ids + decoy_ids)
+    for mid in all_ids:
+        GET /api/bmp/mailbox/<mid>
+```
+
+Default parameters:
+
+| Knob                   | Value       | Effect                                                          |
+| ---------------------- | ----------- | --------------------------------------------------------------- |
+| `DECOY_COUNT`          | 50          | Per-poll decoys — ~5–10× real IDs for a typical user.           |
+| `POLL_INTERVAL_MS`     | 2000–3000   | Uniform jitter; median 2.5s.                                    |
+| `BATCH_SIZE`           | up to 60    | Max IDs per HTTP/2 multiplexed request.                         |
+| `PAD_BUCKETS`          | [128, 1024, 4096, 65536] | Every payload padded up to the next bucket.         |
+
+### 26.5 Anonymity set math
+
+For a single poll carrying `r` real mailbox IDs and `d` decoys, the server's probability of guessing the correct subset is:
+
+```
+P(guess real subset) = 1 / C(r + d, r)
+```
+
+With `r = 10` (ten contacts) and `d = 50`:
+
+```
+C(60, 10) = 75,394,027,566
+P         = 1.33 × 10⁻¹¹
+```
+
+For **aggregate statistical attacks** over K polls, the adversary can improve by counting how often specific IDs reappear (real IDs are stable within an hour, decoys are one-shot). BMP counters this with three mitigations:
+
+1. **Cover-ID reuse** — a fraction (default 20%) of decoys are drawn from a long-lived per-client pool, so they also "appear stable".
+2. **Sparse-poll mode** — low-activity clients poll rarely with tiny decoy budgets (`d = 5`), matching real activity patterns so they don't stand out as "obviously padded".
+3. **Epoch rotation** — at `T` boundaries (every 3600 s) all real IDs change. An attacker trying to cluster "repeat-seen IDs" gets fresh noise every hour.
+
+Long-run linkability under aggregate analysis:
+
+```
+Linkability bound ≈ O( 1 / (d / r + 1)^K )
+```
+
+For `d/r = 5`, `K` (observed polls) = 10 000, the bound is `≈ 10⁻⁷⁸`.
+
+### 26.6 Security properties
+
+| Property                        | Formal statement                                                        | How enforced                                        |
+| ------------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------- |
+| **Recipient anonymity**         | `Pr[server guesses receiver | observed request] ≤ 1/(r+d)` per poll.   | Cover traffic + opaque mailbox IDs.                 |
+| **Sender anonymity**            | `Pr[server guesses sender | observed POST] = 1/N` over active users.   | No identity in the request; sealed-sender envelope. |
+| **Unlinkability across epochs** | Pairs of mailbox IDs at times `t₁, t₂ > T` are computationally indistinguishable from random. | HMAC-SHA256 pseudo-randomness.                      |
+| **Integrity**                   | No party other than the sender can produce a valid envelope.            | Ed25519 inner signature verified by recipient.      |
+| **Replay resistance**           | Replaying an envelope into the mailbox is detectable and rejected.      | Strictly-monotonic per-sender `kid + nonce` tuple.  |
+| **Forward secrecy on leak**     | If `S_AB` leaks at time `t_leak`, messages sent before `t_leak` remain confidential. | Double ratchet runs **inside** BMP envelopes; ratchet step rotates payload key every message. |
+
+### 26.7 Performance
+
+BMP adds a small overhead; everything is O(1) per operation.
+
+| Operation                         | Cost per call                                    |
+| --------------------------------- | ------------------------------------------------ |
+| `mailbox_id(t)`                   | 1 × HMAC-SHA256 ≈ **400 ns** on modern x86       |
+| Compose envelope (ct + sig + pad) | AES-GCM + Ed25519 sign ≈ **40 µs** (client)      |
+| Verify envelope (check sig)       | Ed25519 verify ≈ **70 µs** (recipient)           |
+| Server DB insert                  | 1 indexed insert on `(mailbox_id, created_at)` — **sub-ms** |
+| Server DB read                    | Range scan on composite index — **sub-ms** for active mailboxes |
+| Bandwidth per real message        | ≤ 4 KB envelope (padded)                         |
+| Idle-client overhead              | ~**20 KB/s** steady state (60 IDs × every 2.5 s × ~1 KB per response) |
+
+The idle-client cost is the **price of privacy**. Vortex exposes a `BMP_POWER_SAVE` mode that drops decoy count + extends poll interval on battery, trading anonymity for battery life. Operators running dedicated nodes don't care about this; mobile clients do, so it's per-device tunable.
+
+Server-side, BMP scales linearly with active mailboxes. A 16-core / 32 GB node handles ≈ **250 000 concurrent pollers** at the default cadence before saturation.
+
+### 26.8 Comparison to alternatives
+
+| Approach        | Hides sender? | Hides receiver? | Hides pairing? | Bandwidth overhead | Latency | In mainstream messengers |
+| --------------- | ------------- | --------------- | -------------- | ------------------ | ------- | ------------------------ |
+| Plain TLS       | no            | no              | no             | 0                  | low     | All of them.             |
+| **Sealed sender** (Signal) | yes | no        | partial        | ~0                 | low     | Signal.                  |
+| Tor + onion svc | yes (IP)     | yes (IP)        | yes            | high               | 300–800 ms extra | Briar-ish. |
+| Mixnet (Loopix) | yes           | yes             | yes            | 10–100×            | seconds | Nym.                     |
+| PIR             | —             | yes             | yes            | 100–10 000× DB size | seconds | Not production-ready.   |
+| **BMP (Vortex)**| **yes**       | **yes**         | **yes**        | ~5×                | ~1 s    | **Vortex.**              |
+
+BMP sits in the sweet spot — practical bandwidth, practical latency, no exotic dependencies (no Tor daemon, no mixnet operators, no DB-scale fan-out). The trade-off: does not hide IP (that's what stealth/Tor transports are for); the constant-cadence cover traffic is ~20 KB/s per idle client.
+
+### 26.9 Operational considerations
+
+#### 26.9.1 Clock drift
+
+Clients that drift by more than `T/2` (30 min) miss the correct epoch. Mitigations:
+
+- Every envelope carries the sender's epoch number. Recipients accept `[epoch − 1, epoch, epoch + 1]` to tolerate 1-hour drift.
+- NTP sync is **strongly recommended** but not required for correctness.
+
+#### 26.9.2 New-pair bootstrap
+
+First contact has a chicken-and-egg problem — the shared secret doesn't exist yet. BMP uses a **bootstrap mailbox** derived from the pair of long-term identity pubkeys:
+
+```
+S_bootstrap = HKDF-SHA256(
+    ikm  = sort_lex(pub_Alice, pub_Bob),
+    salt = "vortex-bmp-bootstrap-v1",
+    info = "",
+    len  = 32
+)
+```
+
+This lets the first envelope be delivered *before* the usual `S_AB` is established, at the cost of a known bootstrap ID per unordered pair. The first envelope carries the ephemeral key material to switch the pair to the normal `S_AB` path — after that, `S_bootstrap` is never used again.
+
+#### 26.9.3 Key rotation
+
+`S_AB` is itself passed through a **Double Ratchet** (see [`app/security/double_ratchet.py`](app/security/double_ratchet.py)) so that each envelope has its own fresh message key even though the mailbox ID is stable within the hour. A compromised `S_AB` leak at time `t` does **not** decrypt any envelope that was sent before the current ratchet step.
+
+#### 26.9.4 Push notifications
+
+A delivered envelope triggers a push via the **BMP push proxy** ([`app/push/bmp_push_proxy.py`](app/push/bmp_push_proxy.py)) — a second, smaller BMP session whose mailbox IDs are known to the push service (FCM / APNs) but not to the origin node. The push service sees `{blinded_id, random-looking byte-blob}` and has zero context.
+
+#### 26.9.5 Storage & GC
+
+Mailboxes live on disk for at most 14 days (`BMP_RETENTION_DAYS`). A nightly job deletes envelopes older than retention. Since clients poll continuously, real messages are typically delivered within seconds and fall out of the index quickly.
+
+### 26.10 Implementation map
+
+| Layer       | Path                                                    | Role                                                    |
+| ----------- | ------------------------------------------------------- | ------------------------------------------------------- |
+| Rust core   | [`rust_utils/src/bmp/`](rust_utils/src/bmp)             | `mailbox_id()`, decoy mixer, envelope pack/unpack, padding. |
+| Python node | [`app/transport/blind_mailbox.py`](app/transport/blind_mailbox.py) | Router, persistence (SQLAlchemy), cover-traffic orchestration. |
+| Python push | [`app/push/bmp_push_proxy.py`](app/push/bmp_push_proxy.py) | Blind push bridge to FCM/APNs.                          |
+| Web client  | [`static/js/bmp-client.js`](static/js/bmp-client.js), [`bmp-envelope.js`](static/js/bmp-envelope.js) | Polling loop, envelope assembly, cover-ID generation. |
+| iOS client  | `ios/Modules/Sources/WS/` + `Keys/`                     | Same logic ported to Swift.                             |
+| Android     | `android/app/src/main/java/sol/vortexx/android/ws/`     | Same logic ported to Kotlin.                            |
+| Tests       | `app/tests/test_bmp.py`, `test_bmp_push.py`             | Integration tests across Python + Rust.                 |
+
+Every BMP primitive has test vectors that match across **Python, Rust, Swift, Kotlin, and JavaScript** — no platform drift.
+
+### 26.11 Known limits
+
+- **Active traffic analyser** standing directly next to both endpoints can correlate burst timing even through cover traffic. BMP does not try to defend against this; it moves the cost to the adversary significantly, but not to infinity.
+- **Long-term linkability via pubkey sets**: if the adversary enumerates every known user pubkey and precomputes `HMAC(S_XY, epoch)` for every pair, they can deanonymise — for an N-user network this is `O(N²)` per epoch. For public networks beyond ~10⁴ users this quickly becomes infeasible, but it's a linear-in-epochs offline attack the operator should be aware of.
+- **Sybil-flooding** the mailbox — an attacker can spam a known mailbox ID to break polling. Rate-limits per `(mailbox_id, source_ip)` cap the damage; persistent flooding falls back to mailbox rotation.
+
+### 26.12 Further reading
+
+- [`RESEARCH-BMP.md`](RESEARCH-BMP.md) — the short-form research write-up that started this section.
+- [`rust_utils/src/bmp/README.md`](rust_utils/src/bmp/README.md) — Rust implementation notes.
+- [`app/transport/README.md`](app/transport/README.md) — wider transport layer that contains BMP.
+- [`app/push/README.md`](app/push/README.md) — push proxy specifics.
+
+---
+
+## 27. Transport Protocols
+
+### 27.1 UDP Peer Discovery
 
 Vortex nodes discover each other on the local network via UDP broadcast:
 
@@ -7665,7 +7942,7 @@ Discovery Flow:
 5. Peers are stored in an in-memory registry (PeerRegistry)
 ```
 
-### 26.2 BLE Transport
+### 27.2 BLE Transport
 
 Bluetooth Low Energy transport for proximity-based communication:
 
@@ -7688,7 +7965,7 @@ Limitations:
   - Best for: text messages in offline/local scenarios
 ```
 
-### 26.3 Wi-Fi Direct Transport
+### 27.3 Wi-Fi Direct Transport
 
 Wi-Fi Direct enables direct device-to-device communication without a router:
 
@@ -7705,7 +7982,7 @@ Advantages over BLE:
   - Supports voice/video calls
 ```
 
-### 26.4 Mesh Networking
+### 27.4 Mesh Networking
 
 In global mode, Vortex forms a mesh network using a gossip protocol:
 
@@ -7730,7 +8007,7 @@ Bootstrap:
 4. Within minutes, the new node has a comprehensive view of the network
 ```
 
-### 26.5 Federation Protocol
+### 27.5 Federation Protocol
 
 Federation allows users on different Vortex nodes to communicate:
 
@@ -7758,9 +8035,9 @@ Trust Model:
 
 ---
 
-## 27. Deployment Guide
+## 28. Deployment Guide
 
-### 27.1 Docker Deployment
+### 28.1 Docker Deployment
 
 **Dockerfile:**
 
@@ -7814,7 +8091,7 @@ docker run -d \
     vortex:latest
 ```
 
-### 27.2 Docker Compose
+### 28.2 Docker Compose
 
 ```yaml
 version: '3.8'
@@ -7883,7 +8160,7 @@ volumes:
   redis-data:
 ```
 
-### 27.3 Kubernetes Deployment
+### 28.3 Kubernetes Deployment
 
 ```yaml
 apiVersion: apps/v1
@@ -8015,7 +8292,7 @@ spec:
                   number: 9000
 ```
 
-### 27.4 Monitoring with Prometheus
+### 28.4 Monitoring with Prometheus
 
 **Metrics endpoint example (add to app/main.py):**
 
@@ -8049,7 +8326,7 @@ scrape_configs:
 - Message throughput (messages/second)
 - File upload/download bandwidth
 
-### 27.5 Reverse Proxy (nginx)
+### 28.5 Reverse Proxy (nginx)
 
 ```nginx
 upstream vortex {
@@ -8105,7 +8382,7 @@ server {
 }
 ```
 
-### 27.6 Systemd Service
+### 28.6 Systemd Service
 
 ```ini
 [Unit]
@@ -8151,9 +8428,9 @@ sudo systemctl status vortex
 
 ---
 
-## 28. Development Guide
+## 29. Development Guide
 
-### 28.1 Environment Setup
+### 29.1 Environment Setup
 
 ```bash
 # Clone the repository
@@ -8180,7 +8457,7 @@ cargo build
 cd ..
 ```
 
-### 28.2 Running Tests
+### 29.2 Running Tests
 
 ```bash
 # Run all tests
@@ -8205,7 +8482,7 @@ pytest -m "not slow"
 pytest -n auto
 ```
 
-### 28.3 Project Structure
+### 29.3 Project Structure
 
 ```
 Vortex/
@@ -8275,7 +8552,7 @@ Vortex/
 └── README.md                    # This file
 ```
 
-### 28.4 Adding New Features
+### 29.4 Adding New Features
 
 **Adding a new API endpoint:**
 
@@ -8327,7 +8604,7 @@ def test_list_items(client, logged_user):
 5. Add tests in the test suite
 6. Update LSP completions in `lsp.rs`
 
-### 28.5 Code Style
+### 29.5 Code Style
 
 **Python:**
 - Follow PEP 8
@@ -8348,9 +8625,9 @@ def test_list_items(client, logged_user):
 
 ---
 
-## 29. Testing Reference
+## 30. Testing Reference
 
-### 29.1 Test Configuration
+### 30.1 Test Configuration
 
 Tests are configured in `conftest.py`:
 
@@ -8362,7 +8639,7 @@ Tests are configured in `conftest.py`:
 # - SyncASGIClient for synchronous test execution
 ```
 
-### 29.2 Test Fixtures
+### 30.2 Test Fixtures
 
 | Fixture | Scope | Description |
 |---------|-------|-------------|
@@ -8373,7 +8650,7 @@ Tests are configured in `conftest.py`:
 | `random_digits()` | - | Generate random digit string |
 | `random_phone()` | - | Generate random phone number in valid format |
 
-### 29.3 Test Suites
+### 30.3 Test Suites
 
 | Suite | File | Description |
 |-------|------|-------------|
@@ -8385,7 +8662,7 @@ Tests are configured in `conftest.py`:
 | Auth + Rooms | `test_full_auth_rooms.py` | Full user lifecycle: register -> login -> create room -> send message |
 | Blockchain | `test_blockchain_verify.py` | TRON, Ethereum, BSC, TON, Bitcoin verification |
 
-### 29.4 Running Specific Tests
+### 30.4 Running Specific Tests
 
 ```bash
 # Security tests only
@@ -8406,9 +8683,9 @@ pytest --cov=app --cov-report=term-missing
 
 ---
 
-## 30. Troubleshooting
+## 31. Troubleshooting
 
-### 30.1 Common Issues
+### 31.1 Common Issues
 
 **Issue: "Address already in use" on startup**
 
@@ -8450,7 +8727,7 @@ echo "JWT_SECRET=$(openssl rand -hex 32)" >> .env
 echo "CSRF_SECRET=$(openssl rand -hex 32)" >> .env
 ```
 
-### 30.2 Database Issues
+### 31.2 Database Issues
 
 **Issue: "Database is locked" (SQLite)**
 
@@ -8468,7 +8745,7 @@ rm vortex.db
 uvicorn app.main:app --host 0.0.0.0 --port 9000
 ```
 
-### 30.3 WebSocket Issues
+### 31.3 WebSocket Issues
 
 **Issue: WebSocket connection drops frequently**
 
@@ -8486,7 +8763,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 9000
 2. Check CSRF token is included (for initial connection)
 3. Verify the token has not expired
 
-### 30.4 Peer Discovery Issues
+### 31.4 Peer Discovery Issues
 
 **Issue: Peers not discovered on LAN**
 
@@ -8500,7 +8777,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 9000
 3. Check that NETWORK_MODE is "local"
 4. Ensure broadcast is not blocked by the router
 
-### 30.5 SSL and TLS Issues
+### 31.5 SSL and TLS Issues
 
 **Issue: Self-signed certificate warnings**
 
@@ -8522,7 +8799,7 @@ certbot renew
 echo "0 0 1 * * certbot renew && systemctl restart vortex" | crontab -
 ```
 
-### 30.6 Encryption Issues
+### 31.6 Encryption Issues
 
 **Issue: "Cannot decrypt message" errors**
 
@@ -8538,9 +8815,9 @@ echo "0 0 1 * * certbot renew && systemctl restart vortex" | crontab -
 
 ---
 
-## 31. Performance Tuning
+## 32. Performance Tuning
 
-### 31.1 Database Optimization
+### 32.1 Database Optimization
 
 **SQLite (development):**
 
@@ -8580,7 +8857,7 @@ The following indexes are created automatically:
 - `refresh_tokens.expires_at`
 - `rooms.invite_code` (unique)
 
-### 31.2 WebSocket Optimization
+### 32.2 WebSocket Optimization
 
 ```bash
 # Increase the number of allowed open file descriptors
@@ -8595,7 +8872,7 @@ For high-traffic nodes, consider:
 - Sharding rooms across multiple worker processes
 - Using a dedicated WebSocket server (e.g., centrifugo) for fanout
 
-### 31.3 File Upload Optimization
+### 32.3 File Upload Optimization
 
 ```bash
 # For large files, increase timeout and disable request buffering
@@ -8607,7 +8884,7 @@ proxy_request_buffering off;
 proxy_read_timeout 600s;
 ```
 
-### 31.4 Memory Management
+### 32.4 Memory Management
 
 ```bash
 # Limit Python memory usage per worker
@@ -8619,7 +8896,7 @@ gunicorn app.main:app \
     --max-requests-jitter 1000
 ```
 
-### 31.5 Connection Pooling
+### 32.5 Connection Pooling
 
 ```bash
 # Database connection pooling
@@ -8633,9 +8910,9 @@ REDIS_POOL_SIZE=20
 
 ---
 
-## 32. Migration Guide
+## 33. Migration Guide
 
-### 32.1 Database Migrations
+### 33.1 Database Migrations
 
 Vortex uses SQLAlchemy's `create_all()` for initial table creation. For schema changes in production:
 
@@ -8668,14 +8945,14 @@ async def migrate_v4_to_v5(engine):
         """))
 ```
 
-### 32.2 Version Upgrade Path
+### 33.2 Version Upgrade Path
 
 | From | To | Notes |
 |------|----|-------|
 | 3.x | 4.x | Add Kyber-768 support, run key re-generation |
 | 4.x | 5.0 | Add spaces, channels, forums; new database tables |
 
-### 32.3 Data Export and Import
+### 33.3 Data Export and Import
 
 ```bash
 # Export all data (GDPR Article 20)
@@ -8699,7 +8976,7 @@ psql -U vortex vortex < backup.sql
 
 ---
 
-## 33. Internationalization
+## 34. Internationalization
 
 Vortex supports 165 locales with full RTL (right-to-left) support.
 
@@ -8739,7 +9016,7 @@ t('messages_count', {count: 5})  // "5 messages"
 
 ---
 
-## 34. Accessibility
+## 35. Accessibility
 
 Vortex includes comprehensive accessibility support managed by `a11y.js` and `a11y.css`:
 
@@ -8768,7 +9045,7 @@ Keyboard shortcuts:
 
 ---
 
-## 35. License
+## 36. License
 
 Vortex is released under the **Apache License 2.0**.
 
@@ -8790,7 +9067,7 @@ limitations under the License.
 
 ---
 
-## 36. Authors
+## 37. Authors
 
 **Boris Maltsev**
 
