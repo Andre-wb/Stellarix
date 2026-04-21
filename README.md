@@ -88,6 +88,7 @@
   <img src="https://img.shields.io/badge/Double%20Ratchet-forward%20secrecy-green?style=flat-square" alt="Double Ratchet">
   <img src="https://img.shields.io/badge/Sealed%20Sender-metadata%20hiding-green?style=flat-square" alt="Sealed Sender">
   <img src="https://img.shields.io/badge/Shamir-secret%20sharing-green?style=flat-square" alt="Shamir">
+  <img src="https://img.shields.io/badge/BMP-blind%20mailbox-green?style=flat-square" alt="BMP">
   <img src="https://img.shields.io/badge/WebAuthn%2FPasskey-auth-green?style=flat-square" alt="WebAuthn">
   <img src="https://img.shields.io/badge/BIP39-Seed--Phrase-green?style=flat-square" alt="BIP39">
   <img src="https://img.shields.io/badge/JWT-session-green?style=flat-square" alt="JWT">
