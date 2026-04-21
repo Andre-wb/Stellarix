@@ -126,3 +126,14 @@ bandit-report.json
 
 # AI models
 Qwen3-8B/
+
+# --- iOS / SwiftPM / Xcode ---
+ios/Modules/.build/
+ios/Modules/.swiftpm/
+ios/.build/
+ios/Vortex.xcodeproj/
+ios/**/xcuserdata/
+ios/**/DerivedData/
+*.xcuserstate
+*.xcuserdatad/
+Package.resolved
