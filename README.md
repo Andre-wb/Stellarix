@@ -15,36 +15,36 @@
 
 <!-- ── Core runtimes ───────────────────────────────────────────── -->
 <p align="center">
-  <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
-  <img src="https://img.shields.io/badge/Rust-1.75+-DEA584?style=for-the-badge&logo=rust&logoColor=black" alt="Rust">
-  <img src="https://img.shields.io/badge/TypeScript-5.4+-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
-  <img src="https://img.shields.io/badge/Swift-5.10+-F05138?style=for-the-badge&logo=swift&logoColor=white" alt="Swift">
-  <img src="https://img.shields.io/badge/Kotlin-1.9+-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin">
-  <img src="https://img.shields.io/badge/Node.js-20+-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js">
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python"></a>
+  <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/Rust-1.75+-DEA584?style=for-the-badge&logo=rust&logoColor=black" alt="Rust"></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.4+-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"></a>
+  <a href="https://www.swift.org/"><img src="https://img.shields.io/badge/Swift-5.10+-F05138?style=for-the-badge&logo=swift&logoColor=white" alt="Swift"></a>
+  <a href="https://kotlinlang.org/"><img src="https://img.shields.io/badge/Kotlin-1.9+-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white" alt="Kotlin"></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-20+-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js"></a>
 </p>
 
 <!-- ── Backend frameworks & storage ────────────────────────────── -->
 <p align="center">
-  <img src="https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI">
-  <img src="https://img.shields.io/badge/Uvicorn-ASGI-4B8BBE?style=for-the-badge" alt="Uvicorn">
-  <img src="https://img.shields.io/badge/SQLAlchemy-2.0+-C73B3E?style=for-the-badge" alt="SQLAlchemy">
-  <img src="https://img.shields.io/badge/Alembic-migrations-808080?style=for-the-badge" alt="Alembic">
-  <img src="https://img.shields.io/badge/PostgreSQL-15+-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
-  <img src="https://img.shields.io/badge/SQLite-WAL-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite">
-  <img src="https://img.shields.io/badge/Redis-pubsub-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis">
-  <img src="https://img.shields.io/badge/PyO3-bindings-000000?style=for-the-badge" alt="PyO3">
+  <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.115+-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI"></a>
+  <a href="https://www.uvicorn.org/"><img src="https://img.shields.io/badge/Uvicorn-ASGI-4B8BBE?style=for-the-badge" alt="Uvicorn"></a>
+  <a href="https://www.sqlalchemy.org/"><img src="https://img.shields.io/badge/SQLAlchemy-2.0+-C73B3E?style=for-the-badge" alt="SQLAlchemy"></a>
+  <a href="https://alembic.sqlalchemy.org/"><img src="https://img.shields.io/badge/Alembic-migrations-808080?style=for-the-badge" alt="Alembic"></a>
+  <a href="https://www.postgresql.org/"><img src="https://img.shields.io/badge/PostgreSQL-15+-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL"></a>
+  <a href="https://www.sqlite.org/"><img src="https://img.shields.io/badge/SQLite-WAL-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite"></a>
+  <a href="https://redis.io/"><img src="https://img.shields.io/badge/Redis-pubsub-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis"></a>
+  <a href="https://pyo3.rs/"><img src="https://img.shields.io/badge/PyO3-bindings-000000?style=for-the-badge" alt="PyO3"></a>
 </p>
 
 <!-- ── Clients & UI shells ─────────────────────────────────────── -->
 <p align="center">
-  <img src="https://img.shields.io/badge/SwiftUI-native-F05138?style=for-the-badge&logo=swift&logoColor=white" alt="SwiftUI">
-  <img src="https://img.shields.io/badge/Jetpack%20Compose-native-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Jetpack Compose">
-  <img src="https://img.shields.io/badge/Tauri-5.0-FFC131?style=for-the-badge&logo=tauri&logoColor=black" alt="Tauri">
-  <img src="https://img.shields.io/badge/PyWebview-wizard-2496ED?style=for-the-badge" alt="pywebview">
-  <img src="https://img.shields.io/badge/GRDB-iOS%20SQLite-003B57?style=for-the-badge" alt="GRDB">
-  <img src="https://img.shields.io/badge/Room-Android%20DB-4285F4?style=for-the-badge" alt="Room">
-  <img src="https://img.shields.io/badge/Hilt-DI-FFCD40?style=for-the-badge" alt="Hilt">
-  <img src="https://img.shields.io/badge/Ktor-HTTP-7F52FF?style=for-the-badge" alt="Ktor">
+  <a href="https://developer.apple.com/xcode/swiftui/"><img src="https://img.shields.io/badge/SwiftUI-native-F05138?style=for-the-badge&logo=swift&logoColor=white" alt="SwiftUI"></a>
+  <a href="https://developer.android.com/jetpack/compose"><img src="https://img.shields.io/badge/Jetpack%20Compose-native-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Jetpack Compose"></a>
+  <a href="https://tauri.app/"><img src="https://img.shields.io/badge/Tauri-5.0-FFC131?style=for-the-badge&logo=tauri&logoColor=black" alt="Tauri"></a>
+  <a href="https://pywebview.flowrl.com/"><img src="https://img.shields.io/badge/PyWebview-wizard-2496ED?style=for-the-badge" alt="pywebview"></a>
+  <a href="https://github.com/groue/GRDB.swift"><img src="https://img.shields.io/badge/GRDB-iOS%20SQLite-003B57?style=for-the-badge" alt="GRDB"></a>
+  <a href="https://developer.android.com/training/data-storage/room"><img src="https://img.shields.io/badge/Room-Android%20DB-4285F4?style=for-the-badge" alt="Room"></a>
+  <a href="https://dagger.dev/hilt/"><img src="https://img.shields.io/badge/Hilt-DI-FFCD40?style=for-the-badge" alt="Hilt"></a>
+  <a href="https://ktor.io/"><img src="https://img.shields.io/badge/Ktor-HTTP-7F52FF?style=for-the-badge" alt="Ktor"></a>
 </p>
 
 <!-- ── Domain-specific languages ───────────────────────────────── -->
@@ -59,14 +59,14 @@
 
 <!-- ── Transport, real-time, federation ────────────────────────── -->
 <p align="center">
-  <img src="https://img.shields.io/badge/WebRTC-P2P-333333?style=for-the-badge&logo=webrtc&logoColor=white" alt="WebRTC">
-  <img src="https://img.shields.io/badge/WebSocket-RFC%206455-4B8BBE?style=for-the-badge" alt="WebSocket">
-  <img src="https://img.shields.io/badge/SFU-mass%20voice-FF6B6B?style=for-the-badge" alt="SFU">
+  <a href="https://webrtc.org/"><img src="https://img.shields.io/badge/WebRTC-P2P-333333?style=for-the-badge&logo=webrtc&logoColor=white" alt="WebRTC"></a>
+  <a href="https://datatracker.ietf.org/doc/html/rfc6455"><img src="https://img.shields.io/badge/WebSocket-RFC%206455-4B8BBE?style=for-the-badge" alt="WebSocket"></a>
+  <a href="https://docs.livekit.io/reference/internals/livekit-sfu/"><img src="https://img.shields.io/badge/SFU-mass%20voice-FF6B6B?style=for-the-badge" alt="SFU"></a>
   <a href="RESEARCH-BMP.md"><img src="https://img.shields.io/badge/BMP-blind%20mailbox-0EA5E9?style=for-the-badge" alt="BMP"></a>
-  <img src="https://img.shields.io/badge/BLE-discovery-0082FC?style=for-the-badge&logo=bluetooth&logoColor=white" alt="BLE">
-  <img src="https://img.shields.io/badge/Wi--Fi%20Direct-mesh-00B4FF?style=for-the-badge" alt="Wi-Fi Direct">
-  <img src="https://img.shields.io/badge/Tor-hidden%20service-7D4698?style=for-the-badge&logo=torproject&logoColor=white" alt="Tor">
-  <img src="https://img.shields.io/badge/CDN%20relay-obfuscation-F38020?style=for-the-badge" alt="CDN relay">
+  <a href="https://www.bluetooth.com/learn-about-bluetooth/"><img src="https://img.shields.io/badge/BLE-discovery-0082FC?style=for-the-badge&logo=bluetooth&logoColor=white" alt="BLE"></a>
+  <a href="https://www.wi-fi.org/discover-wi-fi/wi-fi-direct"><img src="https://img.shields.io/badge/Wi--Fi%20Direct-mesh-00B4FF?style=for-the-badge" alt="Wi-Fi Direct"></a>
+  <a href="https://www.torproject.org/"><img src="https://img.shields.io/badge/Tor-hidden%20service-7D4698?style=for-the-badge&logo=torproject&logoColor=white" alt="Tor"></a>
+  <a href="https://en.wikipedia.org/wiki/Content_delivery_network"><img src="https://img.shields.io/badge/CDN%20relay-obfuscation-F38020?style=for-the-badge" alt="CDN relay"></a>
 </p>
 
 <!-- ── Blockchain & registry ───────────────────────────────────── -->
@@ -79,57 +79,57 @@
 
 <!-- ── Cryptography ────────────────────────────────────────────── -->
 <p align="center">
-  <img src="https://img.shields.io/badge/X25519-ECDH-green?style=flat-square" alt="X25519">
-  <img src="https://img.shields.io/badge/Ed25519-signatures-green?style=flat-square" alt="Ed25519">
-  <img src="https://img.shields.io/badge/AES--256--GCM-Encryption-green?style=flat-square" alt="AES-256-GCM">
-  <img src="https://img.shields.io/badge/Kyber--768-Post--Quantum-green?style=flat-square" alt="Kyber-768">
-  <img src="https://img.shields.io/badge/Argon2id-Hashing-green?style=flat-square" alt="Argon2id">
-  <img src="https://img.shields.io/badge/BLAKE3-MAC-green?style=flat-square" alt="BLAKE3">
-  <img src="https://img.shields.io/badge/ECIES-Key--Distribution-green?style=flat-square" alt="ECIES">
-  <img src="https://img.shields.io/badge/HKDF--SHA256-Derivation-green?style=flat-square" alt="HKDF">
-  <img src="https://img.shields.io/badge/Double%20Ratchet-forward%20secrecy-green?style=flat-square" alt="Double Ratchet">
-  <img src="https://img.shields.io/badge/Sealed%20Sender-metadata%20hiding-green?style=flat-square" alt="Sealed Sender">
-  <img src="https://img.shields.io/badge/Shamir-secret%20sharing-green?style=flat-square" alt="Shamir">
+  <a href="https://en.wikipedia.org/wiki/Curve25519"><img src="https://img.shields.io/badge/X25519-ECDH-green?style=flat-square" alt="X25519"></a>
+  <a href="https://en.wikipedia.org/wiki/EdDSA"><img src="https://img.shields.io/badge/Ed25519-signatures-green?style=flat-square" alt="Ed25519"></a>
+  <a href="https://en.wikipedia.org/wiki/Galois/Counter_Mode"><img src="https://img.shields.io/badge/AES--256--GCM-Encryption-green?style=flat-square" alt="AES-256-GCM"></a>
+  <a href="https://pq-crystals.org/kyber/"><img src="https://img.shields.io/badge/Kyber--768-Post--Quantum-green?style=flat-square" alt="Kyber-768"></a>
+  <a href="https://en.wikipedia.org/wiki/Argon2"><img src="https://img.shields.io/badge/Argon2id-Hashing-green?style=flat-square" alt="Argon2id"></a>
+  <a href="https://github.com/BLAKE3-team/BLAKE3"><img src="https://img.shields.io/badge/BLAKE3-MAC-green?style=flat-square" alt="BLAKE3"></a>
+  <a href="https://en.wikipedia.org/wiki/Integrated_Encryption_Scheme"><img src="https://img.shields.io/badge/ECIES-Key--Distribution-green?style=flat-square" alt="ECIES"></a>
+  <a href="https://datatracker.ietf.org/doc/html/rfc5869"><img src="https://img.shields.io/badge/HKDF--SHA256-Derivation-green?style=flat-square" alt="HKDF"></a>
+  <a href="https://signal.org/docs/specifications/doubleratchet/"><img src="https://img.shields.io/badge/Double%20Ratchet-forward%20secrecy-green?style=flat-square" alt="Double Ratchet"></a>
+  <a href="https://signal.org/blog/sealed-sender/"><img src="https://img.shields.io/badge/Sealed%20Sender-metadata%20hiding-green?style=flat-square" alt="Sealed Sender"></a>
+  <a href="https://en.wikipedia.org/wiki/Shamir%27s_secret_sharing"><img src="https://img.shields.io/badge/Shamir-secret%20sharing-green?style=flat-square" alt="Shamir"></a>
   <a href="RESEARCH-BMP.md"><img src="https://img.shields.io/badge/BMP-blind%20mailbox-green?style=flat-square" alt="BMP"></a>
-  <img src="https://img.shields.io/badge/WebAuthn%2FPasskey-auth-green?style=flat-square" alt="WebAuthn">
-  <img src="https://img.shields.io/badge/BIP39-Seed--Phrase-green?style=flat-square" alt="BIP39">
-  <img src="https://img.shields.io/badge/JWT-session-green?style=flat-square" alt="JWT">
-  <img src="https://img.shields.io/badge/TLS%201.3-transport-green?style=flat-square" alt="TLS">
+  <a href="https://www.w3.org/TR/webauthn/"><img src="https://img.shields.io/badge/WebAuthn%2FPasskey-auth-green?style=flat-square" alt="WebAuthn"></a>
+  <a href="https://github.com/bitcoin/bips/blob/master/bip-0039.mediawiki"><img src="https://img.shields.io/badge/BIP39-Seed--Phrase-green?style=flat-square" alt="BIP39"></a>
+  <a href="https://datatracker.ietf.org/doc/html/rfc7519"><img src="https://img.shields.io/badge/JWT-session-green?style=flat-square" alt="JWT"></a>
+  <a href="https://datatracker.ietf.org/doc/html/rfc8446"><img src="https://img.shields.io/badge/TLS%201.3-transport-green?style=flat-square" alt="TLS"></a>
 </p>
 
 <!-- ── Build / packaging ───────────────────────────────────────── -->
 <p align="center">
-  <img src="https://img.shields.io/badge/PyInstaller-wizard-FFD43B?style=flat-square" alt="PyInstaller">
-  <img src="https://img.shields.io/badge/Maturin-PyO3%20builds-7FD4FF?style=flat-square" alt="Maturin">
-  <img src="https://img.shields.io/badge/XcodeGen-iOS%20project-147EFB?style=flat-square" alt="XcodeGen">
-  <img src="https://img.shields.io/badge/Gradle-Android%20build-02303A?style=flat-square&logo=gradle&logoColor=white" alt="Gradle">
-  <img src="https://img.shields.io/badge/Cargo-Rust%20build-DEA584?style=flat-square" alt="Cargo">
-  <img src="https://img.shields.io/badge/Anchor%20CLI-Solana%20build-512BD4?style=flat-square" alt="Anchor CLI">
-  <img src="https://img.shields.io/badge/Docker-Linux%20build-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker">
+  <a href="https://pyinstaller.org/"><img src="https://img.shields.io/badge/PyInstaller-wizard-FFD43B?style=flat-square" alt="PyInstaller"></a>
+  <a href="https://www.maturin.rs/"><img src="https://img.shields.io/badge/Maturin-PyO3%20builds-7FD4FF?style=flat-square" alt="Maturin"></a>
+  <a href="https://github.com/yonaskolb/XcodeGen"><img src="https://img.shields.io/badge/XcodeGen-iOS%20project-147EFB?style=flat-square" alt="XcodeGen"></a>
+  <a href="https://gradle.org/"><img src="https://img.shields.io/badge/Gradle-Android%20build-02303A?style=flat-square&logo=gradle&logoColor=white" alt="Gradle"></a>
+  <a href="https://doc.rust-lang.org/cargo/"><img src="https://img.shields.io/badge/Cargo-Rust%20build-DEA584?style=flat-square" alt="Cargo"></a>
+  <a href="https://www.anchor-lang.com/"><img src="https://img.shields.io/badge/Anchor%20CLI-Solana%20build-512BD4?style=flat-square" alt="Anchor CLI"></a>
+  <a href="https://www.docker.com/"><img src="https://img.shields.io/badge/Docker-Linux%20build-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker"></a>
 </p>
 
 <!-- ── Ops, testing, observability ─────────────────────────────── -->
 <p align="center">
-  <img src="https://img.shields.io/badge/Pytest-backend-0A9EDC?style=flat-square&logo=pytest&logoColor=white" alt="Pytest">
-  <img src="https://img.shields.io/badge/Playwright-E2E-2EAD33?style=flat-square&logo=playwright&logoColor=white" alt="Playwright">
-  <img src="https://img.shields.io/badge/k6-loadtest-7D64FF?style=flat-square" alt="k6">
-  <img src="https://img.shields.io/badge/Locust-loadtest-00BA44?style=flat-square" alt="Locust">
-  <img src="https://img.shields.io/badge/Chaos%20Mesh-experiments-FF6A00?style=flat-square" alt="Chaos Mesh">
-  <img src="https://img.shields.io/badge/Prometheus-metrics-E6522C?style=flat-square&logo=prometheus&logoColor=white" alt="Prometheus">
-  <img src="https://img.shields.io/badge/Grafana-dashboards-F46800?style=flat-square&logo=grafana&logoColor=white" alt="Grafana">
-  <img src="https://img.shields.io/badge/Kubernetes-manifests-326CE5?style=flat-square&logo=kubernetes&logoColor=white" alt="Kubernetes">
-  <img src="https://img.shields.io/badge/systemd-unit-222?style=flat-square" alt="systemd">
-  <img src="https://img.shields.io/badge/nginx-reverse%20proxy-009639?style=flat-square&logo=nginx&logoColor=white" alt="nginx">
+  <a href="https://pytest.org/"><img src="https://img.shields.io/badge/Pytest-backend-0A9EDC?style=flat-square&logo=pytest&logoColor=white" alt="Pytest"></a>
+  <a href="https://playwright.dev/"><img src="https://img.shields.io/badge/Playwright-E2E-2EAD33?style=flat-square&logo=playwright&logoColor=white" alt="Playwright"></a>
+  <a href="https://k6.io/"><img src="https://img.shields.io/badge/k6-loadtest-7D64FF?style=flat-square" alt="k6"></a>
+  <a href="https://locust.io/"><img src="https://img.shields.io/badge/Locust-loadtest-00BA44?style=flat-square" alt="Locust"></a>
+  <a href="https://chaos-mesh.org/"><img src="https://img.shields.io/badge/Chaos%20Mesh-experiments-FF6A00?style=flat-square" alt="Chaos Mesh"></a>
+  <a href="https://prometheus.io/"><img src="https://img.shields.io/badge/Prometheus-metrics-E6522C?style=flat-square&logo=prometheus&logoColor=white" alt="Prometheus"></a>
+  <a href="https://grafana.com/"><img src="https://img.shields.io/badge/Grafana-dashboards-F46800?style=flat-square&logo=grafana&logoColor=white" alt="Grafana"></a>
+  <a href="https://kubernetes.io/"><img src="https://img.shields.io/badge/Kubernetes-manifests-326CE5?style=flat-square&logo=kubernetes&logoColor=white" alt="Kubernetes"></a>
+  <a href="https://systemd.io/"><img src="https://img.shields.io/badge/systemd-unit-222?style=flat-square" alt="systemd"></a>
+  <a href="https://nginx.org/"><img src="https://img.shields.io/badge/nginx-reverse%20proxy-009639?style=flat-square&logo=nginx&logoColor=white" alt="nginx"></a>
 </p>
 
 <!-- ── Rendering & PWA ─────────────────────────────────────────── -->
 <p align="center">
   <a href="Liquid-Glass-PRO/README.md"><img src="https://img.shields.io/badge/Liquid%20Glass%20PRO-WebGL2-06D6F0?style=flat-square" alt="Liquid Glass PRO"></a>
-  <img src="https://img.shields.io/badge/Web%20Crypto%20API-native-4285F4?style=flat-square" alt="Web Crypto">
-  <img src="https://img.shields.io/badge/Service%20Worker-PWA-5A0FC8?style=flat-square" alt="Service Worker">
-  <img src="https://img.shields.io/badge/Push%20API-VAPID-FF8A00?style=flat-square" alt="Push">
-  <img src="https://img.shields.io/badge/FCM-Android%20push-FFCA28?style=flat-square&logo=firebase&logoColor=black" alt="FCM">
-  <img src="https://img.shields.io/badge/APNs-iOS%20push-000000?style=flat-square&logo=apple&logoColor=white" alt="APNs">
+  <a href="https://developer.mozilla.org/docs/Web/API/Web_Crypto_API"><img src="https://img.shields.io/badge/Web%20Crypto%20API-native-4285F4?style=flat-square" alt="Web Crypto"></a>
+  <a href="https://developer.mozilla.org/docs/Web/API/Service_Worker_API"><img src="https://img.shields.io/badge/Service%20Worker-PWA-5A0FC8?style=flat-square" alt="Service Worker"></a>
+  <a href="https://developer.mozilla.org/docs/Web/API/Push_API"><img src="https://img.shields.io/badge/Push%20API-VAPID-FF8A00?style=flat-square" alt="Push"></a>
+  <a href="https://firebase.google.com/docs/cloud-messaging"><img src="https://img.shields.io/badge/FCM-Android%20push-FFCA28?style=flat-square&logo=firebase&logoColor=black" alt="FCM"></a>
+  <a href="https://developer.apple.com/documentation/usernotifications/"><img src="https://img.shields.io/badge/APNs-iOS%20push-000000?style=flat-square&logo=apple&logoColor=white" alt="APNs"></a>
 </p>
 
 <!-- ── Release ─────────────────────────────────────────────────── -->
