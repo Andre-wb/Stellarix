@@ -652,6 +652,21 @@ Both clients read the same 147-locale JSON files used by the web and docs — th
   - [27.3 Wi-Fi Direct Transport](#273-wi-fi-direct-transport)
   - [27.4 Mesh Networking](#274-mesh-networking)
   - [27.5 Federation Protocol](#275-federation-protocol)
+  - [27.6 Vortex gossip — overview](#276-vortex-gossip--overview)
+  - [27.7 Gossip membership protocol](#277-gossip-membership-protocol)
+  - [27.8 Node lifecycle](#278-node-lifecycle)
+  - [27.9 Staking — economic Sybil resistance](#279-staking--economic-sybil-resistance)
+  - [27.10 Heartbeat — the liveness signal](#2710-heartbeat--the-liveness-signal)
+  - [27.11 Peer selection algorithm](#2711-peer-selection-algorithm)
+  - [27.12 Rewards distribution](#2712-rewards-distribution)
+  - [27.13 Node roles & capabilities](#2713-node-roles--capabilities)
+  - [27.14 Wire format — gossip envelope](#2714-wire-format--gossip-envelope)
+  - [27.15 Bootstrap flow — how a fresh node joins](#2715-bootstrap-flow--how-a-fresh-node-joins)
+  - [27.16 Churn, partitions, recovery](#2716-churn-partitions-recovery)
+  - [27.17 Anti-abuse — layered defences](#2717-anti-abuse--layered-defences)
+  - [27.18 Operational knobs (env vars)](#2718-operational-knobs-env-vars)
+  - [27.19 Metrics & debugging](#2719-metrics--debugging)
+  - [27.20 Code map](#2720-code-map)
 - [28. Deployment Guide](#28-deployment-guide)
   - [28.1 Docker Deployment](#281-docker-deployment)
   - [28.2 Docker Compose](#282-docker-compose)
@@ -8032,6 +8047,354 @@ Trust Model:
   - All messages remain end-to-end encrypted
   - Federated nodes cannot read message content
 ```
+
+### 27.6 Vortex gossip — overview
+
+Vortex runs a **SWIM-inspired gossip protocol** over the discovery layer. Every node maintains a probabilistic view of the live network and disseminates changes — peer joins, departures, metadata updates, integrity reports — through random-peer fan-out. There is no Raft, no Paxos, no leader. The protocol is deliberately **eventually-consistent** because the authoritative truth lives two places:
+
+1. **On-chain** in the Solana `vortex_registry` program — who is a node, their `code_hash`, their stake, their paid-through subscription.
+2. **In the controller** — who's online right now + signed bootstrap entry URLs.
+
+Gossip is the **fast path** that glues those two slow, authoritative sources into a live mesh where any node can talk to any other within seconds of discovery.
+
+### 27.7 Gossip membership protocol
+
+Each node keeps a **partial view** of the network — a bounded subset of known peers (default 128 entries) plus metadata. The view is refreshed by:
+
+```
+every GOSSIP_INTERVAL_MS (default 3000):
+    peer   = pick_random(my_view, weighted_by=trust_weight)
+    digest = summarise(my_view)          # hash + version vector, <500 bytes
+    push   = GossipEnvelope(
+        from     = my_pubkey,
+        view_hash= sha256(digest),
+        delta    = [recent changes since peer.last_seen_version],
+        sig      = Ed25519(my_priv, digest || delta)
+    )
+    reply  = peer.exchange(push)         # peer returns its own delta
+    my_view.merge(reply.delta)
+```
+
+**Envelope size is capped** to one MTU (≈1300 bytes on the wire) — larger deltas split across multiple gossip rounds. This keeps the protocol latency-insensitive and safe to run over BLE / Wi-Fi Direct / Tor simultaneously.
+
+**View merge rule**: newer `(pubkey, timestamp, version)` tuples win. Conflicts on the same `(pubkey, version)` are rejected unless the new value carries a higher signature count over more peers' attestations — Byzantine behaviour costs reputation.
+
+#### 27.7.1 Failure detection — SWIM ping + indirect probe
+
+```
+every FAILURE_CHECK_MS (default 5000):
+    target = pick_random(my_view)
+    if not ping(target, timeout=500ms):
+        # don't trust one failed ping — ask K relays first
+        relays = pick_random(my_view, K=3)
+        if not any(relay.ping_for_me(target) for relay in relays):
+            mark_suspect(target)
+```
+
+A peer becomes `SUSPECT` after 2 failed indirect probes within 15 seconds and `DEAD` after 45 seconds. `DEAD` peers leak out of the view after `GOSSIP_DEAD_RETENTION_SEC = 300` — long enough for the event to reach every live node but not so long that the view fills with ghosts.
+
+#### 27.7.2 Epidemic spread properties
+
+With `N` live nodes and fan-out `f`, new gossip reaches every live node in expected time:
+
+```
+T_converge ≈ (log_f N) · GOSSIP_INTERVAL_MS
+```
+
+For `N = 10 000`, `f = 8`, `interval = 3s` → **~10 seconds** to full convergence. Vortex defaults (`f = 4`, `interval = 3s`) give ~13 seconds for the same size — tuned for bandwidth over latency because the control plane is not on the message hot path.
+
+### 27.8 Node lifecycle
+
+Every node progresses through a **finite state machine**. State transitions are driven by on-chain events (anchor-writes to the Solana program) and off-chain signals (gossip, controller heartbeat).
+
+```
+┌──────────┐ register()      ┌──────────┐  checkin+stake   ┌──────────┐
+│ CANDIDATE├────────────────▶│ STAKED   ├─────────────────▶│ APPROVED │
+└──────────┘                 └──────────┘                  └────┬─────┘
+                                                               │
+                                                    seal()     │
+                                                               ▼
+┌──────────┐  deregister()   ┌──────────┐   no checkin    ┌──────────┐
+│ REMOVED  │◀────────────────│ DECAYED  │◀────────────────│ SEALED   │
+└──────────┘                 └──────────┘   > 7 days      └──────────┘
+     ▲                           │                              │
+     │ admin slash               │  checkin resumes             │ active
+     └───────────────────────────┴──────────────────────────────┘
+```
+
+| State        | On-chain marker              | Gossip weight | Can accept traffic? | Notes                                             |
+| ------------ | ---------------------------- | ------------- | ------------------- | ------------------------------------------------- |
+| `CANDIDATE`  | PDA created, no stake        | 0.0           | no                  | Discoverable but untrusted; payment pending.       |
+| `STAKED`     | `stake ≥ MIN_STAKE_LAMPORTS` | 0.2           | read-only federation| Can gossip, can't receive new-user registrations.  |
+| `APPROVED`   | controller signed + stake    | 1.0           | full                | Normal operating state.                            |
+| `SEALED`     | `is_sealed = true`, code_hash fixed | 1.2    | full + prioritised  | Code-hash pinning; cannot upgrade build without new PDA. |
+| `DECAYED`    | last_checkin_age > 7d        | 0.3 → 0.0     | degraded            | Gradual fade; receives no new rooms, existing rooms still work. |
+| `REMOVED`    | `deregister()` called        | —             | no                  | PDA closed, rent returned, gossip entry reaped.    |
+
+Transitions are **one-way in most cases**. `SEALED → DECAYED → APPROVED` is reversible (operator resumes heartbeats). `SEALED → DECAYED → REMOVED` is terminal: once removed, the same pubkey may re-register as a fresh `CANDIDATE`, but it loses its old accumulated reputation.
+
+### 27.9 Staking — economic Sybil resistance
+
+Staking is the anti-Sybil floor. Without it, anyone could spin up 10 000 nodes for free and flood the registry. With it, each node has skin in the game.
+
+| Parameter                    | Value               | Rationale                                                                 |
+| ---------------------------- | ------------------- | ------------------------------------------------------------------------- |
+| `MIN_STAKE_LAMPORTS`         | 0.1 SOL             | Dust-floor; blocks casual spam while staying affordable for hobby operators. |
+| `MAX_STAKE_LAMPORTS`         | hard cap per node   | Prevents a single whale from concentrating reward weight beyond design.    |
+| `STAKE_COOLDOWN_SECONDS`     | 14 × 86400          | Two-week unbonding — gives time to detect and slash misbehaviour.         |
+| `SLASH_PCT_CODE_MISMATCH`    | 10%                 | Code_hash diverges from seal without proper `checkin` rotation.            |
+| `SLASH_PCT_OFFLINE_7D`       | 5%                  | Decayed for a full rotation; not recoverable without slashing.             |
+| `SLASH_PCT_INTEGRITY_FAIL`   | 100%                | Running a tampered build detected via cross-node attestation.              |
+
+#### 27.9.1 Stake deposit
+
+```
+user calls `stake(amount)`:
+  assert amount >= MIN_STAKE
+  assert total_stake + amount <= MAX_STAKE
+  transfer SOL → stake PDA  ["stake", node_pubkey]
+  stake.active_since = now
+  emit StakeDeposited(node, amount)
+```
+
+Each node has exactly **one** stake PDA. Top-ups are additive; unstake produces a pending-withdrawal record that matures after the cooldown.
+
+#### 27.9.2 Slashing
+
+Slashing is **event-driven**, not discretionary. The conditions are hard-coded in `vortex_registry/src/lib.rs`:
+
+- `checkin` rejected because the reported `code_hash` differs from the sealed one **and** the node has not rotated via an explicit unseal flow → 10% burn to the rewards vault.
+- `last_checkin_age > 7 × 86400` seconds → 5% burn (decay-slash).
+- Cross-node integrity attestation (a quorum of ≥5 sealed nodes signs a report that this pubkey's build hash doesn't match its on-chain record) → 100% burn to the rewards vault.
+
+No admin key can slash manually. No governance can slash retroactively. **If the condition fires on-chain, the lamports move.**
+
+#### 27.9.3 Trust weight — the live scalar
+
+Every node has a numeric `trust_weight ∈ [0, 2]` that the gossip + peer-selection layer uses to decide how much to listen to it:
+
+```
+trust_weight(node, now) =
+    base(state)
+  · decay(last_checkin_age)
+  · stake_boost(active_stake)
+  · integrity(code_hash_ok)
+
+where:
+  base(APPROVED)  = 1.0
+  base(SEALED)    = 1.2        # sealed nodes carry more weight
+  base(DECAYED)   = max(0, 1 − (age_days − 7) / 7)    # linear fade over the 2nd week
+  base(STAKED)    = 0.2
+  base(CANDIDATE) = 0.0
+
+  decay(age) = exp( − age / TAU )            TAU = 3 × 86400 s (3-day half-life)
+
+  stake_boost(s) = 1 + log₁₀(1 + s / MIN_STAKE) · 0.1    # +10% per order of magnitude over floor
+                                                          # capped at +50% total
+  integrity(ok) = 1.0 if ok else 0.0                      # integrity mismatch = gone
+```
+
+Peer-selection for gossip, federation, SFU assignment, and push-proxy relay is **weighted-random** on `trust_weight`. High-stake sealed nodes that check in regularly dominate the routing graph; decayed nodes drop out naturally.
+
+### 27.10 Heartbeat — the liveness signal
+
+Every APPROVED / SEALED node emits a **heartbeat** to both the controller (off-chain) and the Solana program (on-chain `checkin` instruction).
+
+| Signal                | Cadence                                  | Purpose                                            |
+| --------------------- | ---------------------------------------- | -------------------------------------------------- |
+| Controller heartbeat  | every 30 s                               | Feeds `/v1/health` live-node stats; updates gossip seed. |
+| On-chain `checkin`    | every 4 hours                            | Updates `last_checkin` on the PDA; refreshes `code_hash` attestation. |
+| Gossip ping           | every 3 s                                | SWIM membership; latency sample.                   |
+
+Clock-drift tolerance for `checkin`: the program accepts timestamps within `[now − 900, now + 60]` seconds. Drift > 15 minutes is rejected as suspect — operators are expected to run NTP.
+
+**Cost of heartbeat**: one on-chain `checkin` costs ~5000 lamports (rent for the instruction + signature) = **~$0.00075** at current SOL prices. At 6 check-ins per day that's ~$0.005/node/day, $1.65/node/year. Trivial relative to the 0.1 SOL stake (~$15).
+
+### 27.11 Peer selection algorithm
+
+When a node needs to pick someone to talk to — federation partner, SFU relay, push-proxy, bootstrap helper — it runs:
+
+```
+def pick_peer(purpose: str, k: int = 1) -> list[Peer]:
+    candidates = [p for p in my_view
+                  if p.state in (APPROVED, SEALED)
+                  and p.supports(purpose)
+                  and not in_blacklist(p.pubkey)]
+    weights    = [trust_weight(p, now()) for p in candidates]
+    return weighted_sample_without_replacement(candidates, weights, k)
+```
+
+**Purpose filters** let a node reject partners that don't support a feature: e.g. SFU bridging requires `peer.capabilities.has('sfu')`, BMP push relay requires `peer.capabilities.has('bmp-push-proxy')`.
+
+**Latency hint**: each peer entry carries an EMA of round-trip time (`rtt_ema`) sampled from gossip pings. For latency-sensitive purposes (calls, SFU), the selector multiplies weight by `1 / (1 + rtt_ms / 50)` so a 10ms peer is favoured over a 500ms peer even at lower trust.
+
+### 27.12 Rewards distribution
+
+Staked, sealed, actively-checking-in nodes share the **rewards vault** — a global PDA that accrues:
+
+- Register fees from new nodes (minus treasury cut).
+- A configurable `REWARDS_CUT` of premium subscriptions (default 30%).
+- Slashing proceeds (burns that go to the vault instead of zero-address).
+
+Per-epoch (default 7 days) the program computes each node's share:
+
+```
+share(node, epoch) =
+    (trust_weight(node, epoch_end) · active_stake(node, epoch)) /
+    Σ (trust_weight(n, epoch_end) · active_stake(n, epoch)  for n in all_eligible)
+
+reward(node) = vault_balance_at_epoch_end · share(node)
+```
+
+Rewards accrue into per-node `reward` PDAs; nodes call `claim_rewards` when they want to withdraw. Unclaimed rewards compound — they stay in the PDA across epochs and earn future shares proportional to remaining stake.
+
+### 27.13 Node roles & capabilities
+
+Not every node does every job. A node advertises its **capability set** in gossip:
+
+| Capability flag      | Meaning                                                            |
+| -------------------- | ------------------------------------------------------------------ |
+| `messaging`          | Handles WebSocket chat + room key distribution.                    |
+| `storage`            | Can host room message history (usually every node).                |
+| `sfu`                | Runs or embeds a SFU for group voice/video.                        |
+| `bmp-relay`          | Handles BMP mailbox traffic; requires disk headroom.               |
+| `bmp-push-proxy`     | Blind push-proxy to FCM/APNs — requires push provider credentials.|
+| `federation`         | Accepts federated guest sessions + pairwise replication.           |
+| `archive`            | Long-term storage node for on-demand historical queries (opt-in).  |
+| `mirror`             | Discovery mirror — serves signed entry URLs for censored networks. |
+| `controller`         | Runs the controller code; advertised only by the controller itself.|
+| `tor-hs`             | Exposes a Tor onion alongside clearnet.                            |
+| `stealth-{1..4}`     | Supports stealth-transport level N.                                |
+
+A node may carry any combination. The peer-selector honours them — `pick_peer("sfu")` only returns nodes that advertise `sfu`.
+
+#### 27.13.1 Edge-node variant
+
+`edge` is a special sub-type of `APPROVED` with **no `messaging` capability** — it only runs `bmp-relay` + `bmp-push-proxy` + `mirror`. Edges are cheap to run (no database growth, no federation state) and operators stake the minimum. They earn a smaller slice (30% of messaging-node share) but provide critical ingress redundancy for censored users.
+
+### 27.14 Wire format — gossip envelope
+
+Every gossip message fits in a single CBOR envelope:
+
+```
+GossipEnvelope := {
+    "v":   uint                  # envelope version (1)
+    "from": bytes(32)            # sender Ed25519 pubkey
+    "ts":  uint                  # ms since epoch
+    "vh":  bytes(32)             # sha256(my current view digest)
+    "d":   [ViewDelta]           # changes since peer.last_seen_version
+    "caps": uint                 # bitfield of sender capabilities
+    "rtt": uint                  # sender's RTT estimate to the receiver
+    "sig": bytes(64)             # Ed25519(priv_from, cbor(all-above-except-sig))
+}
+
+ViewDelta := {
+    "pk":   bytes(32)            # peer being described
+    "ver":  uint                 # monotonic version number for this peer
+    "ep":   [str]                # endpoint URLs
+    "st":   uint                 # state enum
+    "cw":   uint                 # compact trust_weight × 1000
+    "ch":   bytes(32)            # reported code_hash (empty if unknown)
+    "lc":   uint                 # last_checkin timestamp
+    "caps": uint                 # capability bitfield
+}
+```
+
+Signatures are verified by every receiver before merging. Unverified entries are silently dropped; repeated bad signatures from the same peer decrement its local trust score in addition to the on-chain signal.
+
+### 27.15 Bootstrap flow — how a fresh node joins
+
+```
+1. Operator starts `python run.py` with a fresh config.
+2. Node reads controller pubkey (pinned at build) + mirror list.
+3. Controller: GET /v1/entries + GET /v1/nodes/random?count=10
+   → receives signed response; verifies controller Ed25519 signature.
+4. Node opens Solana RPC, calls `register` with its stake deposit.
+   → program creates PDA ["peer", my_pubkey] with state=STAKED.
+5. Node dials the 10 random approved peers in parallel:
+   → sends gossip HELLO with own view (empty at first).
+   → receives their views, merges into local.
+   → view size jumps from 10 → ~128 within 2-3 rounds.
+6. After first successful `checkin`, controller marks state APPROVED.
+7. Regular 3-second gossip cadence begins; 4-hour checkins begin.
+```
+
+**Expected time from cold boot to APPROVED**: ~2 minutes (limited by Solana confirmation + controller heartbeat).
+
+### 27.16 Churn, partitions, recovery
+
+**Graceful leave**: `deregister()` is an on-chain instruction that closes the PDA and emits a `NodeLeaving` event. Gossip propagates the event; peers reap the entry within one convergence window (~15s).
+
+**Crash / power loss**: no graceful signal. The node's absence becomes `SUSPECT` within 15s, `DEAD` within 45s, `DECAYED` after 7 days of continued absence. If the operator restarts within the 7-day window, the node resumes from its last PDA state without re-registration.
+
+**Network partition**: gossip runs independently on each side of the partition. Each side converges on its own sub-view. When the partition heals, a single gossip exchange propagates the union — typical healing time for a split that lasted `T_partition` seconds is `T_partition + ~15s`. No Raft-style leader election is needed because there is no shared mutable state — each node's own PDA is the authority.
+
+**Solana RPC outage**: node keeps serving existing rooms using cached PDA state. `checkin` retries with exponential backoff; if the outage exceeds the 4-hour check-in deadline, the node enters a **grace window** during which gossip still trusts it (other nodes' cached views haven't expired yet). Grace lasts until the node's neighbours' caches drop it.
+
+### 27.17 Anti-abuse — layered defences
+
+| Layer         | Defence                                                                 |
+| ------------- | ----------------------------------------------------------------------- |
+| Economic      | `MIN_STAKE_LAMPORTS` floor; Sybil cost per node ≈ 0.1 SOL + rent.       |
+| Cryptographic | Every gossip message is Ed25519-signed; forged `from` is instantly caught. |
+| On-chain      | Code-hash pinning via `seal()` prevents swapping the binary after gaining trust. |
+| Behavioural   | Cross-node attestation — a quorum of 5+ sealed peers can slash a tampered node. |
+| Rate-limit    | Per-pubkey gossip in-rate capped at `GOSSIP_MAX_MSGS_PER_MIN = 600`.    |
+| Blacklist     | Admins of individual nodes can reject specific pubkeys at the accept layer — doesn't remove them from the network, just from this node. |
+
+### 27.18 Operational knobs (env vars)
+
+| Env                              | Default        | What it does                                                 |
+| -------------------------------- | -------------- | ------------------------------------------------------------ |
+| `GOSSIP_INTERVAL_MS`             | 3000           | How often to push a delta to a random peer.                  |
+| `GOSSIP_FANOUT`                  | 4              | Number of peers contacted per round.                          |
+| `GOSSIP_VIEW_MAX`                | 128            | Upper bound on partial-view size.                             |
+| `GOSSIP_DEAD_RETENTION_SEC`      | 300            | How long dead entries linger in gossip before reap.           |
+| `FAILURE_PING_TIMEOUT_MS`        | 500            | SWIM direct-ping timeout.                                     |
+| `FAILURE_SUSPECT_WINDOW_SEC`     | 15             | Window before SUSPECT → DEAD promotion.                      |
+| `HEARTBEAT_CONTROLLER_INTERVAL_SEC` | 30          | Off-chain controller heartbeat.                               |
+| `HEARTBEAT_CHAIN_INTERVAL_SEC`   | 14400 (4h)     | On-chain `checkin` cadence.                                  |
+| `STAKE_MIN_LAMPORTS`             | 100000000      | 0.1 SOL floor.                                                |
+| `STAKE_COOLDOWN_SEC`             | 1209600 (14d)  | Unbonding period.                                             |
+| `REWARDS_EPOCH_SEC`              | 604800 (7d)    | Rewards distribution epoch length.                            |
+| `INTEGRITY_ATTEST_QUORUM`        | 5              | Minimum sealed peers required to sign a slashing attestation. |
+
+### 27.19 Metrics & debugging
+
+Every gossip-layer event is a Prometheus metric. Selected:
+
+- `vortex_gossip_view_size` — gauge, partial view size.
+- `vortex_gossip_messages_total{direction=in|out}` — counter.
+- `vortex_gossip_delta_bytes` — histogram of delta sizes.
+- `vortex_peer_state{pubkey,state}` — gauge (1/0), one per known peer.
+- `vortex_peer_trust_weight{pubkey}` — gauge.
+- `vortex_peer_rtt_ms{pubkey}` — gauge, EMA of ping RTT.
+- `vortex_stake_total_lamports` — gauge, sum of all staked lamports this node sees.
+- `vortex_rewards_epoch_share` — gauge, this node's share in the current epoch (0..1).
+- `vortex_checkin_latency_seconds` — histogram of on-chain `checkin` round-trip.
+
+Debug tools under the wizard `operator/peers.html` page:
+
+- Live view of the partial view with per-peer state, weight, RTT, last seen.
+- Gossip traceroute — send a tagged envelope through the mesh, watch the hops.
+- Forced gossip-round button for troubleshooting stuck convergence.
+- `scripts/integrity_repo.py verify` — cross-check this node's code_hash against the chain.
+
+### 27.20 Code map
+
+| Concern                          | File                                                               |
+| -------------------------------- | ------------------------------------------------------------------ |
+| SWIM failure detector            | `app/peer/peer_discovery.py`                                        |
+| Gossip envelope pack/verify      | `rust_utils/src/messages.rs`                                        |
+| View merge logic                 | `app/peer/peer_registry.py`                                         |
+| Controller client + verification | `app/peer/controller_client.py`                                     |
+| Solana PDA reads                 | `app/peer/solana_registry.py`                                       |
+| On-chain `checkin` driver        | `app/peer/peer_federation.py`                                       |
+| Trust-weight formula             | `app/peer/peer_registry.py::trust_weight()`                         |
+| Peer-selector                    | `app/peer/_router.py::pick_peer()`                                  |
+| Stake + rewards program          | `solana_program/programs/vortex_registry/src/lib.rs`                |
+| Operator UI for gossip           | `vortex_wizard/web/admin/peers.html` + `vortex_wizard/api/peer_tools.py` |
+| Metrics export                   | `app/services/native_bridge.py` + `deploy/prometheus/alerts.yml`    |
 
 ---
 
