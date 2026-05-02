@@ -18,10 +18,37 @@ import re
 
 from deep_translator import GoogleTranslator
 
-LOCALE_DIR = 'locales'
+
+def _discover_locale_dir():
+    """Find the locale directory relative to the script or the CWD.
+
+    Supports three repo layouts:
+      - vortex-introduce-page/locales/
+      - Vortex/static/locales/
+      - vortex.sol-mirror/static/locales/
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        os.path.join(here, 'locales'),
+        os.path.join(here, 'static', 'locales'),
+        'locales',
+        'static/locales',
+    ]
+    for c in candidates:
+        if os.path.isdir(c) and os.path.isfile(os.path.join(c, 'en.json')):
+            return c
+    raise SystemExit(
+        'Could not find a locales directory with en.json. '
+        'Expected one of: locales/, static/locales/'
+    )
+
+
+LOCALE_DIR = _discover_locale_dir()
 BATCH_SIZE = 40            # upper bound on strings per API call
 MAX_BATCH_CHARS = 4500     # Google Translate hard limit is 5000; leave headroom
 SINGLE_MAX_CHARS = 4800    # for a lone string; above this we must chunk or skip
+FLUSH_EVERY_BATCHES = 10   # incremental save — protects partial work against net loss
+MAX_CONSECUTIVE_NET_FAILS = 20   # give up on this locale if the net is clearly dead
 SEPARATOR = '\n|||SEP|||\n'
 SKIP_VALUES = {'VORTEX', '', ' '}
 SKIP_KEYS = {'fullReference'}  # large technical docs — keep English
@@ -313,15 +340,27 @@ def batch_translate(strings, target_lang, retries=3):
             return restored
 
         except Exception as e:
+            err_msg = str(e).lower()
             # If the error is specifically the length cap, halve the batch
             # immediately rather than retrying the same too-long payload.
-            if 'length' in str(e).lower() and len(strings) > 1:
+            if 'length' in err_msg and len(strings) > 1:
                 mid = len(strings) // 2
                 left = batch_translate(strings[:mid], target_lang, retries=retries)
                 right = batch_translate(strings[mid:], target_lang, retries=retries)
                 return list(left) + list(right)
+            # Network / rate-limit / proxy failures → long exponential backoff.
+            # Typical text: "Max retries exceeded", "ConnectionError",
+            # "429 Too Many Requests", "Connection reset".
+            is_network = any(x in err_msg for x in (
+                'max retries', 'connection', 'timed out', 'timeout',
+                '429', 'rate', 'reset by peer', 'temporary failure'
+            ))
             if attempt < retries - 1:
-                time.sleep(2 ** attempt)
+                delay = (10 * (2 ** attempt)) if is_network else (2 ** attempt)
+                if is_network and attempt >= 1:
+                    print(f'    network/rate-limit; sleeping {delay}s before retry...',
+                          flush=True)
+                time.sleep(delay)
             else:
                 err_preview = str(e)[:160].replace('\n', ' ')
                 print(f'    ERROR translating batch ({len(strings)} strings, '
@@ -344,14 +383,33 @@ def translate_one_by_one(strings, target_lang):
 
 
 def _check_supported(google_code):
-    """Quick check: try translating one word. Returns False if unsupported."""
-    try:
-        r = GoogleTranslator(source='en', target=google_code).translate('hello')
-        return bool(r)
-    except:
-        return False
+    """Probe whether Google supports `google_code`.
 
-# Cache supported status per session
+    Returns one of:
+      True  — confirmed supported (translated "hello" successfully).
+      False — confirmed unsupported (Google raised a language-code error).
+      None  — indeterminate (network / rate-limit error). Caller should
+              NOT treat this as "unsupported" — skip this *attempt*, but
+              do not poison the cache for the rest of the session.
+    """
+    for attempt in range(3):
+        try:
+            r = GoogleTranslator(source='en', target=google_code).translate('hello')
+            return bool(r)
+        except Exception as e:
+            msg = str(e).lower()
+            # Permanent unsupported — language code rejected by the API.
+            if ('language' in msg and 'not' in msg) or 'invalid' in msg or \
+                    'not supported' in msg:
+                return False
+            # Transient: connection reset, rate limit, DNS, etc.
+            if attempt < 2:
+                time.sleep(3 * (attempt + 1))
+                continue
+            return None
+
+# Cache supported status per session — ONLY for confirmed answers (True/False).
+# Transient failures (None) are NOT cached so the next locale attempt re-probes.
 _supported_cache = {}
 
 def process_locale(fname, en_data):
@@ -359,10 +417,22 @@ def process_locale(fname, en_data):
     locale_code = fname.replace('.json', '')
     google_code = get_google_code(locale_code)
 
-    # Skip unsupported languages (check once, cache result)
+    # Skip unsupported languages (check once, cache CONFIRMED result).
+    # Transient network/rate-limit failures return None → we treat that as
+    # "try again this locale", not "blacklist the language forever".
     if google_code not in _supported_cache:
-        _supported_cache[google_code] = _check_supported(google_code)
-    if not _supported_cache[google_code]:
+        probe = _check_supported(google_code)
+        if probe is None:
+            print(f'  RATE-LIMITED probing {google_code} — waiting 60 s then retrying...',
+                  flush=True)
+            time.sleep(60)
+            probe = _check_supported(google_code)
+        if probe is not None:
+            _supported_cache[google_code] = probe   # cache only confirmed results
+        # probe is still None after retry → treat as supported and let the main
+        # translation loop either succeed or fail visibly.
+    supported = _supported_cache.get(google_code, True)
+    if supported is False:
         print(f'  SKIP {fname} — {google_code} not supported by deep-translator', flush=True)
         return 0
 
@@ -384,42 +454,120 @@ def process_locale(fname, en_data):
         strings.append(protected_text)
         protection_maps.append(pmap)
 
-    # Translate in batches — size-aware: start a new batch when either
-    # the string count reaches BATCH_SIZE or the joined length would
-    # exceed MAX_BATCH_CHARS.
+    # ── Estimate batch count up-front for progress display ──
+    # Walks `strings` the same way the main loop does, but just counts.
+    def _estimate_batches(items):
+        cnt = 0
+        bs = 0
+        bc = 0
+        for s in items:
+            projected = bc + len(s) + (len(SEPARATOR) if bs else 0)
+            if bs and (bs >= BATCH_SIZE or projected > MAX_BATCH_CHARS):
+                cnt += 1
+                bs = 0
+                bc = 0
+            bs += 1
+            bc += len(s) + (len(SEPARATOR) if bs > 1 else 0)
+        if bs:
+            cnt += 1
+        return cnt
+
+    total_batches = _estimate_batches(strings)
+    locale_start = time.monotonic()
+
+    def _ts():
+        return time.strftime('%H:%M:%S')
+
+    # Translate in batches — size-aware + incremental save.
+    # Every FLUSH_EVERY_BATCHES successful batches we write the partial
+    # result to disk so a network drop or Ctrl+C doesn't lose progress.
     translated = []
     batch = []
     batch_chars = 0
+    batches_since_flush = 0
+    batch_index = 0
+    consecutive_net_fails = 0
+    running_written = 0        # cumulative translated + saved across all flushes
+    aborted = False
+
+    def flush_to_disk(n_trans_so_far: int):
+        """Apply current `translated` slice back to locale_data and save."""
+        written = 0
+        for i in range(n_trans_so_far):
+            if i >= len(fallbacks) or i >= len(translated): break
+            section, key_path, orig = fallbacks[i]
+            trans = translated[i]
+            if pmap := protection_maps[i]:
+                trans = _restore_value(trans, pmap)
+                translated[i] = trans   # cache restored form
+            if trans and trans != orig:
+                if _set_by_path(locale_data, section, key_path, trans):
+                    written += 1
+        if written > 0:
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(locale_data, f, ensure_ascii=False, indent=2)
+                f.write('\n')
+        return written
+
+    def run_batch(current_batch):
+        nonlocal consecutive_net_fails, batch_index
+        batch_index += 1
+        bn, bs, bc = batch_index, len(current_batch), _joined_len(current_batch)
+        t0 = time.monotonic()
+        result = batch_translate(current_batch, google_code)
+        dt = time.monotonic() - t0
+        # Heuristic: if the returned list equals the input (fallback-on-error),
+        # count it as a network failure for the early-abort counter.
+        is_fail = (result is current_batch or list(result) == list(current_batch))
+        if is_fail:
+            consecutive_net_fails += 1
+            status = f'FAIL (net, consecutive={consecutive_net_fails})'
+        else:
+            consecutive_net_fails = 0
+            ok_count = sum(1 for a, b in zip(current_batch, result) if a != b)
+            status = f'ok {ok_count}/{bs}'
+        elapsed_min = (time.monotonic() - locale_start) / 60
+        print(f'  [{_ts()}] {fname} batch {bn}/{total_batches}  '
+              f'{bs:>3}str {bc:>4}chars  {status}  '
+              f'{dt:.1f}s  (elapsed {elapsed_min:.1f}m)',
+              flush=True)
+        return result
+
     for s in strings:
         projected = batch_chars + len(s) + (len(SEPARATOR) if batch else 0)
         if batch and (len(batch) >= BATCH_SIZE or projected > MAX_BATCH_CHARS):
-            translated.extend(batch_translate(batch, google_code))
-            time.sleep(0.3)  # rate limit
+            translated.extend(run_batch(batch))
+            batches_since_flush += 1
             batch = []
             batch_chars = 0
+            if consecutive_net_fails >= MAX_CONSECUTIVE_NET_FAILS:
+                print(f'  [{_ts()}] {fname}: {MAX_CONSECUTIVE_NET_FAILS} '
+                      f'consecutive network failures — aborting early. '
+                      f'Already-translated progress will be saved.',
+                      flush=True)
+                aborted = True
+                break
+            if batches_since_flush >= FLUSH_EVERY_BATCHES:
+                w = flush_to_disk(len(translated))
+                running_written = w
+                print(f'  [{_ts()}] {fname} → flushed to disk '
+                      f'({w}/{len(fallbacks)} cumulative)',
+                      flush=True)
+                batches_since_flush = 0
+            time.sleep(0.3)  # rate limit
         batch.append(s)
         batch_chars += len(s) + (len(SEPARATOR) if len(batch) > 1 else 0)
-    if batch:
-        translated.extend(batch_translate(batch, google_code))
+    if batch and not aborted:
+        translated.extend(run_batch(batch))
 
-    # Restore protected terms and HTML after translation
-    for i, pmap in enumerate(protection_maps):
-        if pmap and i < len(translated):
-            translated[i] = _restore_value(translated[i], pmap)
+    # Final flush — writes remaining translations (including the tail batch).
+    changed = flush_to_disk(len(translated))
 
-    # Apply translations back to locale data (arbitrary-depth paths).
-    changed = 0
-    for (section, path, orig), trans in zip(fallbacks, translated):
-        if trans and trans != orig:
-            if _set_by_path(locale_data, section, path, trans):
-                changed += 1
-
-    if changed > 0:
-        with open(path, 'w', encoding='utf-8') as f:
-            json.dump(locale_data, f, ensure_ascii=False, indent=2)
-            f.write('\n')
-
-    print(f'  {fname}: {changed}/{len(fallbacks)} strings translated', flush=True)
+    total_min = (time.monotonic() - locale_start) / 60
+    suffix = ' (aborted early)' if aborted else ''
+    print(f'  [{_ts()}] {fname}: {changed}/{len(fallbacks)} strings '
+          f'translated in {total_min:.1f}m{suffix}',
+          flush=True)
     return changed
 
 
@@ -455,6 +603,11 @@ def main():
     total_changed = 0
     total_files = 0
 
+    # Inter-locale cooldown — gives Google's rate-limiter a chance to settle
+    # before we push another 16 000 strings. Tuned for the 100k+ strings
+    # this script translates per locale.
+    INTER_LOCALE_COOLDOWN_SEC = 15
+
     for code in priority:
         fname = code + '.json'
         if not os.path.exists(os.path.join(LOCALE_DIR, fname)):
@@ -463,6 +616,8 @@ def main():
             changed = process_locale(fname, en_data)
             total_changed += changed
             total_files += 1
+            if changed > 0:
+                time.sleep(INTER_LOCALE_COOLDOWN_SEC)
         except Exception as e:
             print(f'  ERROR processing {fname}: {e}')
 
