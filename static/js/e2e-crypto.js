@@ -128,8 +128,6 @@ const E2E = (() => {
         const derived = await deriveSessionKey(JSON.parse(privJwkStr), pubHex, peerPublicHex);
         localStorage.setItem(SESSION_HEX, derived.keyHex);
         localStorage.setItem(FINGERPRINT, derived.fingerprint);
-        localStorage.removeItem(PRIV_JWK);
-        localStorage.removeItem(PUB_HEX);
         return derived.fingerprint;
     }
 
@@ -139,6 +137,10 @@ const E2E = (() => {
 
     function getFingerprint() {
         return localStorage.getItem(FINGERPRINT) || '';
+    }
+
+    function getPublicHex() {
+        return localStorage.getItem(PUB_HEX) || '';
     }
 
     function hasPendingKey() {
@@ -176,6 +178,7 @@ const E2E = (() => {
         completePairing,
         isPaired,
         getFingerprint,
+        getPublicHex,
         hasPendingKey,
         reset,
         encrypt,

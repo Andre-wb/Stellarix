@@ -250,9 +250,10 @@ fn main() {
 
     tauri::Builder::default()
         .manage(PgGuard(pg_state))
-        .manage(commands::ListenerState::default())
+        .manage(commands::ModemState::default())
         .invoke_handler(tauri::generate_handler![
-            commands::play_payload,
+            commands::send_payload_arq,
+            commands::send_file_arq,
             commands::start_listening,
             commands::stop_listening
         ])

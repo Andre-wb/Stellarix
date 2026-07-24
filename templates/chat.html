@@ -27,6 +27,16 @@
         <div id="mic-level" class="pairing-status" style="font-family: monospace;"></div>
         <div id="chat-status" class="pairing-status">Готово к работе.</div>
 
+        <div style="display:flex; align-items:center; gap: 0.5rem; margin-top: 1rem;">
+            <label for="modulation-select" style="font-size: 0.85rem; opacity: 0.75;">Модуляция:</label>
+            <select id="modulation-select" class="form-input" style="width:auto; padding: 0.25rem 0.5rem;">
+                <option value="bpsk">BPSK — максимальная надёжность</option>
+                <option value="qpsk" selected>QPSK — стандарт</option>
+                <option value="qam16">QAM16 — быстрее, нужен чистый сигнал</option>
+                <option value="qam64">QAM64 — максимум скорости</option>
+            </select>
+        </div>
+
         <form id="chat-form" style="display:flex; gap: 0.5rem; margin-top: 1rem;" autocomplete="off">
             <input
                     type="text"
@@ -37,6 +47,8 @@
                     style="flex: 1;"
             >
             <button type="submit" id="send-btn" class="btn btn-primary" style="white-space: nowrap;">🔊 Отправить</button>
+            <button type="button" id="send-file-btn" class="btn btn-outline" title="Передать файл звуком">📎</button>
+            <input type="file" id="file-input" style="display:none;">
         </form>
 
         <div class="pairing-actions" style="display:flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
@@ -47,8 +59,10 @@
         <p style="margin-top: 1rem; font-size: 0.85rem; opacity: 0.75;">
             Сообщения шифруются и расшифровываются <strong>прямо в браузере</strong> сеансовым ключом,
             полученным на странице «Сопряжение» — сервер не видит ни ключ, ни текст. Передаются
-            исключительно звуком — как отправка, так и приём. Если сопряжение ещё не выполнено,
-            <a href="/pairing">перейдите на страницу сопряжения</a>.
+            исключительно звуком — как отправка, так и приём. Приёмник подтверждает получение по звуку,
+            а повреждённые пакеты запрашиваются и передаются повторно автоматически. Кнопка 📎 передаёт
+            файл: на принимающей стороне он сохраняется в «Загрузки», целостность проверяется по SHA-256.
+            Если сопряжение ещё не выполнено, <a href="/pairing">перейдите на страницу сопряжения</a>.
         </p>
     </div>
 </div>

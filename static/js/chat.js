@@ -2,15 +2,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('chat-form');
     const input = document.getElementById('chat-input');
     const sendBtn = document.getElementById('send-btn');
+    const fileBtn = document.getElementById('send-file-btn');
+    const fileInput = document.getElementById('file-input');
     const listenBtn = document.getElementById('listen-btn');
     const stopListenBtn = document.getElementById('stop-listen-btn');
     const messagesEl = document.getElementById('chat-messages');
     const statusEl = document.getElementById('chat-status');
     const levelEl = document.getElementById('mic-level');
     const bannerEl = document.getElementById('chat-banner');
+    const modulationEl = document.getElementById('modulation-select');
     let activeListener = null;
     let retryCount = 0;
     const MAX_RETRIES = 3;
+
+    function currentModulation() {
+        return modulationEl ? modulationEl.value : undefined;
+    }
 
     function setStatus(text) {
         statusEl.textContent = text;
@@ -73,43 +80,95 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const text = input.value;
         if (!text) return;
+        if (activeListener) return;
 
         sendBtn.disabled = true;
+        listenBtn.disabled = true;
+        fileBtn.disabled = true;
         try {
             setStatus('Шифрую сообщение в браузере...');
             const payloadHex = await E2E.encrypt(text);
             addMessage(text, 'sent');
             input.value = '';
-            setStatus('Передаю сообщение (1/2)...');
-            await AudioModem.playHexPayload(payloadHex, setStatus);
-            await new Promise(r => setTimeout(r, 300));
-            setStatus('Передаю сообщение (2/2)...');
-            await AudioModem.playHexPayload(payloadHex, setStatus);
-            setStatus('Сообщение передано.');
+            await AudioModem.sendHexPayload(payloadHex, setStatus, currentModulation());
         } catch (err) {
-            setStatus('Ошибка: ' + err.message);
+            setStatus('Ошибка: ' + (err.message || err));
         } finally {
             sendBtn.disabled = false;
+            listenBtn.disabled = false;
+            fileBtn.disabled = false;
+        }
+    });
+
+    function formatSize(n) {
+        if (n < 1024) return n + ' Б';
+        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' КБ';
+        return (n / (1024 * 1024)).toFixed(1) + ' МБ';
+    }
+
+    fileBtn.addEventListener('click', () => {
+        if (activeListener) return;
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', async () => {
+        const file = fileInput.files && fileInput.files[0];
+        fileInput.value = '';
+        if (!file || activeListener) return;
+        if (file.size > 4 * 1024 * 1024) {
+            setStatus('Файл больше 4 МБ — для звукового канала это слишком много.');
+            return;
+        }
+        const estSec = Math.max(3, Math.round(file.size / 700));
+        if (estSec > 30 && !confirm(
+            `Передача файла «${file.name}» (${formatSize(file.size)}) займёт примерно ` +
+            `${Math.ceil(estSec / 60)} мин. Продолжить?`)) return;
+        sendBtn.disabled = true;
+        listenBtn.disabled = true;
+        fileBtn.disabled = true;
+        try {
+            const buf = new Uint8Array(await file.arrayBuffer());
+            let hex = '';
+            for (let i = 0; i < buf.length; i += 4096) {
+                hex += Array.from(buf.subarray(i, i + 4096), b => b.toString(16).padStart(2, '0')).join('');
+            }
+            addMessage(`📎 Отправка файла: ${file.name} (${formatSize(file.size)})`, 'sent');
+            const result = await AudioModem.sendFileHex(file.name, hex, setStatus, currentModulation());
+            addMessage(`📎 ${file.name}: ${result}`, 'info');
+        } catch (err) {
+            setStatus('Ошибка: ' + (err.message || err));
+        } finally {
+            sendBtn.disabled = !E2E.isPaired();
+            listenBtn.disabled = false;
+            fileBtn.disabled = false;
         }
     });
 
     function resetListenUi() {
         activeListener = null;
         listenBtn.disabled = false;
+        sendBtn.disabled = !E2E.isPaired();
+        fileBtn.disabled = false;
         stopListenBtn.style.display = 'none';
-        retryCount = 0;
     }
 
     function startListenCycle() {
         if (activeListener) return;
         listenBtn.disabled = true;
+        sendBtn.disabled = true;
+        fileBtn.disabled = true;
         stopListenBtn.style.display = 'inline-block';
         if (levelEl) levelEl.textContent = 'Уровень микрофона: [--------------------]';
-        retryCount = 0;
 
         activeListener = AudioModem.startListening({
             onStatus: setStatus,
             onLevel: setLevel,
+            onFile: (f) => {
+                resetListenUi();
+                const ok = f.hash_ok ? 'хеш SHA-256 совпал ✅' : 'ХЕШ SHA-256 НЕ СОВПАЛ ❌';
+                addMessage(`📎 Получен файл ${f.name} (${formatSize(f.size)}) — ${ok}. Сохранён: ${f.path}`, 'received');
+                setStatus('Файл получен.');
+            },
             onDecoded: async (hex) => {
                 resetListenUi();
                 setStatus('Сигнал получен, расшифровываю в браузере...');
@@ -134,11 +193,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     setStatus(`Повторная попытка (${retryCount}/${MAX_RETRIES})...`);
                     setTimeout(startListenCycle, 2000);
                 }
+            },
+            onStopped: (msg) => {
+                resetListenUi();
+                setStatus(msg || 'Приём остановлен.');
             }
         });
     }
 
-    listenBtn.addEventListener('click', startListenCycle);
+    listenBtn.addEventListener('click', () => {
+        retryCount = 0;
+        startListenCycle();
+    });
 
     stopListenBtn.addEventListener('click', () => {
         if (!activeListener) return;

@@ -24,8 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function resetListenUi() {
         activeListener = null;
         receiveBtn.disabled = false;
+        shareBtn.disabled = false;
         stopBtn.style.display = 'none';
-        retryCount = 0;
     }
 
     function refreshBanner() {
@@ -54,27 +54,28 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshBanner();
 
     shareBtn.addEventListener('click', async () => {
+        if (activeListener) return;
         shareBtn.disabled = true;
+        receiveBtn.disabled = true;
         resultEl.textContent = '';
         try {
             setStatus('Генерирую ключ в браузере...');
             const publicHex = await E2E.ensureKeypair();
-            setStatus('Передаю ключ (1/2)...');
-            await AudioModem.playPublicKeyHex(publicHex, setStatus);
-            await new Promise(r => setTimeout(r, 500));
-            setStatus('Передаю ключ (2/2)...');
+            setStatus('Передаю ключ...');
             await AudioModem.playPublicKeyHex(publicHex, setStatus);
             refreshBanner();
         } catch (err) {
-            setStatus('Ошибка: ' + err.message);
+            setStatus('Ошибка: ' + (err.message || err));
         } finally {
             shareBtn.disabled = false;
+            receiveBtn.disabled = false;
         }
     });
 
     receiveBtn.addEventListener('click', () => {
         if (activeListener) return;
         receiveBtn.disabled = true;
+        shareBtn.disabled = true;
         stopBtn.style.display = 'inline-block';
         resultEl.textContent = '';
         if (levelEl) levelEl.textContent = 'Уровень микрофона: [--------------------]';
@@ -85,6 +86,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 onStatus: setStatus,
                 onLevel: setLevel,
                 onDecoded: async (hex) => {
+                    const own = E2E.getPublicHex();
+                    if (own && hex.toLowerCase() === own.toLowerCase()) {
+                        activeListener = null;
+                        setStatus('Пойман собственный ключ (эхо своего динамика) — продолжаю слушать собеседника...');
+                        startListeningCycle();
+                        return;
+                    }
                     resetListenUi();
                     setStatus('Ключ получен, вычисляю общий сеансовый ключ в браузере...');
                     try {
@@ -111,6 +119,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         setStatus(`Повторная попытка (${retryCount}/${MAX_RETRIES})...`);
                         setTimeout(startListeningCycle, 2000);
                     }
+                },
+                onStopped: (msg) => {
+                    resetListenUi();
+                    setStatus(msg || 'Приём остановлен.');
                 }
             });
         }
