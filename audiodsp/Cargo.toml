@@ -1,0 +1,20 @@
+[package]
+name = "audiodsp"
+version = "0.1.0"
+edition = "2021"
+description = "Stellarix acoustic modem DSP (FSK + Reed-Solomon + CRC32 packets)"
+
+[dependencies]
+apodize = "1.0"
+chacha20poly1305 = "0.10"
+getrandom = "0.2"
+realfft = "3.4"
+zstd = "0.13"
+
+[workspace]
+
+[profile.dev.package.rustfft]
+opt-level = 3
+
+[profile.dev.package.realfft]
+opt-level = 3

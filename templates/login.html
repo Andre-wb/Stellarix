@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Вход{% endblock %}
+
+{% block main %}
+<div class="form-container">
+    <div class="form-card">
+        <div class="form-header">
+            <h1 class="form-title">С возвращением</h1>
+        </div>
+
+        {% if let Some(message) = flash_message %}
+        <div class="flash-message flash-error">
+            <span><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" style="fill: var(--accent);transform: ;msFilter:;"><path d="M12.884 2.532c-.346-.654-1.422-.654-1.768 0l-9 17A.999.999 0 0 0 3 21h18a.998.998 0 0 0 .883-1.467L12.884 2.532zM13 18h-2v-2h2v2zm-2-4V9h2l.001 5H11z"></path></svg>️</span>
+            <span>{{ message }}</span>
+        </div>
+        {% endif %}
+
+        <form action="/login" method="post">
+            <div class="form-group">
+                <input
+                        type="text"
+                        id="username"
+                        name="username"
+                        class="form-input"
+                        placeholder="Имя"
+                        value='{{ username.as_deref().unwrap_or("") }}'
+                        required
+                        autofocus
+                >
+            </div>
+
+            <div class="form-group">
+                <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        class="form-input"
+                        placeholder="Пароль"
+                        value='{{ password.as_deref().unwrap_or("") }}'
+                        required
+                >
+            </div>
+
+            <button type="submit" class="btn">
+                <span>Войти</span>
+            </button>
+        </form>
+
+        <div class="form-footer">
+            <p>Еше нет аккаунта?</p>
+            <a href="/register">Зарегистрируйтесь</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

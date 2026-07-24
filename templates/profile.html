@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}{{ user.username }} | Чаты{% endblock %}
+
+{% block main %}
+<div class="container" style="max-width: 1000px;">
+    <div class="profile-hero">
+        <div class="profile-avatar">
+            {{ avatar_letter }}
+        </div>
+        <div class="profile-info">
+            <h1 class="profile-name">{{ user.username }}</h1>
+        </div>
+    </div>
+</div>
+{% endblock %}

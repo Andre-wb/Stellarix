@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Сопряжение по звуку{% endblock %}
+
+{% block main %}
+<div class="form-container">
+    <div class="form-card">
+        <div class="form-header">
+            <h1 class="form-title">Сопряжение по звуку</h1>
+            <p>Вы вошли как <strong>{{ username }}</strong></p>
+        </div>
+
+        <div id="pairing-banner" class="flash-message" style="display:none; margin-bottom: 1rem;"></div>
+
+        <p>
+            Ключи генерируются и остаются <strong>только в вашем браузере</strong> — сервер их не видит.
+            Оба ноутбука должны находиться рядом в одной комнате, звук включён на разумной громкости,
+            в помещении тихо. Один человек нажимает «Поделиться публичным ключом» — устройство проиграет
+            закодированный звук. Второй в это же время нажимает «Получить публичный ключ» и слушает через
+            микрофон. Затем поменяйтесь ролями, чтобы обмен был взаимным.
+        </p>
+        <p>
+            Повторное нажатие «Поделиться» проигрывает <strong>тот же самый</strong> ключ ещё раз (например если
+            собеседник не расслышал с первого раза) — уже готовое сопряжение при этом не сбрасывается.
+            Чтобы начать сопряжение полностью заново — нажмите «Начать заново».
+        </p>
+        <p>
+            Если ключ не распознаётся сам — нажмите «Стоп и распознать»: это остановит запись и тщательно
+            переберёт всё, что успело записаться, ещё раз. Индикатор уровня микрофона ниже помогает понять,
+            слышит ли сайт вообще какой-либо звук, пока проигрывается ключ.
+        </p>
+
+        <div class="pairing-actions" style="display:flex; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap;">
+            <button id="share-key-btn" class="btn btn-primary" type="button">🔊 Поделиться публичным ключом</button>
+            <button id="receive-key-btn" class="btn btn-outline" type="button">🎤 Получить публичный ключ</button>
+            <button id="stop-key-btn" class="btn btn-outline" type="button" style="display:none;">⏹ Стоп и распознать</button>
+            <button id="reset-key-btn" class="btn btn-outline" type="button">♻️ Начать заново</button>
+        </div>
+
+        <div id="mic-level" class="pairing-status" style="font-family: monospace;"></div>
+        <div id="pairing-status" class="pairing-status">Ожидание действия...</div>
+        <div id="pairing-result" class="pairing-result" style="margin-top: 1rem; font-weight: 600;"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/native-modem.js"></script>
+<script src="/static/js/e2e-crypto.js"></script>
+<script src="/static/js/pairing.js"></script>
+{% endblock %}

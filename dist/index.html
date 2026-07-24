@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stellarix</title>
+  <style>
+    :root { color-scheme: light dark; }
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: #0f1115;
+      color: #e6e6e6;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 2rem;
+    }
+
+    /* Основной контейнер */
+    .loader-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+      padding: 2rem;
+      max-width: 400px;
+      width: 100%;
+    }
+
+    /* Логотип или иконка */
+    .logo {
+      font-size: 3rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #4a7dff, #6c5ce7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -1px;
+    }
+
+    /* Спиннер */
+    .spinner-wrapper {
+      position: relative;
+      width: 80px;
+      height: 80px;
+    }
+
+    /* Статус сообщение */
+    #status {
+      font-size: 1rem;
+      opacity: 0.9;
+      text-align: center;
+      padding: 0 1rem;
+      min-height: 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+    }
+
+    /* Точки загрузки */
+    .dots {
+      display: inline-flex;
+      gap: 4px;
+      margin-left: 4px;
+    }
+    .dots span {
+      animation: dots 1.4s infinite;
+      opacity: 0;
+    }
+    .dots span:nth-child(2) { animation-delay: 0.2s; }
+    .dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes dots {
+      0%, 60%, 100% { opacity: 0; transform: translateY(0); }
+      30% { opacity: 1; transform: translateY(-4px); }
+    }
+
+    /* Прогресс-бар */
+    .progress-container {
+      width: 100%;
+      height: 4px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 4px;
+      overflow: hidden;
+      opacity: 0;
+      transition: opacity 0.5s ease;
+    }
+    .progress-container.active {
+      opacity: 1;
+    }
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #4a7dff, #6c5ce7);
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+
+    /* Детали */
+    #details {
+      font-size: 0.85rem;
+      opacity: 0.6;
+      text-align: center;
+      min-height: 1.5rem;
+      font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+      transition: all 0.3s ease;
+    }
+
+    /* Состояние ошибки */
+    .error #status {
+      color: #ff6b6b;
+    }
+    .error .spinner {
+      border-color: rgba(255, 107, 107, 0.2);
+      border-top-color: #ff6b6b;
+      border-right-color: #ff6b6b;
+    }
+    .error .logo {
+      background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Успех */
+    .success .spinner {
+      border-color: rgba(0, 230, 118, 0.2);
+      border-top-color: #00e676;
+      border-right-color: #00e676;
+    }
+    .success .logo {
+      background: linear-gradient(135deg, #00e676, #00bcd4);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+  </style>
+</head>
+<body>
+<div class="loader-container" id="app">
+  <div class="logo">Stellarix</div>
+
+
+  <div id="status">
+    Запуск локального сервера и базы данных
+    <span class="dots"><span>.</span><span>.</span><span>.</span></span>
+  </div>
+
+  <div class="progress-container" id="progressContainer">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+
+  <div id="details">Подготовка окружения...</div>
+</div>
+
+<script src="loader.js"></script>
+</body>
+</html>

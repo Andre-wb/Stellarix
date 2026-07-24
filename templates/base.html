@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="/static/js/menu.js"></script>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+<div class="nav-links-mobile" id="nav-links-mobile">
+    {% if logged_in %}
+    <a href="/pairing" class="nav-link">Сопряжение</a>
+    <a href="/chat" class="nav-link">Чат</a>
+    <a href="/profile" class="nav-link">Профиль</a>
+    <a href="/logout" class="nav-link">Выйти</a>
+    {% else %}
+    <a href="/login" class="nav-link">Войти</a>
+    <a href="/register" class="nav-link">Регистрация</a>
+    {% endif %}
+</div>
+<header>
+    <nav>
+        <a href="/" class="brand">
+            <span>Stellarix</span>
+        </a>
+
+        <div class="nav-links" id="nav-links">
+            {% if logged_in %}
+            <a href="/pairing" class="nav-link">Сопряжение</a>
+            <a href="/chat" class="nav-link">Чат</a>
+            <a href="/profile" class="nav-link">Профиль</a>
+            <a href="/logout" class="nav-link">Выйти</a>
+            {% else %}
+            <a href="/login" class="nav-link">Войти</a>
+            <a href="/register" class="nav-link">Регистрация</a>
+            {% endif %}
+        </div>
+
+        <button class="menu" type="button" id="menu">
+            <span class="line" id="line-1"></span>
+            <span class="line" id="line-2"></span>
+            <span class="line" id="line-3"></span>
+        </button>
+    </nav>
+</header>
+
+<main class="main">
+    {% block main %}{% endblock %}
+</main>
+
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

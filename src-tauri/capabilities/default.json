@@ -1,0 +1,17 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Core permissions plus IPC access for the local axum-served UI to call native audio commands",
+  "windows": ["main"],
+  "local": true,
+  "remote": {
+    "urls": ["http://127.0.0.1:8000", "http://127.0.0.1:8000/*"]
+  },
+  "permissions": [
+    "core:default",
+    "core:event:default",
+    "allow-play-payload",
+    "allow-start-listening",
+    "allow-stop-listening"
+  ]
+}

@@ -1,0 +1,33 @@
+[package]
+name = "stellarix"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "stellarix"
+path = "src/main.rs"
+
+[dependencies]
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+tower-http = { version = "0.5", features = ["fs"] }
+tower-sessions = "0.12"
+tower-sessions-sqlx-store = { version = "0.12", features = ["postgres"] }
+time = "0.3"
+
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "migrate"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+askama = "0.12"
+
+argon2 = "0.5"
+
+dotenvy = "0.15"
+percent-encoding = "2"
+
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

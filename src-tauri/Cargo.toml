@@ -1,0 +1,33 @@
+[package]
+name = "stellarix-desktop"
+version = "0.1.0"
+edition = "2021"
+description = "Десктоп-оболочка Stellarix на Tauri со встроенным PostgreSQL"
+
+[build-dependencies]
+tauri-build = { version = "2.6", features = [] }
+
+[dependencies]
+tauri = { version = "2.11", features = [] }
+stellarix = { path = ".." }
+audiodsp = { path = "../audiodsp" }
+postgresql_embedded = { version = "0.21", features = ["bundled"] }
+tokio = { version = "1", features = ["full"] }
+rand = "0.8"
+cpal = "0.18"
+serde = { version = "1", features = ["derive"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["chrono"] }
+tracing-appender = "0.2"
+chrono = "0.4.45"
+
+[workspace]
+
+[profile.dev.package.rustfft]
+opt-level = 3
+
+[profile.dev.package.realfft]
+opt-level = 3
+
+[profile.dev.package.audiodsp]
+opt-level = 3

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Чат по звуку{% endblock %}
+
+{% block main %}
+<div class="form-container">
+    <div class="form-card" style="max-width: 640px;">
+        <div class="form-header">
+            <h1 class="form-title">Чат по звуку</h1>
+            <p>Вы вошли как <strong>{{ username }}</strong></p>
+        </div>
+
+        <div id="chat-banner" class="flash-message" style="display:none; margin-bottom: 1rem;"></div>
+
+        <div id="chat-messages" style="
+            border: 1px solid var(--border, #333);
+            border-radius: 8px;
+            padding: 1rem;
+            height: 320px;
+            overflow-y: auto;
+            margin-bottom: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        "></div>
+
+        <div id="mic-level" class="pairing-status" style="font-family: monospace;"></div>
+        <div id="chat-status" class="pairing-status">Готово к работе.</div>
+
+        <form id="chat-form" style="display:flex; gap: 0.5rem; margin-top: 1rem;" autocomplete="off">
+            <input
+                    type="text"
+                    id="chat-input"
+                    class="form-input"
+                    placeholder="Сообщение (до 68 байт)..."
+                    maxlength="68"
+                    style="flex: 1;"
+            >
+            <button type="submit" id="send-btn" class="btn btn-primary" style="white-space: nowrap;">🔊 Отправить</button>
+        </form>
+
+        <div class="pairing-actions" style="display:flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
+            <button id="listen-btn" class="btn btn-outline" type="button">🎤 Слушать</button>
+            <button id="stop-listen-btn" class="btn btn-outline" type="button" style="display:none;">⏹ Стоп и распознать</button>
+        </div>
+
+        <p style="margin-top: 1rem; font-size: 0.85rem; opacity: 0.75;">
+            Сообщения шифруются и расшифровываются <strong>прямо в браузере</strong> сеансовым ключом,
+            полученным на странице «Сопряжение» — сервер не видит ни ключ, ни текст. Передаются
+            исключительно звуком — как отправка, так и приём. Если сопряжение ещё не выполнено,
+            <a href="/pairing">перейдите на страницу сопряжения</a>.
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/native-modem.js"></script>
+<script src="/static/js/e2e-crypto.js"></script>
+<script src="/static/js/chat.js"></script>
+{% endblock %}
