@@ -1,6 +1,6 @@
 use askama::Template;
 use chrono::{DateTime, Utc};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sqlx::{FromRow};
 use uuid::Uuid;
 
@@ -8,31 +8,25 @@ use uuid::Uuid;
 pub struct User {
     pub id: Uuid,
     pub username: String,
-    // Эти два поля пока не возвращаются SQL-запросами (нет чатов и аватаров в схеме БД).
-    // #[sqlx(skip)] полностью исключает поле из генерируемого кода декодирования строки —
-    // значение всегда берётся из Default::default(), поэтому Chat не обязан реализовывать
-    // sqlx::Type/Decode (в отличие от #[sqlx(default)], который это по-прежнему требует).
-    #[sqlx(skip)]
-    pub avatar_url: String,
     pub password_hash: String,
     pub created_at: DateTime<Utc>,
     pub last_login_at: Option<DateTime<Utc>>,
-    #[sqlx(skip)]
-    pub chats: Vec<Chat>,
 }
 
-#[derive(Debug, FromRow, Clone)]
+#[derive(Debug, FromRow, Clone, Serialize)]
 pub struct Chat {
-    pub members: Vec<User>,
-    pub messages: Vec<Message>,
-    pub session_key: String,
+    pub id: Uuid,
+    pub owner_id: Uuid,
+    pub peer_fingerprint: String,
+    pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, FromRow, Clone)]
+#[derive(Debug, FromRow, Clone, Serialize)]
 pub struct Message {
     pub id: Uuid,
-    pub author: User,
-    pub content: String,
+    pub chat_id: Uuid,
+    pub outgoing: bool,
+    pub payload_hex: String,
     pub sent_at: DateTime<Utc>,
 }
 

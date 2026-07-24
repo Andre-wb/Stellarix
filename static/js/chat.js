@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const modulationEl = document.getElementById('modulation-select');
     let activeListener = null;
     let retryCount = 0;
+    let chatId = null;
     const MAX_RETRIES = 3;
 
     function currentModulation() {
@@ -76,6 +77,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
     checkPairing();
 
+    async function loadHistory() {
+        if (!E2E.isSupported() || !E2E.isPaired()) return;
+        try {
+            const chatRes = await fetch('/api/chats', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ peer_fingerprint: E2E.getFingerprint() }),
+            });
+            if (!chatRes.ok) return;
+            chatId = (await chatRes.json()).id;
+
+            const msgRes = await fetch('/api/chats/' + chatId + '/messages');
+            if (!msgRes.ok) return;
+            const messages = await msgRes.json();
+            let failed = 0;
+            for (const m of messages) {
+                try {
+                    const text = await E2E.decrypt(m.payload_hex);
+                    addMessage(text, m.outgoing ? 'sent' : 'received');
+                } catch (err) {
+                    failed++;
+                }
+            }
+            if (failed > 0) {
+                addMessage('Не удалось расшифровать сохранённых сообщений: ' + failed, 'info');
+            }
+        } catch (err) {
+            console.warn('Не удалось загрузить историю чата:', err);
+        }
+    }
+
+    function saveMessage(payloadHex, outgoing) {
+        if (!chatId) return;
+        fetch('/api/chats/' + chatId + '/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ payload_hex: payloadHex, outgoing }),
+        }).catch((err) => console.warn('Не удалось сохранить сообщение:', err));
+    }
+
+    loadHistory();
+
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const text = input.value;
@@ -89,6 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setStatus('Шифрую сообщение в браузере...');
             const payloadHex = await E2E.encrypt(text);
             addMessage(text, 'sent');
+            saveMessage(payloadHex, true);
             input.value = '';
             await AudioModem.sendHexPayload(payloadHex, setStatus, currentModulation());
         } catch (err) {
@@ -175,6 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     const plaintext = await E2E.decrypt(hex);
                     addMessage(plaintext, 'received');
+                    saveMessage(hex, false);
                     setStatus('Сообщение получено.');
                 } catch (err) {
                     setStatus('Ошибка расшифровки: ' + err.message);
