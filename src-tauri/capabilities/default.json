@@ -11,6 +11,7 @@
     "core:default",
     "core:event:default",
     "allow-play-payload",
+    "allow-stop-playing",
     "allow-start-listening",
     "allow-stop-listening"
   ]

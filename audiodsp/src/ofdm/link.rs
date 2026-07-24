@@ -12,6 +12,7 @@ use super::sync::{chirp, find_chirp, refine_by_cp};
 use super::util::{bits_to_bytes, bytes_to_bits};
 
 pub const CHIRP_THRESHOLD: f32 = 0.35;
+pub const MAX_PACKETS: usize = 4095;
 
 pub fn max_packet_payload(cfg: &OfdmConfig) -> usize {
     let cap_bytes = MAX_DATA_SYMBOLS * cfg.bits_per_symbol() / 8;
@@ -23,6 +24,27 @@ pub fn max_packet_payload(cfg: &OfdmConfig) -> usize {
         l -= 1;
     }
     0
+}
+
+pub fn pack_payload(payload: &[u8], key: Option<&[u8; 32]>) -> Vec<u8> {
+    pack(payload, key)
+}
+
+pub fn unpack_payload(packed: &[u8], key: Option<&[u8; 32]>) -> Option<Vec<u8>> {
+    unpack(packed, key)
+}
+
+pub fn packed_chunk_count(packed_len: usize, cfg: &OfdmConfig) -> usize {
+    let max_chunk = max_packet_payload(cfg).max(1);
+    (packed_len + max_chunk - 1) / max_chunk
+}
+
+pub fn transmission_lead(cfg: &OfdmConfig) -> usize {
+    cfg.fs as usize / 4
+}
+
+pub fn transmission_gap(cfg: &OfdmConfig) -> usize {
+    cfg.fs as usize / 10
 }
 
 fn n_symbols_for(cfg: &OfdmConfig, header: &PacketHeader) -> usize {
@@ -43,32 +65,60 @@ pub fn encode_transmission_encrypted(
     encode_packed(&pack(payload, Some(key)), cfg)
 }
 
+fn build_one(
+    modulator: &mut Modulator,
+    chunk: &[u8],
+    seq: usize,
+    total: usize,
+    cfg: &OfdmConfig,
+) -> Vec<f32> {
+    let mut data = chunk.to_vec();
+    data.extend_from_slice(&crc32(chunk).to_be_bytes());
+    let coded = fec::encode(&data);
+    let bits = bytes_to_bits(&coded);
+    let bps = cfg.bits_per_symbol();
+    let n_sym = (bits.len() + bps - 1) / bps;
+    assert!(n_sym <= MAX_DATA_SYMBOLS);
+    let hdr = PacketHeader {
+        version: HEADER_VERSION,
+        seq: seq as u16,
+        total: total as u16,
+        payload_len: chunk.len() as u16,
+        modulation: cfg.modulation,
+        n_data_symbols: n_sym as u8,
+    };
+    modulator.build_packet(&hdr, &bits)
+}
+
+pub fn encode_one_packet(packed: &[u8], seq: usize, cfg: &OfdmConfig) -> Option<Vec<f32>> {
+    let total = packed_chunk_count(packed.len(), cfg);
+    if seq >= total {
+        return None;
+    }
+    let max_chunk = max_packet_payload(cfg).max(1);
+    let start = seq * max_chunk;
+    let end = (start + max_chunk).min(packed.len());
+    let mut modulator = Modulator::new(cfg.clone());
+    Some(build_one(
+        &mut modulator,
+        &packed[start..end],
+        seq,
+        total,
+        cfg,
+    ))
+}
+
 fn encode_packed(packed: &[u8], cfg: &OfdmConfig) -> Vec<f32> {
     let max_chunk = max_packet_payload(cfg).max(1);
     let chunks: Vec<&[u8]> = packed.chunks(max_chunk).collect();
     let total = chunks.len();
-    assert!(total <= 4095, "payload too large");
+    assert!(total <= MAX_PACKETS, "payload too large");
     let mut modulator = Modulator::new(cfg.clone());
-    let lead = cfg.fs as usize / 4;
-    let inter = cfg.fs as usize / 10;
+    let lead = transmission_lead(cfg);
+    let inter = transmission_gap(cfg);
     let mut out = vec![0f32; lead];
     for (seq, chunk) in chunks.iter().enumerate() {
-        let mut data = chunk.to_vec();
-        data.extend_from_slice(&crc32(chunk).to_be_bytes());
-        let coded = fec::encode(&data);
-        let bits = bytes_to_bits(&coded);
-        let bps = cfg.bits_per_symbol();
-        let n_sym = (bits.len() + bps - 1) / bps;
-        assert!(n_sym <= MAX_DATA_SYMBOLS);
-        let hdr = PacketHeader {
-            version: HEADER_VERSION,
-            seq: seq as u16,
-            total: total as u16,
-            payload_len: chunk.len() as u16,
-            modulation: cfg.modulation,
-            n_data_symbols: n_sym as u8,
-        };
-        out.extend(modulator.build_packet(&hdr, &bits));
+        out.extend(build_one(&mut modulator, chunk, seq, total, cfg));
         out.extend(std::iter::repeat(0f32).take(inter));
     }
     out.extend(std::iter::repeat(0f32).take(lead));
@@ -180,8 +230,8 @@ pub fn max_total_seconds(cfg: &OfdmConfig) -> f32 {
         + cfg.gap_len()
         + (2 + MAX_DATA_SYMBOLS) * cfg.symbol_samples()
         + cfg.gap_len();
-    let lead = cfg.fs as usize / 4;
-    let inter = cfg.fs as usize / 10;
+    let lead = transmission_lead(cfg);
+    let inter = transmission_gap(cfg);
     (2 * lead + pkt + inter) as f32 / cfg.fs as f32
 }
 
@@ -268,6 +318,26 @@ mod tests {
             out[pad + i] = a + (b - a) * frac;
         }
         out
+    }
+
+    #[test]
+    fn streamed_packets_match_single_shot() {
+        let cfg = OfdmConfig::default_48k();
+        let mut rng = Prng::new(11);
+        let payload: Vec<u8> = (0..8000).map(|_| (rng.next_u64() & 0xff) as u8).collect();
+        let packed = pack_payload(&payload, None);
+        let total = packed_chunk_count(packed.len(), &cfg);
+        assert!(total > 1, "test needs a multi-packet payload, got {}", total);
+        let mut streamed = vec![0f32; transmission_lead(&cfg)];
+        for seq in 0..total {
+            streamed.extend(encode_one_packet(&packed, seq, &cfg).unwrap());
+            streamed.extend(std::iter::repeat(0f32).take(transmission_gap(&cfg)));
+        }
+        streamed.extend(std::iter::repeat(0f32).take(transmission_lead(&cfg)));
+        let single = encode_packed(&packed, &cfg);
+        assert_eq!(streamed.len(), single.len());
+        assert!(streamed == single, "streamed wave differs from single-shot wave");
+        assert!(encode_one_packet(&packed, total, &cfg).is_none());
     }
 
     #[test]

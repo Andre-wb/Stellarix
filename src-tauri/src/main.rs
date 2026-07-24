@@ -272,8 +272,10 @@ fn main() {
     tauri::Builder::default()
         .manage(PgGuard(pg_state))
         .manage(commands::ListenerState::default())
+        .manage(commands::PlaybackState::default())
         .invoke_handler(tauri::generate_handler![
             commands::play_payload,
+            commands::stop_playing,
             commands::start_listening,
             commands::stop_listening
         ])
