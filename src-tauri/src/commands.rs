@@ -1,6 +1,7 @@
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, State};
 
 use crate::modem;
 
@@ -12,12 +13,50 @@ impl Default for ListenerState {
     }
 }
 
+#[derive(Default)]
+pub struct PlaybackState(pub Mutex<Option<Arc<AtomicBool>>>);
+
 #[tauri::command]
-pub async fn play_payload(hex: String) -> Result<(), String> {
+pub async fn play_payload(
+    app: AppHandle,
+    state: State<'_, PlaybackState>,
+    hex: String,
+) -> Result<bool, String> {
     let payload = hex_to_bytes(&hex)?;
-    tauri::async_runtime::spawn_blocking(move || modem::play(&payload, audiodsp::PLAYBACK_GAIN))
-        .await
-        .map_err(|e| format!("сбой потока воспроизведения: {e}"))?
+    let stop = Arc::new(AtomicBool::new(false));
+    {
+        let mut guard = state.0.lock().map_err(|_| "состояние занято".to_string())?;
+        if let Some(prev) = guard.replace(stop.clone()) {
+            prev.store(true, Ordering::SeqCst);
+        }
+    }
+    let handle = app.clone();
+    let flag = stop.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        modem::play(&payload, audiodsp::PLAYBACK_GAIN, &flag, |seq, total| {
+            let _ = handle.emit(
+                "modem-status",
+                format!("Передаю пакет {}/{}...", seq + 1, total),
+            );
+        })
+    })
+    .await
+    .map_err(|e| format!("сбой потока воспроизведения: {e}"))?;
+    if let Ok(mut guard) = state.0.lock() {
+        if guard.as_ref().is_some_and(|cur| Arc::ptr_eq(cur, &stop)) {
+            guard.take();
+        }
+    }
+    result
+}
+
+#[tauri::command]
+pub fn stop_playing(state: State<PlaybackState>) {
+    if let Ok(guard) = state.0.lock() {
+        if let Some(stop) = guard.as_ref() {
+            stop.store(true, Ordering::SeqCst);
+        }
+    }
 }
 
 #[tauri::command]

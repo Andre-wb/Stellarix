@@ -17,12 +17,24 @@ const AudioModem = (() => {
             return;
         }
         onStatus && onStatus('Передаю звуком...');
+        let unlisten = null;
         try {
-            await core.invoke('play_payload', { hex: hexString });
-            onStatus && onStatus('Передача завершена.');
+            if (events && onStatus) {
+                unlisten = await events.listen('modem-status', e => onStatus(e.payload));
+            }
+            const completed = await core.invoke('play_payload', { hex: hexString });
+            onStatus && onStatus(completed === false ? 'Передача отменена.' : 'Передача завершена.');
         } catch (e) {
             onStatus && onStatus('Ошибка передачи: ' + e);
+        } finally {
+            if (unlisten) {
+                try { unlisten(); } catch (e) {}
+            }
         }
+    }
+
+    function stopPlaying() {
+        if (core) core.invoke('stop_playing').catch(() => {});
     }
 
     function startListening({ onStatus, onDecoded, onError, onLevel } = {}) {
@@ -77,6 +89,7 @@ const AudioModem = (() => {
     return {
         playPublicKeyHex: playHexPayload,
         playHexPayload,
+        stopPlaying,
         startListening,
         hexToBytes,
         bytesToHex,

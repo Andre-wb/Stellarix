@@ -26,6 +26,14 @@ fn noise_from_residual(raw: &[Complex<f32>], h: &[Complex<f32>]) -> f32 {
     ((med * 16.0 / (6.0 * std::f64::consts::LN_2)) as f32).max(1e-20)
 }
 
+fn carrier_phase_slope(raw: &[Complex<f32>]) -> f32 {
+    if raw.len() < 2 {
+        return 0.0;
+    }
+    let step: Complex<f32> = raw.windows(2).map(|w| w[1] * w[0].conj()).sum();
+    step.arg()
+}
+
 pub(crate) fn estimate(
     cfg: &OfdmConfig,
     spectrum: &[Complex<f32>],
@@ -36,11 +44,14 @@ pub(crate) fn estimate(
     for i in 0..nsub {
         raw.push(spectrum[cfg.k_min + i] * training[i].conj());
     }
+    let slope = carrier_phase_slope(&raw);
     let mut h = Vec::with_capacity(nsub);
     for i in 0..nsub {
-        let prev = raw[if i == 0 { 0 } else { i - 1 }];
-        let next = raw[(i + 1).min(nsub - 1)];
-        h.push((prev + raw[i] * 2.0 + next) * 0.25);
+        let p = if i == 0 { 0 } else { i - 1 };
+        let q = (i + 1).min(nsub - 1);
+        let wp = Complex::from_polar(1.0, slope * (i as isize - p as isize) as f32);
+        let wq = Complex::from_polar(1.0, slope * (i as isize - q as isize) as f32);
+        h.push((raw[p] * wp + raw[i] * 2.0 + raw[q] * wq) * 0.25);
     }
     let noise_power = noise_from_residual(&raw, &h);
     let snr_db: Vec<f32> = h
