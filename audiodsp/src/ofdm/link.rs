@@ -25,19 +25,6 @@ pub fn max_packet_payload(cfg: &OfdmConfig) -> usize {
     0
 }
 
-pub fn pack_payload(payload: &[u8], key: Option<&[u8; 32]>) -> Vec<u8> {
-    pack(payload, key)
-}
-
-pub fn unpack_payload(packed: &[u8], key: Option<&[u8; 32]>) -> Option<Vec<u8>> {
-    unpack(packed, key)
-}
-
-pub fn packed_chunk_count(packed_len: usize, cfg: &OfdmConfig) -> usize {
-    let max_chunk = max_packet_payload(cfg).max(1);
-    (packed_len + max_chunk - 1) / max_chunk
-}
-
 fn n_symbols_for(cfg: &OfdmConfig, header: &PacketHeader) -> usize {
     let coded_bits = fec::FecLayout::for_len(header.payload_len as usize + 4).coded_len() * 8;
     let bps = cfg.n_data_carriers() * header.modulation.bits_per_carrier();
@@ -56,25 +43,16 @@ pub fn encode_transmission_encrypted(
     encode_packed(&pack(payload, Some(key)), cfg)
 }
 
-pub fn encode_packed_transmission(
-    packed: &[u8],
-    cfg: &OfdmConfig,
-    seqs: Option<&[u16]>,
-) -> Vec<f32> {
+fn encode_packed(packed: &[u8], cfg: &OfdmConfig) -> Vec<f32> {
     let max_chunk = max_packet_payload(cfg).max(1);
     let chunks: Vec<&[u8]> = packed.chunks(max_chunk).collect();
     let total = chunks.len();
     assert!(total <= 4095, "payload too large");
     let mut modulator = Modulator::new(cfg.clone());
-    let lead = cfg.fs as usize / 2;
+    let lead = cfg.fs as usize / 4;
     let inter = cfg.fs as usize / 10;
     let mut out = vec![0f32; lead];
     for (seq, chunk) in chunks.iter().enumerate() {
-        if let Some(list) = seqs {
-            if !list.contains(&(seq as u16)) {
-                continue;
-            }
-        }
         let mut data = chunk.to_vec();
         data.extend_from_slice(&crc32(chunk).to_be_bytes());
         let coded = fec::encode(&data);
@@ -95,10 +73,6 @@ pub fn encode_packed_transmission(
     }
     out.extend(std::iter::repeat(0f32).take(lead));
     out
-}
-
-fn encode_packed(packed: &[u8], cfg: &OfdmConfig) -> Vec<f32> {
-    encode_packed_transmission(packed, cfg, None)
 }
 
 fn finish_packet(cfg: &OfdmConfig, r: &PacketRx) -> Option<Vec<u8>> {
@@ -163,7 +137,7 @@ fn attempt_resampled(
     Some((r.header, payload))
 }
 
-pub(crate) fn try_packet(
+fn try_packet(
     rx: &[f32],
     train: usize,
     demod: &mut Demodulator,
@@ -206,7 +180,7 @@ pub fn max_total_seconds(cfg: &OfdmConfig) -> f32 {
         + cfg.gap_len()
         + (2 + MAX_DATA_SYMBOLS) * cfg.symbol_samples()
         + cfg.gap_len();
-    let lead = cfg.fs as usize / 2;
+    let lead = cfg.fs as usize / 4;
     let inter = cfg.fs as usize / 10;
     (2 * lead + pkt + inter) as f32 / cfg.fs as f32
 }

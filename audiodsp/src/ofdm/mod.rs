@@ -8,7 +8,6 @@ mod link;
 mod modulator;
 mod payload;
 mod pilots;
-mod stream;
 mod sync;
 mod util;
 
@@ -18,11 +17,9 @@ pub use demodulator::{Demodulator, SymbolResult};
 pub use framing::PacketHeader;
 pub use link::{
     decode_transmission, decode_transmission_encrypted, decode_transmission_report,
-    encode_packed_transmission, encode_transmission, encode_transmission_encrypted,
-    max_packet_payload, max_total_seconds, pack_payload, packed_chunk_count,
-    unpack_payload, DecodeReport, CHIRP_THRESHOLD,
+    encode_transmission, encode_transmission_encrypted, max_packet_payload,
+    max_total_seconds, DecodeReport, CHIRP_THRESHOLD,
 };
 pub use modulator::Modulator;
-pub use stream::{decode_stream, StreamReport};
 pub use sync::{chirp, find_chirp, refine_by_cp, SfoTracker};
 pub use util::papr_db;

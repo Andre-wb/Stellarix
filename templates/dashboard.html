@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Дашборд{% endblock %}
+
+{% block main %}
+<div class="dash">
+    <div class="dash-head">
+        <div>
+            <h1>Дашборд</h1>
+            <div class="dash-sub">статистика сеанса · {{ username }} · обновляется в реальном времени</div>
+        </div>
+        <button id="stats-reset" class="chip-btn" type="button">Сбросить</button>
+    </div>
+
+    <div class="dash-grid stats">
+        <div class="stat-card">
+            <div class="stat-label">Передано сообщений</div>
+            <div class="stat-value" id="stat-tx">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Принято сообщений</div>
+            <div class="stat-value" id="stat-rx">0</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Успешность</div>
+            <div class="stat-value" id="stat-success">—</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Средняя скорость</div>
+            <div class="stat-value"><span id="stat-speed">—</span><span class="unit">бит/с</span></div>
+        </div>
+    </div>
+
+    <div class="dash-grid charts">
+        <div class="chart-card">
+            <div class="chart-title">Скорость передач <span class="tag">бит/с · последние 20</span></div>
+            <canvas id="chart-speed" class="chart"></canvas>
+        </div>
+        <div class="chart-card">
+            <div class="chart-title">Результаты <span class="tag">все записи</span></div>
+            <canvas id="chart-donut" class="chart"></canvas>
+            <div class="legend">
+                <span><i style="background:#72bc8f"></i><span id="leg-ok">Успешно · 0</span></span>
+                <span><i style="background:#e97366"></i><span id="leg-err">Ошибки · 0</span></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="dash-grid charts2">
+        <div class="chart-card">
+            <div class="chart-title">Длительность передач <span class="tag">сек · последние 12</span></div>
+            <canvas id="chart-duration" class="chart"></canvas>
+        </div>
+        <div class="chart-card">
+            <div class="chart-title">Объём сообщений <span class="tag">байт · последние 12</span></div>
+            <canvas id="chart-bytes" class="chart"></canvas>
+        </div>
+    </div>
+
+    <div class="chart-card">
+        <div class="chart-title">Завершённые передачи <span class="tag">запись появляется сразу после завершения</span></div>
+        <div id="dash-empty" class="dash-empty">
+            Пока нет завершённых передач. Отправьте или примите сообщение в чате —
+            запись появится здесь автоматически.
+        </div>
+        <div class="table-scroll" id="sessions-wrap" style="display:none;">
+            <table class="dash-table">
+                <thead>
+                <tr><th>Время</th><th>Тип</th><th>Объём</th><th>Длительность</th><th>Скорость</th><th>Статус</th></tr>
+                </thead>
+                <tbody id="sessions-tbody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/stats.js"></script>
+<script src="/static/js/dashboard.js"></script>
+{% endblock %}

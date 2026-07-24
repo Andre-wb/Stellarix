@@ -15,14 +15,10 @@ use crate::schemas::{
     LoginForm,
     PairingTemplate,
     ChatTemplate,
+    DashboardTemplate,
 };
 
 const SESSION_USER_ID: &str = "user_id";
-
-pub async fn session_user_id(session: &Session) -> Option<Uuid> {
-    let raw = session.get::<String>(SESSION_USER_ID).await.ok().flatten()?;
-    Uuid::parse_str(&raw).ok()
-}
 
 async fn is_logged_in(session: &Session) -> bool {
     session.get::<String>(SESSION_USER_ID)
@@ -30,19 +26,6 @@ async fn is_logged_in(session: &Session) -> bool {
         .ok()
         .flatten()
         .is_some()
-}
-
-async fn require_session_user(
-    session: &Session,
-    pool: &DbPool,
-) -> Result<crate::schemas::User, Redirect> {
-    let user_id = session_user_id(session).await
-        .ok_or_else(|| Redirect::to("/login"))?;
-
-    match db::get_user_by_id(pool, user_id).await {
-        Ok(Some(user)) => Ok(user),
-        _ => Err(Redirect::to("/login")),
-    }
 }
 
 pub async fn get_register(session: Session) -> Html<String> {
@@ -76,7 +59,20 @@ pub async fn get_profile(
     session: Session,
     State(pool): State<DbPool>,
 ) -> Result<Html<String>, Redirect> {
-    let user = require_session_user(&session, &pool).await?;
+    let user_id = match session.get::<String>(SESSION_USER_ID).await.ok().flatten() {
+        Some(id) => id,
+        None => return Err(Redirect::to("/login")),
+    };
+
+    let user_id = match Uuid::parse_str(&user_id) {
+        Ok(id) => id,
+        Err(_) => return Err(Redirect::to("/login")),
+    };
+
+    let user = match db::get_user_by_id(&pool, user_id).await {
+        Ok(Some(user)) => user,
+        _ => return Err(Redirect::to("/login")),
+    };
 
     let avatar_letter = user
         .username
@@ -257,7 +253,20 @@ pub async fn get_pairing(
     session: Session,
     State(pool): State<DbPool>,
 ) -> Result<Html<String>, Redirect> {
-    let user = require_session_user(&session, &pool).await?;
+    let user_id = match session.get::<String>(SESSION_USER_ID).await.ok().flatten() {
+        Some(id) => id,
+        None => return Err(Redirect::to("/login")),
+    };
+
+    let user_id = match Uuid::parse_str(&user_id) {
+        Ok(id) => id,
+        Err(_) => return Err(Redirect::to("/login")),
+    };
+
+    let user = match db::get_user_by_id(&pool, user_id).await {
+        Ok(Some(user)) => user,
+        _ => return Err(Redirect::to("/login")),
+    };
 
     Ok(Html(PairingTemplate {
         logged_in: true,
@@ -269,9 +278,47 @@ pub async fn get_chat(
     session: Session,
     State(pool): State<DbPool>,
 ) -> Result<Html<String>, Redirect> {
-    let user = require_session_user(&session, &pool).await?;
+    let user_id = match session.get::<String>(SESSION_USER_ID).await.ok().flatten() {
+        Some(id) => id,
+        None => return Err(Redirect::to("/login")),
+    };
+
+    let user_id = match Uuid::parse_str(&user_id) {
+        Ok(id) => id,
+        Err(_) => return Err(Redirect::to("/login")),
+    };
+
+    let user = match db::get_user_by_id(&pool, user_id).await {
+        Ok(Some(user)) => user,
+        _ => return Err(Redirect::to("/login")),
+    };
 
     Ok(Html(ChatTemplate {
+        logged_in: true,
+        username: user.username,
+    }.render().unwrap()))
+}
+
+pub async fn get_dashboard(
+    session: Session,
+    State(pool): State<DbPool>,
+) -> Result<Html<String>, Redirect> {
+    let user_id = match session.get::<String>(SESSION_USER_ID).await.ok().flatten() {
+        Some(id) => id,
+        None => return Err(Redirect::to("/login")),
+    };
+
+    let user_id = match Uuid::parse_str(&user_id) {
+        Ok(id) => id,
+        Err(_) => return Err(Redirect::to("/login")),
+    };
+
+    let user = match db::get_user_by_id(&pool, user_id).await {
+        Ok(Some(user)) => user,
+        _ => return Err(Redirect::to("/login")),
+    };
+
+    Ok(Html(DashboardTemplate {
         logged_in: true,
         username: user.username,
     }.render().unwrap()))

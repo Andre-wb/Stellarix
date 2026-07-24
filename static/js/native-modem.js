@@ -11,36 +11,21 @@ const AudioModem = (() => {
         return bytes.map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
-    async function invokeWithStatus(command, args, onStatus) {
+    async function playHexPayload(hexString, onStatus) {
         if (!core) {
-            const msg = 'Нативный звук доступен только в приложении.';
-            onStatus && onStatus(msg);
-            throw new Error(msg);
+            onStatus && onStatus('Нативный звук доступен только в приложении.');
+            return;
         }
-        const unlisten = [];
-        if (events && onStatus) {
-            try {
-                unlisten.push(await events.listen('modem-status', e => onStatus(e.payload)));
-            } catch (e) {}
-        }
+        onStatus && onStatus('Передаю звуком...');
         try {
-            const result = await core.invoke(command, args);
-            onStatus && onStatus(result);
-            return result;
-        } finally {
-            unlisten.forEach(u => { try { u(); } catch (e) {} });
+            await core.invoke('play_payload', { hex: hexString });
+            onStatus && onStatus('Передача завершена.');
+        } catch (e) {
+            onStatus && onStatus('Ошибка передачи: ' + e);
         }
     }
 
-    function sendHexPayload(hexString, onStatus, modulation) {
-        return invokeWithStatus('send_payload_arq', { hex: hexString, modulation: modulation || null }, onStatus);
-    }
-
-    function sendFileHex(name, hexString, onStatus, modulation) {
-        return invokeWithStatus('send_file_arq', { name, hex: hexString, modulation: modulation || null }, onStatus);
-    }
-
-    function startListening({ onStatus, onDecoded, onError, onLevel, onStopped, onFile } = {}) {
+    function startListening({ onStatus, onDecoded, onError, onLevel } = {}) {
         let finished = false;
         const unlisten = [];
         function cleanup() {
@@ -62,25 +47,11 @@ const AudioModem = (() => {
                     cleanup();
                     onDecoded && onDecoded(e.payload);
                 }));
-                unlisten.push(await events.listen('modem-file', e => {
-                    if (finished) return;
-                    finished = true;
-                    cleanup();
-                    if (onFile) onFile(e.payload);
-                    else onStatus && onStatus('Получен файл: ' + e.payload.name);
-                }));
                 unlisten.push(await events.listen('modem-error', e => {
                     if (finished) return;
                     finished = true;
                     cleanup();
                     onError && onError(e.payload);
-                }));
-                unlisten.push(await events.listen('modem-stopped', e => {
-                    if (finished) return;
-                    finished = true;
-                    cleanup();
-                    if (onStopped) onStopped(e.payload);
-                    else onStatus && onStatus(e.payload);
                 }));
                 await core.invoke('start_listening');
                 onStatus && onStatus('Слушаю через микрофон...');
@@ -104,10 +75,8 @@ const AudioModem = (() => {
     }
 
     return {
-        playPublicKeyHex: sendHexPayload,
-        playHexPayload: sendHexPayload,
-        sendHexPayload,
-        sendFileHex,
+        playPublicKeyHex: playHexPayload,
+        playHexPayload,
         startListening,
         hexToBytes,
         bytesToHex,

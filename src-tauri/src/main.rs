@@ -2,6 +2,7 @@
 
 mod commands;
 mod modem;
+mod pgpaths;
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -123,8 +124,12 @@ async fn bring_up(app: AppHandle, pg_state: Arc<Mutex<Option<PostgreSQL>>>) -> R
     std::env::set_var("APP_ENVIRONMENT", "development");
     std::env::set_var("LOG_LEVEL", "info");
 
-    let pg_data = data_dir.join("pgdata");
-    let pg_install = data_dir.join("pg-install");
+    let pg_base = pgpaths::pg_base_dir(&data_dir, &app.config().identifier);
+    if pg_base != data_dir {
+        create_private_dir(&pg_base)?;
+    }
+    let pg_data = pg_base.join("pgdata");
+    let pg_install = pg_base.join("pg-install");
     create_private_dir(&pg_data)?;
     debug!("Каталог PostgreSQL: {}", pg_data.display());
 
@@ -156,6 +161,7 @@ async fn bring_up(app: AppHandle, pg_state: Arc<Mutex<Option<PostgreSQL>>>) -> R
     settings.port = PG_PORT;
     settings.username = PG_USER.to_string();
     settings.password = pg_password.clone();
+    settings.password_file = pg_base.join(".pgpass");
     settings.temporary = false;
     settings.timeout = Some(std::time::Duration::from_secs(30));
 
@@ -250,10 +256,9 @@ fn main() {
 
     tauri::Builder::default()
         .manage(PgGuard(pg_state))
-        .manage(commands::ModemState::default())
+        .manage(commands::ListenerState::default())
         .invoke_handler(tauri::generate_handler![
-            commands::send_payload_arq,
-            commands::send_file_arq,
+            commands::play_payload,
             commands::start_listening,
             commands::stop_listening
         ])
