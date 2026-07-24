@@ -154,8 +154,17 @@ async fn bring_up(app: AppHandle, pg_state: Arc<Mutex<Option<PostgreSQL>>>) -> R
     let pg_password = load_or_create_secret(&data_dir, "pg_password")?;
     debug!("Пароль PostgreSQL загружен");
 
+    // На системах с нелатинской локалью (например, Russian_Russia.1251) initdb
+    // может упасть с "неверная последовательность байт для кодировки UTF8".
+    // Форсируем локаль C, чтобы избежать конфликта локали/кодировки при инициализации.
+    std::env::set_var("LC_ALL", "C");
+    std::env::set_var("LANG", "C");
+    std::env::set_var("LC_CTYPE", "C");
+    std::env::set_var("LC_COLLATE", "C");
+    std::env::set_var("LC_MESSAGES", "C");
+
     let mut settings = Settings::default();
-    settings.data_dir = pg_data;
+    settings.data_dir = pg_data.clone();
     settings.installation_dir = pg_install;
     settings.host = "127.0.0.1".to_string();
     settings.port = PG_PORT;
@@ -166,11 +175,17 @@ async fn bring_up(app: AppHandle, pg_state: Arc<Mutex<Option<PostgreSQL>>>) -> R
     settings.timeout = Some(std::time::Duration::from_secs(30));
 
     info!("Настройка PostgreSQL...");
-    let mut pg = PostgreSQL::new(settings);
-    pg.setup().await.map_err(|e| {
-        error!("Ошибка настройки PostgreSQL: {}", e);
-        format!("Не удалось подготовить PostgreSQL: {e}")
-    })?;
+    let mut pg = PostgreSQL::new(settings.clone());
+    if let Err(e) = pg.setup().await {
+        error!("Ошибка настройки PostgreSQL: {}, повторная попытка после очистки каталога данных", e);
+        let _ = std::fs::remove_dir_all(&pg_data);
+        create_private_dir(&pg_data)?;
+        pg = PostgreSQL::new(settings);
+        pg.setup().await.map_err(|e| {
+            error!("Ошибка настройки PostgreSQL: {}", e);
+            format!("Не удалось подготовить PostgreSQL: {e}")
+        })?;
+    }
 
     info!("Запуск PostgreSQL на порту {}...", PG_PORT);
     pg.start().await.map_err(|e| {
