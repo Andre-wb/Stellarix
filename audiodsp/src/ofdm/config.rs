@@ -75,20 +75,6 @@ impl Modulation {
     }
 }
 
-impl std::str::FromStr for Modulation {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_ascii_lowercase().as_str() {
-            "bpsk" => Ok(Modulation::Bpsk),
-            "qpsk" => Ok(Modulation::Qpsk),
-            "qam16" => Ok(Modulation::Qam16),
-            "qam64" => Ok(Modulation::Qam64),
-            _ => Err(()),
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ConfigError {
     FftSize,

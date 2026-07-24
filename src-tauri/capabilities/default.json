@@ -10,8 +10,7 @@
   "permissions": [
     "core:default",
     "core:event:default",
-    "allow-send-payload-arq",
-    "allow-send-file-arq",
+    "allow-play-payload",
     "allow-start-listening",
     "allow-stop-listening"
   ]

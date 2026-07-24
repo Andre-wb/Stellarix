@@ -13,6 +13,7 @@
     {% if logged_in %}
     <a href="/pairing" class="nav-link">Сопряжение</a>
     <a href="/chat" class="nav-link">Чат</a>
+    <a href="/dashboard" class="nav-link">Дашборд</a>
     <a href="/profile" class="nav-link">Профиль</a>
     <a href="/logout" class="nav-link">Выйти</a>
     {% else %}
@@ -22,14 +23,16 @@
 </div>
 <header>
     <nav>
-        <a href="/" class="brand">
+        <a href="https://github.com/ВАШ-НИК/stellarix" target="_blank" rel="noopener" class="brand">
             <span>Stellarix</span>
         </a>
 
         <div class="nav-links" id="nav-links">
+            <span class="nav-pill" id="nav-pill"></span>
             {% if logged_in %}
             <a href="/pairing" class="nav-link">Сопряжение</a>
             <a href="/chat" class="nav-link">Чат</a>
+            <a href="/dashboard" class="nav-link">Дашборд</a>
             <a href="/profile" class="nav-link">Профиль</a>
             <a href="/logout" class="nav-link">Выйти</a>
             {% else %}
@@ -51,5 +54,54 @@
 </main>
 
 {% block extra_scripts %}{% endblock %}
+<script>
+(function () {
+    var pill = document.getElementById('nav-pill');
+    var nav = document.getElementById('nav-links');
+    if (!pill || !nav) return;
+
+    function moveTo(el) {
+        var nr = nav.getBoundingClientRect();
+        var er = el.getBoundingClientRect();
+        pill.style.width = er.width + 'px';
+        pill.style.transform = 'translateX(' + (er.left - nr.left) + 'px)';
+        pill.style.opacity = '1';
+    }
+
+    function hide() {
+        pill.style.opacity = '0';
+    }
+
+    var links = nav.querySelectorAll('.nav-link');
+
+    // подсветить активную ссылку сразу
+    var active = null;
+    links.forEach(function (a) {
+        if (a.pathname === location.pathname) active = a;
+    });
+    if (active) {
+        pill.style.transition = 'none';
+        moveTo(active);
+        requestAnimationFrame(function () {
+            pill.style.transition = '';
+        });
+    }
+
+    links.forEach(function (a) {
+        a.addEventListener('mouseenter', function () { moveTo(a); });
+        a.addEventListener('focus', function () { moveTo(a); });
+    });
+
+    nav.addEventListener('mouseleave', function () {
+        if (active) moveTo(active); else hide();
+    });
+
+    nav.addEventListener('focusout', function (e) {
+        if (!nav.contains(e.relatedTarget)) {
+            if (active) moveTo(active); else hide();
+        }
+    });
+})();
+</script>
 </body>
 </html>

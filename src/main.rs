@@ -39,16 +39,7 @@ async fn main() {
         }
     };
 
-    let addr: SocketAddr = match std::env::var("BIND_ADDR") {
-        Ok(value) => match value.parse() {
-            Ok(addr) => addr,
-            Err(error) => {
-                eprintln!("Некорректный BIND_ADDR '{value}': {error}");
-                std::process::exit(1);
-            }
-        },
-        Err(_) => SocketAddr::from(([127, 0, 0, 1], 8000)),
-    };
+    let addr = SocketAddr::from(([127, 0, 0, 1], 8000));
     tracing::info!("Сервер запущен и ожидает соединений на {}", addr);
 
     if let Err(e) = stellarix::serve(pool, addr, PathBuf::from("static"), config.is_production()).await {

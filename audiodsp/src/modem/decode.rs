@@ -50,7 +50,6 @@ struct Pkt {
 
 fn decode_packet_at(spec: &mut FskSpectrum, samples: &[f32], preamble_start: usize) -> Option<Pkt> {
     let bit_samples = spec.len();
-    debug_assert_eq!(spec.len(), bit_samples, "FskSpectrum changed the bit window length");
     let preamble_samples = PREAMBLE.len() * bit_samples;
     let cursor = preamble_start + preamble_samples;
     let need = PKT_BYTES * 8 * bit_samples;
@@ -117,7 +116,6 @@ pub fn decode_recording(samples: &[f32], sample_rate: u32) -> DecodeResult {
         return DecodeResult { payload: None, have: 0, total: None };
     }
     let mut spec = FskSpectrum::new(bit_samples, sample_rate);
-    debug_assert_eq!(spec.len(), bit_samples, "FskSpectrum changed the bit window length");
     let search_step = (bit_samples / 6).max(1);
     let preamble_samples = PREAMBLE.len() * bit_samples;
     if samples.len() < preamble_samples {
