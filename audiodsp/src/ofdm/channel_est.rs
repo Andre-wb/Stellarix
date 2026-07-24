@@ -9,21 +9,20 @@ pub struct ChannelEstimate {
     pub mean_snr_db: f32,
 }
 
-fn noise_from_residual(raw: &[Complex<f32>], h: &[Complex<f32>]) -> f32 {
-    let n = raw.len();
-    if n < 8 {
-        let s: f64 = raw
-            .iter()
-            .zip(h)
-            .map(|(a, b)| (a - b).norm_sqr() as f64)
-            .sum();
-        return (((s / n as f64) * 16.0 / 6.0) as f32).max(1e-20);
+pub(crate) fn noise_from_spectrum(cfg: &OfdmConfig, spectrum: &[Complex<f32>]) -> f32 {
+    let half = cfg.n_fft / 2;
+    let mut bins: Vec<usize> = vec![];
+    if cfg.k_min > 30 {
+        bins.extend(20..cfg.k_min - 10);
     }
-    let mut res: Vec<f32> = (1..n - 1).map(|i| (raw[i] - h[i]).norm_sqr()).collect();
-    let mid = res.len() / 2;
-    res.select_nth_unstable_by(mid, |a, b| a.partial_cmp(b).unwrap());
-    let med = res[mid] as f64;
-    ((med * 16.0 / (6.0 * std::f64::consts::LN_2)) as f32).max(1e-20)
+    if cfg.k_max + 10 < half - 20 {
+        bins.extend(cfg.k_max + 10..half - 20);
+    }
+    if bins.is_empty() {
+        bins.extend(1..cfg.k_min.max(2));
+    }
+    let s: f64 = bins.iter().map(|&k| spectrum[k].norm_sqr() as f64).sum();
+    ((s / bins.len() as f64) as f32).max(1e-20)
 }
 
 pub(crate) fn estimate(
@@ -42,7 +41,7 @@ pub(crate) fn estimate(
         let next = raw[(i + 1).min(nsub - 1)];
         h.push((prev + raw[i] * 2.0 + next) * 0.25);
     }
-    let noise_power = noise_from_residual(&raw, &h);
+    let noise_power = noise_from_spectrum(cfg, spectrum);
     let snr_db: Vec<f32> = h
         .iter()
         .map(|c| 10.0 * (c.norm_sqr() / noise_power).max(1e-12).log10())

@@ -10,6 +10,12 @@
         <div class="chat-top">
             <span class="chat-user">{{ username }}</span>
             <div class="chat-top-actions">
+                <select id="modulation-select" class="form-input" style="width:auto; padding: 4px 8px; font-size: 12px;" title="Модуляция">
+                    <option value="bpsk">BPSK</option>
+                    <option value="qpsk" selected>QPSK</option>
+                    <option value="qam16">QAM16</option>
+                    <option value="qam64">QAM64</option>
+                </select>
                 <button id="listen-btn" class="chip-btn" type="button">Слушать</button>
                 <button id="stop-listen-btn" class="chip-btn" type="button" style="display:none;">Стоп и распознать</button>
             </div>
@@ -19,7 +25,10 @@
 
         <div id="chat-messages" class="chat-feed"></div>
 
-        <div id="mic-level" class="chat-meta-line"></div>
+        <div id="mic-level" class="chat-meta-line mic-meter">
+            <span class="mic-meter-label">Микрофон</span>
+            <div class="mic-meter-track"><div class="mic-meter-fill" id="mic-fill"></div></div>
+        </div>
         <div id="chat-status" class="chat-meta-line">Готово к работе.</div>
 
         <form id="chat-form" class="chat-form" autocomplete="off">
@@ -30,6 +39,8 @@
                     placeholder="Сообщение (до 68 байт)..."
                     maxlength="68"
             >
+            <button type="button" id="send-file-btn" class="send-btn" title="Передать файл звуком" aria-label="Передать файл">📎</button>
+            <input type="file" id="file-input" style="display:none;">
             <button type="submit" id="send-btn" class="send-btn" title="Отправить" aria-label="Отправить">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <path d="M3 11.5 21 3l-8.5 18-2.4-7.1L3 11.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
@@ -56,6 +67,7 @@
     // сразу записываются в статистику для дашборда.
     var statusEl = document.getElementById('chat-status');
     var levelEl = document.getElementById('mic-level');
+    var fillEl = document.getElementById('mic-fill');
     var input = document.getElementById('chat-input');
     var form = document.getElementById('chat-form');
 
@@ -102,12 +114,12 @@
     }
 
     function syncLevel() {
-        var m = (levelEl ? levelEl.textContent || '' : '').match(/#+/);
-        if (m) SoundWave.level((m[0].length / 20) * 0.16);
+        var w = fillEl ? (parseFloat(fillEl.style.width) || 0) : 0;
+        SoundWave.level((w / 100) * 0.16);
     }
 
     if (statusEl) new MutationObserver(onStatus).observe(statusEl, { childList: true, characterData: true, subtree: true });
-    if (levelEl) new MutationObserver(syncLevel).observe(levelEl, { childList: true, characterData: true, subtree: true });
+    if (fillEl) new MutationObserver(syncLevel).observe(fillEl, { attributes: true, attributeFilter: ['style'] });
 })();
 </script>
 {% endblock %}

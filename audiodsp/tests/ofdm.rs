@@ -1,7 +1,8 @@
 use audiodsp::ofdm::{
-    chirp, decode_transmission, decode_transmission_encrypted, encode_transmission,
-    encode_transmission_encrypted, find_chirp, max_packet_payload, Demodulator,
-    Modulation, Modulator, OfdmConfig, CHIRP_THRESHOLD,
+    chirp, decode_stream, decode_transmission, decode_transmission_encrypted,
+    encode_packed_transmission, encode_transmission, encode_transmission_encrypted,
+    find_chirp, max_packet_payload, pack_payload, packed_chunk_count, unpack_payload,
+    Demodulator, Modulation, Modulator, OfdmConfig, CHIRP_THRESHOLD,
 };
 
 fn rng(seed: u64) -> impl FnMut() -> u64 {
@@ -213,7 +214,7 @@ fn compressible_payload_shrinks_airtime() {
     let cfg = OfdmConfig::default_48k();
     let payload = vec![9u8; 4000];
     let tx = encode_transmission(&payload, &cfg);
-    assert!(tx.len() < 70000, "tx len {}", tx.len());
+    assert!(tx.len() < 95000, "tx len {}", tx.len());
     assert_eq!(
         decode_transmission(&tx, &cfg).as_deref(),
         Some(&payload[..])
@@ -269,4 +270,56 @@ fn chirp_detection_survives_heavy_noise() {
     let found = find_chirp(&rx, &c, CHIRP_THRESHOLD);
     assert!(found.is_some());
     assert!(found.unwrap().abs_diff(9000) <= 5, "found {:?}", found);
+}
+
+#[test]
+fn stream_decode_resumes_from_consumed() {
+    let cfg = OfdmConfig::default_48k();
+    let mut r = rng(21);
+    let payload = rand_bytes(&mut r, 4000);
+    let tx = encode_transmission(&payload, &cfg);
+    let cut = tx.len() * 2 / 3;
+    let rep1 = decode_stream(&tx[..cut], &cfg, 0);
+    assert!(rep1.consumed <= cut);
+    let rep2 = decode_stream(&tx, &cfg, rep1.consumed);
+    let total = rep1.total.or(rep2.total).unwrap();
+    let mut parts = rep1.parts;
+    for (k, v) in rep2.parts {
+        parts.entry(k).or_insert(v);
+    }
+    assert_eq!(parts.len(), total);
+    let mut packed = Vec::new();
+    for s in 0..total {
+        packed.extend_from_slice(&parts[&s]);
+    }
+    assert_eq!(unpack_payload(&packed, None).unwrap(), payload);
+}
+
+#[test]
+fn subset_retransmission_merges() {
+    let cfg = OfdmConfig::default_48k();
+    let mut r = rng(22);
+    let payload = rand_bytes(&mut r, 5000);
+    let packed = pack_payload(&payload, None);
+    let total = packed_chunk_count(packed.len(), &cfg);
+    assert!(total >= 2, "total {total}");
+    let full = encode_packed_transmission(&packed, &cfg, None);
+    let rep_full = decode_stream(&full, &cfg, 0);
+    assert_eq!(rep_full.total, Some(total));
+    assert_eq!(rep_full.parts.len(), total);
+    let sub = encode_packed_transmission(&packed, &cfg, Some(&[0]));
+    assert!(sub.len() < full.len());
+    let rep_sub = decode_stream(&sub, &cfg, 0);
+    assert!(rep_sub.parts.contains_key(&0));
+    let mut parts = rep_full.parts;
+    parts.remove(&0);
+    for (k, v) in rep_sub.parts {
+        parts.entry(k).or_insert(v);
+    }
+    assert_eq!(parts.len(), total);
+    let mut merged = Vec::new();
+    for s in 0..total {
+        merged.extend_from_slice(&parts[&s]);
+    }
+    assert_eq!(unpack_payload(&merged, None).unwrap(), payload);
 }

@@ -2,7 +2,6 @@
 
 mod commands;
 mod modem;
-mod pgpaths;
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -124,12 +123,8 @@ async fn bring_up(app: AppHandle, pg_state: Arc<Mutex<Option<PostgreSQL>>>) -> R
     std::env::set_var("APP_ENVIRONMENT", "development");
     std::env::set_var("LOG_LEVEL", "info");
 
-    let pg_base = pgpaths::pg_base_dir(&data_dir, &app.config().identifier);
-    if pg_base != data_dir {
-        create_private_dir(&pg_base)?;
-    }
-    let pg_data = pg_base.join("pgdata");
-    let pg_install = pg_base.join("pg-install");
+    let pg_data = data_dir.join("pgdata");
+    let pg_install = data_dir.join("pg-install");
     create_private_dir(&pg_data)?;
     debug!("Каталог PostgreSQL: {}", pg_data.display());
 
@@ -154,38 +149,22 @@ async fn bring_up(app: AppHandle, pg_state: Arc<Mutex<Option<PostgreSQL>>>) -> R
     let pg_password = load_or_create_secret(&data_dir, "pg_password")?;
     debug!("Пароль PostgreSQL загружен");
 
-    // На системах с нелатинской локалью (например, Russian_Russia.1251) initdb
-    // может упасть с "неверная последовательность байт для кодировки UTF8".
-    // Форсируем локаль C, чтобы избежать конфликта локали/кодировки при инициализации.
-    std::env::set_var("LC_ALL", "C");
-    std::env::set_var("LANG", "C");
-    std::env::set_var("LC_CTYPE", "C");
-    std::env::set_var("LC_COLLATE", "C");
-    std::env::set_var("LC_MESSAGES", "C");
-
     let mut settings = Settings::default();
-    settings.data_dir = pg_data.clone();
+    settings.data_dir = pg_data;
     settings.installation_dir = pg_install;
     settings.host = "127.0.0.1".to_string();
     settings.port = PG_PORT;
     settings.username = PG_USER.to_string();
     settings.password = pg_password.clone();
-    settings.password_file = pg_base.join(".pgpass");
     settings.temporary = false;
     settings.timeout = Some(std::time::Duration::from_secs(30));
 
     info!("Настройка PostgreSQL...");
-    let mut pg = PostgreSQL::new(settings.clone());
-    if let Err(e) = pg.setup().await {
-        error!("Ошибка настройки PostgreSQL: {}, повторная попытка после очистки каталога данных", e);
-        let _ = std::fs::remove_dir_all(&pg_data);
-        create_private_dir(&pg_data)?;
-        pg = PostgreSQL::new(settings);
-        pg.setup().await.map_err(|e| {
-            error!("Ошибка настройки PostgreSQL: {}", e);
-            format!("Не удалось подготовить PostgreSQL: {e}")
-        })?;
-    }
+    let mut pg = PostgreSQL::new(settings);
+    pg.setup().await.map_err(|e| {
+        error!("Ошибка настройки PostgreSQL: {}", e);
+        format!("Не удалось подготовить PostgreSQL: {e}")
+    })?;
 
     info!("Запуск PostgreSQL на порту {}...", PG_PORT);
     pg.start().await.map_err(|e| {
@@ -271,9 +250,10 @@ fn main() {
 
     tauri::Builder::default()
         .manage(PgGuard(pg_state))
-        .manage(commands::ListenerState::default())
+        .manage(commands::ModemState::default())
         .invoke_handler(tauri::generate_handler![
-            commands::play_payload,
+            commands::send_payload_arq,
+            commands::send_file_arq,
             commands::start_listening,
             commands::stop_listening
         ])

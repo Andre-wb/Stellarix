@@ -1,6 +1,7 @@
 pub mod config;
 pub mod db;
 pub mod routes;
+pub mod chats;
 pub mod schemas;
 pub mod middleware;
 pub mod setup;
@@ -33,6 +34,8 @@ pub async fn create_router(pool: DbPool, static_dir: PathBuf) -> axum::Router {
         .route("/pairing", get(get_pairing))
         .route("/chat", get(get_chat))
         .route("/dashboard", get(get_dashboard))
+        .route("/api/chats", get(chats::list_chats).post(chats::create_chat))
+        .route("/api/chats/:chat_id/messages", get(chats::list_messages).post(chats::create_message))
         .route("/diagnostics", get(get_diagnostics))
         .nest_service("/static", ServeDir::new(static_dir))
         .with_state(pool)

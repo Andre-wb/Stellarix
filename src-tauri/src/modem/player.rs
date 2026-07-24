@@ -4,7 +4,7 @@ use std::sync::{Arc, Condvar, Mutex};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SampleFormat, SizedSample};
 
-pub fn play(payload: &[u8], gain: f32) -> Result<(), String> {
+pub fn play_wave(wave: &[f32], src_fs: u32) -> Result<(), String> {
     let host = cpal::default_host();
     let device = host
         .default_output_device()
@@ -17,20 +17,14 @@ pub fn play(payload: &[u8], gain: f32) -> Result<(), String> {
     let format = supported.sample_format();
     let config = supported.config();
 
-    let cfg = {
-        let mut c = audiodsp::ofdm::OfdmConfig::default_48k();
-        c.headroom = gain.clamp(0.05, 1.0);
-        c
-    };
-    let wave = audiodsp::ofdm::encode_transmission(payload, &cfg);
-    let samples = Arc::new(super::resample::to_rate(&wave, cfg.fs, sample_rate));
+    let samples = Arc::new(super::resample::to_rate(wave, src_fs, sample_rate));
     let cursor = Arc::new(AtomicUsize::new(0));
     let done = Arc::new((Mutex::new(false), Condvar::new()));
 
     let stream = match format {
-        SampleFormat::F32 => build::<f32>(&device, config.clone(), channels, samples.clone(), cursor.clone(), done.clone())?,
-        SampleFormat::I16 => build::<i16>(&device, config.clone(), channels, samples.clone(), cursor.clone(), done.clone())?,
-        SampleFormat::U16 => build::<u16>(&device, config.clone(), channels, samples.clone(), cursor.clone(), done.clone())?,
+        SampleFormat::F32 => build::<f32>(&device, config, channels, samples, cursor, done.clone())?,
+        SampleFormat::I16 => build::<i16>(&device, config, channels, samples, cursor, done.clone())?,
+        SampleFormat::U16 => build::<u16>(&device, config, channels, samples, cursor, done.clone())?,
         other => return Err(format!("Неподдерживаемый формат вывода: {other:?}")),
     };
     stream.play().map_err(|e| format!("Запуск вывода: {e}"))?;

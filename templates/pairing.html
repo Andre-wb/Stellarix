@@ -44,7 +44,10 @@
             <button id="reset-key-btn" class="btn btn-outline" type="button">Начать заново</button>
         </div>
 
-        <div id="mic-level" class="pairing-status"></div>
+        <div id="mic-level" class="pairing-status mic-meter">
+            <span class="mic-meter-label">Микрофон</span>
+            <div class="mic-meter-track"><div class="mic-meter-fill" id="mic-fill"></div></div>
+        </div>
         <div id="pairing-status" class="pairing-status">Ожидание действия…</div>
         <div id="pairing-result" class="pairing-result"></div>
     </section>
@@ -65,6 +68,7 @@
 
     var statusEl = document.getElementById('pairing-status');
     var levelEl = document.getElementById('mic-level');
+    var fillEl = document.getElementById('mic-fill');
 
     var lastStatus = '';
 
@@ -85,12 +89,12 @@
     }
 
     function syncLevel() {
-        var m = (levelEl ? levelEl.textContent || '' : '').match(/#+/);
-        if (m) SoundWave.level((m[0].length / 20) * 0.16);
+        var w = fillEl ? (parseFloat(fillEl.style.width) || 0) : 0;
+        SoundWave.level((w / 100) * 0.16);
     }
 
     if (statusEl) new MutationObserver(syncMode).observe(statusEl, { childList: true, characterData: true, subtree: true });
-    if (levelEl) new MutationObserver(syncLevel).observe(levelEl, { childList: true, characterData: true, subtree: true });
+    if (fillEl) new MutationObserver(syncLevel).observe(fillEl, { attributes: true, attributeFilter: ['style'] });
 })();
 </script>
 {% endblock %}
