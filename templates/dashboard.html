@@ -102,6 +102,7 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<!-- Для объединения localstorage обновления в реальном времени и подачи с бэкенда -->
 <script>
     const dashboardData = {
         speedChart: {{ speed_chart_data|safe }},
@@ -109,6 +110,13 @@
     durationChart: {{ duration_chart_data|safe }},
     bytesChart: {{ bytes_chart_data|safe }}
     };
+    window.dashboardData = {
+        speedChart: {{ speed_chart_data|safe }},
+        resultChart: {{ result_chart_data|safe }},
+        durationChart: {{ duration_chart_data|safe }},
+        bytesChart: {{ bytes_chart_data|safe }}
+    };
+
 </script>
 <script src="/static/js/stats.js"></script>
 <script src="/static/js/dashboard.js"></script>
