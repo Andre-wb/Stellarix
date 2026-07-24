@@ -92,7 +92,9 @@ mod tests {
 
     #[test]
     fn plain_roundtrip_incompressible() {
-        let data: Vec<u8> = (0..64u32).map(|i| (i * 2654435761 >> 24) as u8).collect();
+        let data: Vec<u8> = (0..64u32)
+            .map(|i| (i.wrapping_mul(2654435761) >> 24) as u8)
+            .collect();
         let packed = pack(&data, None);
         assert_eq!(packed[0] & 2, 0);
         assert_eq!(unpack(&packed, None).unwrap(), data);
