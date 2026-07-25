@@ -1,6 +1,5 @@
 import argparse
 import io
-
 import os
 import glob
 import numpy as np
