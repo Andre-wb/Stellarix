@@ -27,6 +27,14 @@ document.addEventListener('DOMContentLoaded', () => {
         levelEl.textContent = 'Уровень микрофона: [' + '#'.repeat(bars) + '-'.repeat(20 - bars) + ']';
     }
 
+    function wasDelivered(report) {
+        return /^Доставлено/.test(report || '');
+    }
+
+    function wasStopped(report) {
+        return /остановлена/.test(report || '');
+    }
+
     function legacyPaired() {
         return E2E.isPaired() && !E2E.hasKeypair();
     }
@@ -155,11 +163,11 @@ document.addEventListener('DOMContentLoaded', () => {
             setStatus('Передаю ключ...');
             const report = await AudioModem.playPublicKeyHex(publicHex, liveStatus);
             if (gen !== shareGen) return;
-            if (AudioModem.wasDelivered(report)) {
+            if (wasDelivered(report)) {
                 setStatus(E2E.isPaired()
                     ? 'Ключ доставлен — собеседник подтвердил получение. Сопряжение завершено с обеих сторон.'
                     : 'Ключ доставлен — собеседник подтвердил получение. Теперь поменяйтесь ролями: нажмите «Получить ключ», а собеседник — «Поделиться ключом».');
-            } else if (report && !AudioModem.wasStopped(report)) {
+            } else if (report && !wasStopped(report)) {
                 setStatus(report + ' Собеседник должен нажать «Получить ключ» до того, как вы начнёте передачу — дождитесь у него надписи «Слушаю через микрофон...» и нажмите «Поделиться ключом» ещё раз.');
             }
             refreshBanner();

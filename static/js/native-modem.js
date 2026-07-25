@@ -22,14 +22,6 @@ const AudioModem = (() => {
         return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
-    function wasDelivered(report) {
-        return /^Доставлено/.test(report || '');
-    }
-
-    function wasStopped(report) {
-        return /остановлена/.test(report || '');
-    }
-
     async function playHexPayload(hexString, onStatus) {
         requireNative();
         onStatus && onStatus('Передаю звуком...');
@@ -144,8 +136,6 @@ const AudioModem = (() => {
         unavailableReason: UNAVAILABLE,
         playPublicKeyHex: playHexPayload,
         playHexPayload,
-        wasDelivered,
-        wasStopped,
         sendFile,
         stopPlaying,
         startListening,
