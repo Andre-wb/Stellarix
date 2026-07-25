@@ -1,357 +1,362 @@
 import argparse
 import io
-from glob import glob
-from os import path
 
+import os
+import glob
 import numpy as np
 import scipy.io.wavfile as wav
-from joblib import dump, load
-from scipy import signal
-from scipy.ndimage import gaussian_filter1d
-from sklearn.ensemble import HistGradientBoostingRegressor
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader
 
-# ---------------------------------------------------------------------------
-# Константы
-# ---------------------------------------------------------------------------
-FS = 48000  # частота дискретизации
-N_FFT = 4096  # размер окна
-HOP_LENGTH = 1024  # шаг окна
 
-BAND_LOW_HZ = 1000.0  # нижняя граница полезного сигнала
-BAND_HIGH_HZ = 7000.0  # верхняя граница полезного сигнала
-FREQ_RES = FS / N_FFT  # шаг
-BIN_LOW = int(np.round(BAND_LOW_HZ / FREQ_RES))  # начало диапазона
-BIN_HIGH = int(np.round(BAND_HIGH_HZ / FREQ_RES))  # конец
+FS = 48000 #частота дискретизации
+N_FFT = 5120 #размер окна
 
-BASE_DIR = path.dirname(path.abspath(__file__))
-DATASET_DIR = path.join(BASE_DIR, 'dataset')
-clean_dir = path.join(DATASET_DIR, 'train', 'clean')
-noisy_dir = path.join(DATASET_DIR, 'train', 'noisy')
-model_path = path.join(BASE_DIR, 'remove_noise_model.pkl')
+FREQ_BIN_START = 107 #нижняя граница
+FREQ_BIN_END = 747 #верхняя граница
+N_FREQ = FREQ_BIN_END - FREQ_BIN_START #рабочий диапазон
 
-# ---------------------------------------------------------------------------
-# Модель грузится лениво и один раз (кэш в _model), а не при импорте модуля.
-# Это позволяет импортировать файл и для обучения (когда модели ещё нет),
-# и для инференса из Rust (когда модель уже обучена).
-# ---------------------------------------------------------------------------
+CROP_FRAMES = 64  # Количество OFDM-символов в одном куске для обучения
+SCALE_FACTOR = 100.0  # Масштабирующий коэффициент для стабильности PyTorch
+
+base_dir = os.path.dirname(os.path.abspath(__file__))
+train_clean_dir = os.path.join(base_dir, 'dataset', 'train', 'clean')
+train_noisy_dir = os.path.join(base_dir, 'dataset', 'train', 'noisy')
+test_clean_dir = os.path.join(base_dir, 'dataset', 'test', 'clean')
+test_noisy_dir = os.path.join(base_dir, 'dataset', 'test', 'noisy')
+model_path = os.path.join(base_dir, 'unet_complex_denoiser.pth')
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 _model = None
 
-
-def get_model():
-    """Возвращает загруженную модель, кэшируя её между вызовами."""
-    global _model
-    if _model is None:
-        if not path.exists(model_path):
-            raise FileNotFoundError(
-                f'Модель не найдена: {model_path}. Сначала обучите её: python model.py train'
-            )
-        _model = load(model_path)
-    return _model
-
-
-# ---------------------------------------------------------------------------
-# Ввод/вывод звука: из файла (для обучения и ручного теста) и из байтов (для Rust)
-# ---------------------------------------------------------------------------
-def load_wav(filepath):  # загрузка звука из файла на диске
-    sr, data = wav.read(filepath)
+def load_wav(filepath):
+    _, data = wav.read(filepath)
     if data.dtype == np.int16:
         data = data / 32768.0
     elif data.dtype == np.int32:
         data = data / 2147483648.0
     return data.astype(np.float32)
 
-
-def save_wav(audio: np.ndarray, filepath):  # сохранение звука в файл на диске
+def save_wav(audio: np.ndarray, filepath):
     audio_int16 = np.int16(np.clip(audio, -1.0, 1.0) * 32767)
     wav.write(filepath, FS, audio_int16)
 
-
 def bytes_to_audio(audio_bytes: bytes) -> np.ndarray:
-    """Превращает сырые байты WAV (тело запроса от Rust-сервера) в массив float32."""
-    sr, data = wav.read(io.BytesIO(audio_bytes))
+    """Преобразует байты WAV из Rust-сервера в numpy-массив float32."""
+    _, data = wav.read(io.BytesIO(audio_bytes))
     if data.dtype == np.int16:
         data = data / 32768.0
     elif data.dtype == np.int32:
         data = data / 2147483648.0
     return data.astype(np.float32)
 
-
 def audio_to_bytes(audio: np.ndarray) -> bytes:
-    """Превращает массив float32 обратно в байты WAV для ответа Rust-серверу."""
+    """Преобразует float32 audio в байты WAV для ответа Rust-серверу."""
     buf = io.BytesIO()
     audio_int16 = np.int16(np.clip(audio, -1.0, 1.0) * 32767)
     wav.write(buf, FS, audio_int16)
     return buf.getvalue()
 
+def audio_to_complex_stft(audio): #преобразование аудио в спектрограмму
+    n_frames = len(audio) // N_FFT
+    if n_frames == 0:
+        # Если файл короткий, дополняем нулями до N_FFT
+        audio = np.pad(audio, (0, N_FFT - len(audio)))
+        n_frames = 1
 
-# ---------------------------------------------------------------------------
-# STFT и признаки — общие и для обучения, и для инференса
-# ---------------------------------------------------------------------------
-def audio_to_stft(audio):  # превращение аудио в спектрограмму быстрым преобразованием Фурье
-    f, t, Zxx = signal.stft(
-        audio, fs=FS, nperseg=N_FFT, noverlap=N_FFT - HOP_LENGTH
-    )
-    return f, t, np.abs(Zxx), np.angle(Zxx), Zxx
+    audio_trimmed = audio[:n_frames * N_FFT]
+    frames = audio_trimmed.reshape(n_frames, N_FFT)
 
-
-def stft_to_audio(magnitude, phase):  # превращение спектрограммы в аудио
-    Zxx = magnitude * np.exp(1j * phase)
-    _, audio = signal.istft(
-        Zxx, fs=FS, nperseg=N_FFT, noverlap=N_FFT - HOP_LENGTH
-    )
-    return audio
+    # rfft по строкам
+    spectrum = np.fft.rfft(frames, axis=1)
+    return spectrum.T  # Транспонируем в shape [Bins, Time]
 
 
-def extract_features(mag_noisy):  # извлекает признаки из спектрограммы
-    n_freqs, n_frames = mag_noisy.shape
+def complex_stft_to_audio(spectrum): #спектрограмма в аудио
+    spectrum_t = spectrum.T  # [Time, Bins]
+    frames = np.fft.irfft(spectrum_t, n=N_FFT, axis=1)
+    return frames.flatten().astype(np.float32)
 
-    padded = np.pad(
-        mag_noisy, ((1, 1), (1, 1)), mode='constant', constant_values=0
-    )
+class ComplexAudioDataset(Dataset):
+    def __init__(self, clean_dir, noisy_dir, max_files=3500):
+        self.inputs = []
+        self.targets = []
 
-    f_center = padded[1:-1, 1:-1]
-    f_top = padded[0:-2, 1:-1]
-    f_bottom = padded[2:, 1:-1]
-    t_left = padded[1:-1, 0:-2]
-    t_right = padded[1:-1, 2:]
+        noisy_files = sorted(glob.glob(os.path.join(noisy_dir, '*.wav')))[:max_files]
 
-    tl = padded[0:-2, 0:-2]
-    tr = padded[0:-2, 2:]
-    bl = padded[2:, 0:-2]
-    br = padded[2:, 2:]
+        for n_path in noisy_files:
+            fname = os.path.basename(n_path)
+            c_path = os.path.join(clean_dir, fname)
 
-    local_mean = (
-                         f_center + f_top + f_bottom + t_left + t_right + tl + tr + bl + br
-                 ) / 9.0
-    local_diff = f_center - local_mean  # если >0, скорее всего это полезный сигнал, если ~0, то сливается с окружением
+            if not os.path.exists(c_path):
+                continue
 
-    features = np.column_stack([
-        f_center.flatten(),
-        f_top.flatten(),
-        f_bottom.flatten(),
-        t_left.flatten(),
-        t_right.flatten(),
-        tl.flatten(),
-        tr.flatten(),
-        bl.flatten(),
-        br.flatten(),
-        local_mean.flatten(),
-        local_diff.flatten(),
-    ])  # сборка признаков в список
+            clean_audio = load_wav(c_path)
+            noisy_audio = load_wav(n_path)
 
-    return features
+            min_len = min(len(clean_audio), len(noisy_audio))
+            clean_audio, noisy_audio = clean_audio[:min_len], noisy_audio[:min_len]
 
+            stft_clean = audio_to_complex_stft(clean_audio)
+            stft_noisy = audio_to_complex_stft(noisy_audio)
 
-# ---------------------------------------------------------------------------
-# Обучение
-# ---------------------------------------------------------------------------
-def prepare_dataset(clean_dir, noisy_dir, max_files=40):  # подготовка датасета для обучения
-    X_list, Y_list = [], []
-    noisy_files = sorted(glob(path.join(noisy_dir, '*.wav')))[:max_files]
+            #Вырезаем рабочую полосу частот
+            crop_clean = stft_clean[FREQ_BIN_START:FREQ_BIN_END, :]
+            crop_noisy = stft_noisy[FREQ_BIN_START:FREQ_BIN_END, :]
 
-    if not noisy_files:
-        raise FileNotFoundError(
-            f'В {noisy_dir} не найдено ни одного .wav файла. '
-            f'Ожидается структура dataset/train/clean и dataset/train/noisy рядом с моделью.'
+            self._add_crops(crop_noisy, crop_clean)
+
+        self.inputs = torch.tensor(np.array(self.inputs), dtype=torch.float32)
+        self.targets = torch.tensor(np.array(self.targets), dtype=torch.float32)
+        print(f"Обучающих сэмплов (кусочков спектра): {len(self.inputs)}")
+
+    def _add_crops(self, noisy_stft, clean_stft):
+        n_frames = noisy_stft.shape[1]
+
+        if n_frames < CROP_FRAMES:
+            pad = CROP_FRAMES - n_frames
+            noisy_stft = np.pad(noisy_stft, ((0, 0), (0, pad)))
+            clean_stft = np.pad(clean_stft, ((0, 0), (0, pad)))
+            n_frames = CROP_FRAMES
+
+        step = CROP_FRAMES // 2
+        for start in range(0, n_frames - CROP_FRAMES + 1, step):
+            end = start + CROP_FRAMES
+
+            # Масштабируем данные
+            n_crop = noisy_stft[:, start:end] / SCALE_FACTOR
+            c_crop = clean_stft[:, start:end] / SCALE_FACTOR
+
+            n_tensor = np.stack([np.real(n_crop), np.imag(n_crop)], axis=0)
+            c_tensor = np.stack([np.real(c_crop), np.imag(c_crop)], axis=0)
+
+            self.inputs.append(n_tensor)
+            self.targets.append(c_tensor)
+
+    def __len__(self):
+        return len(self.inputs)
+
+    def __getitem__(self, idx):
+        return self.inputs[idx], self.targets[idx]
+
+class ComplexUNetDenoiser(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.pool = nn.MaxPool2d(2)
+
+        self.enc1 = self._block(2, 32)
+        self.enc2 = self._block(32, 64)
+        self.enc3 = self._block(64, 128)
+        self.bottleneck = self._block(128, 256)
+
+        self.dec3 = self._block(256 + 128, 128)
+        self.dec2 = self._block(128 + 64, 64)
+        self.dec1 = self._block(64 + 32, 32)
+
+        self.final = nn.Conv2d(32, 2, kernel_size=1)
+
+    @staticmethod
+    def _block(in_c, out_c):
+        return nn.Sequential(
+            nn.Conv2d(in_c, out_c, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_c),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_c, out_c, kernel_size=3, padding=1),
+            nn.BatchNorm2d(out_c),
+            nn.ReLU(inplace=True),
         )
 
-    for noisy_path in noisy_files:
-        fname = path.basename(noisy_path)
-        clean_path = path.join(clean_dir, fname)
+    def forward(self, x):
+        e1 = self.enc1(x)
+        e2 = self.enc2(self.pool(e1))
+        e3 = self.enc3(self.pool(e2))
+        b = self.bottleneck(self.pool(e3))
 
-        clean_audio = load_wav(clean_path)
-        noisy_audio = load_wav(noisy_path)
+        d3 = F.interpolate(b, size=e3.shape[2:], mode='bilinear', align_corners=False)
+        d3 = self.dec3(torch.cat([d3, e3], dim=1))
 
-        _, _, mag_clean, _, _ = audio_to_stft(clean_audio)  # извлечение громкости
-        _, _, mag_noisy, _, _ = audio_to_stft(noisy_audio)
+        d2 = F.interpolate(d3, size=e2.shape[2:], mode='bilinear', align_corners=False)
+        d2 = self.dec2(torch.cat([d2, e2], dim=1))
 
-        # Винеровское оценивание
-        noise_density = 1e-8  # спектральная плотность мощности шума чтобы не происходило деление на 0
-        target_mask = (mag_clean ** 2) / (mag_noisy ** 2 + noise_density)
-        target_mask = np.clip(target_mask, 0.05, 1.0)
+        d1 = F.interpolate(d2, size=e1.shape[2:], mode='bilinear', align_corners=False)
+        d1 = self.dec1(torch.cat([d1, e1], dim=1))
 
-        features = extract_features(mag_noisy)
-        X_list.append(features)
-        Y_list.append(target_mask.flatten())
-
-    X = np.vstack(X_list)
-    Y = np.concatenate(Y_list)
-    return X, Y
+        return self.final(d1)
 
 
-def train(max_files=40, max_test_files=40):
-    """Полный цикл обучения: собирает датасет, обучает модель, сохраняет её на диск
-    и сразу прогоняет оценку качества."""
-    print('Подготовка обучающей выборки ...')
-    X_train, Y_train = prepare_dataset(clean_dir, noisy_dir, max_files=max_files)
-
-    print('Обучение модели (HistGradientBoosting) ...')
-    model = HistGradientBoostingRegressor(
-        max_iter=300,
-        max_depth=10,
-        learning_rate=0.08,
-        l2_regularization=1.0,
-        random_state=42,
-    )
-    model.fit(X_train, Y_train)
-    print('Модель успешно обучена!!')
-
+def get_model():
+    """загрузка модели с кэшированием в памяти"""
     global _model
-    _model = model
-    dump(model, model_path)
-    print(f'Обученная модель сохранена в файл {model_path}')
-
-    print('Расчет точности ...')
-    calculate_dataset_accuracy(model, clean_dir, noisy_dir, max_test_files=max_test_files)
-
-    return model
-
-
-# ---------------------------------------------------------------------------
-# Инференс
-# ---------------------------------------------------------------------------
-def denoise_audio(audio: np.ndarray, model=None) -> np.ndarray:
-    """Прогоняет аудио (numpy-массив) через модель и возвращает очищенный сигнал.
-    Если модель не передана явно — берётся закэшированная (get_model())."""
-    if model is None:
-        model = get_model()
-
-    f, t, mag_noisy, phase_noisy, _ = audio_to_stft(audio)
-
-    features = extract_features(mag_noisy)
-    pred_mask_flat = model.predict(features)  # вектор значений маски
-    pred_mask = pred_mask_flat.reshape(mag_noisy.shape)  # сворачивает вектор в матрицу размера mag_noisy
-
-    pred_mask = gaussian_filter1d(pred_mask, sigma=0.8, axis=0)  # сглаживает значения
-    pred_mask = np.clip(pred_mask, 0.0, 1.0)
-
-    clean_mag = mag_noisy * pred_mask  # поэлементное умножение
-    clean_audio = stft_to_audio(clean_mag, phase_noisy)  # обратное преобразование Фурье
-
-    return clean_audio
+    if _model is None:
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(
+                f"Модель не найдена по пути {model_path}"
+            )
+        model = ComplexUNetDenoiser().to(device)
+        model.load_state_dict(torch.load(model_path, map_location=device))
+        model.eval()
+        _model = model
+    return _model
 
 
-def denoise_audio_file(noisy_path, output_path, model=None):
-    """Для ручного тестирования: берёт wav-файл с диска, чистит и сохраняет результат
-    тоже в файл на диске. Используется CLI-командой `denoise`."""
+def denoise_audio(model, noisy_path):  # убираем шум из аудио
+    model.eval()
     noisy_audio = load_wav(noisy_path)
-    clean_audio = denoise_audio(noisy_audio, model)
-    save_wav(clean_audio, output_path)
-    return clean_audio
+    stft_noisy = audio_to_complex_stft(noisy_audio)
 
+    # Берём только рабочий диапазон
+    stft_band = stft_noisy[FREQ_BIN_START:FREQ_BIN_END, :]
 
-def process_request(audio_bytes: bytes) -> bytes:
-    """
-    Точка входа для внешнего запроса (например, с Rust-сервера):
-    принимает сырые байты WAV, возвращает байты очищенного WAV.
-    Никакой работы с файлами на диске — всё происходит в памяти.
-    """
-    audio = bytes_to_audio(audio_bytes)
-    clean_audio = denoise_audio(audio)
-    return audio_to_bytes(clean_audio)
+    orig_time_frames = stft_band.shape[1]
 
+    # Добавляем паддинг
+    pad_time = (8 - (orig_time_frames % 8)) % 8
+    if pad_time > 0:
+        stft_band = np.pad(stft_band, ((0, 0), (0, pad_time)))
 
-# ---------------------------------------------------------------------------
-# Оценка качества модели
-# ---------------------------------------------------------------------------
-def circular_phase_error(phase_a, phase_b):  # вычисление MSE (среднеквадратическая ошибка)
-    """Вычисление MSE"""
-    diff = np.angle(np.exp(1j * (phase_a - phase_b)))  # перевод разности на комплексную окружность, формула Эйлера
-    return np.mean(diff ** 2)
+    real_part = np.real(stft_band) / SCALE_FACTOR
+    imag_part = np.imag(stft_band) / SCALE_FACTOR
 
+    x_input = np.stack([real_part, imag_part], axis=0)
+    x_tensor = torch.tensor(x_input, dtype=torch.float32).unsqueeze(0).to(device)
 
-def calculate_dataset_accuracy(model, clean_dir, noisy_dir, max_test_files=50):
-    noisy_files = sorted(glob(path.join(noisy_dir, '*.wav')))[:max_test_files]
+    with torch.no_grad():
+        out_tensor = model(x_tensor).squeeze(0).cpu().numpy()
+
+    clean_real = out_tensor[0][:, :orig_time_frames]
+    clean_imag = out_tensor[1][:, :orig_time_frames]
+
+    # Возвращаем масштаб обратно
+    complex_clean_band = (clean_real + 1j * clean_imag) * SCALE_FACTOR
+
+    # Зануляем всё вне полосы 1-7 кГц
+    full_stft_clean = np.zeros_like(stft_noisy, dtype=np.complex64)
+    full_stft_clean[FREQ_BIN_START:FREQ_BIN_END, :] = complex_clean_band
+
+    clean_audio = complex_stft_to_audio(full_stft_clean)
+    return clean_audio, noisy_audio
+
+#оценка качества модели
+def evaluate(model, clean_dir, noisy_dir, max_test_files=200):
+    noisy_files = sorted(glob.glob(os.path.join(noisy_dir, '*.wav')))[:max_test_files]
 
     mse_before_list, mse_after_list = [], []
-    phase_err_before_list, phase_err_after_list = [], []
+    for n_path in noisy_files:
+        fname = os.path.basename(n_path)
+        c_path = os.path.join(clean_dir, fname)
 
-    for noisy_path in noisy_files:
-        fname = path.basename(noisy_path)
-        clean_path = path.join(clean_dir, fname)
+        if not os.path.exists(c_path):
+            continue
 
-        clean_audio = load_wav(clean_path)
-        noisy_audio = load_wav(noisy_path)
-
-        pred_audio = denoise_audio(noisy_audio, model)
+        clean_audio = load_wav(c_path)
+        pred_audio, noisy_audio = denoise_audio(model, n_path)
 
         min_len = min(len(clean_audio), len(pred_audio), len(noisy_audio))
         clean_audio = clean_audio[:min_len]
         noisy_audio = noisy_audio[:min_len]
         pred_audio = pred_audio[:min_len]
 
-        # Считает среднеквадратичную ошибку и SSNR
         mse_before_list.append(np.mean((clean_audio - noisy_audio) ** 2))
         mse_after_list.append(np.mean((clean_audio - pred_audio) ** 2))
 
-        # Проверка фазы
-        _, _, _, ph_clean, _ = audio_to_stft(clean_audio)
-        _, _, _, ph_noisy, _ = audio_to_stft(noisy_audio)
-        _, _, _, ph_pred, _ = audio_to_stft(pred_audio)
+    avg_before = np.mean(mse_before_list)
+    avg_after = np.mean(mse_after_list)
+    improvement = (avg_before - avg_after) / avg_before * 100
+    snr_gain = 10 * np.log10(avg_before / (avg_after + 1e-12))
 
-        # 1-7 кГц
-        ph_clean_band = ph_clean[BIN_LOW:BIN_HIGH, :]
-        ph_noisy_band = ph_noisy[BIN_LOW:BIN_HIGH, :]
-        ph_pred_band = ph_pred[BIN_LOW:BIN_HIGH, :]
-
-        phase_err_before_list.append(circular_phase_error(ph_clean_band, ph_noisy_band))
-        phase_err_after_list.append(circular_phase_error(ph_clean_band, ph_pred_band))
-
-    avg_mse_before = np.mean(mse_before_list)
-    avg_mse_after = np.mean(mse_after_list)
-    total_improvement = ((avg_mse_before - avg_mse_after) / avg_mse_before) * 100
-    snr_db_gain = 10 * np.log10(avg_mse_before / avg_mse_after)
-
-    avg_ph_err_before = np.mean(phase_err_before_list)
-    avg_ph_err_after = np.mean(phase_err_after_list)
-
-    print('Результаты:')
-    print(' ' * 60)
-    print(f'• Средняя ошибка до фильтрации (MSE):   {avg_mse_before:.6f}')
-    print(f'• Средняя ошибка после фильтрации (MSE): {avg_mse_after:.6f}')
-    print(f'• Снижение уровня шума / ошибки:        {total_improvement:.2f}%')
-    print(f'• Прирост дБ: +{snr_db_gain:.2f} дБ')
-    print(' ' * 60)
-    print(f'• Фазовая ошибка до фильтрации:   {avg_ph_err_before:.6f}')
-    print(f'• Фазовая ошибка после фильтрации: {avg_ph_err_after:.6f}')
+    print('РЕЗУЛЬТАТЫ:')
+    print(f'Средняя ошибка ДО очистки (MSE):    {avg_before:.6f}')
+    print(f'Средняя ошибка ПОСЛЕ очистки (MSE): {avg_after:.6f}')
+    print(f'Улучшение:                    {improvement:.2f}%')
+    print(f'Прирост SNR:                  +{snr_gain:.2f} дБ')
 
 
-# ---------------------------------------------------------------------------
-# CLI для локального обучения и тестирования (без Rust)
-# ---------------------------------------------------------------------------
-def main():
-    parser = argparse.ArgumentParser(
-        description='Обучение и тестирование модели шумоподавления'
+def process_request(audio_bytes: bytes) -> bytes:
+    """
+    Основная точка входа для Rust-сервера:
+    принимает сырые байты WAV, чистит их в памяти и возвращает байты.
+    """
+    audio = bytes_to_audio(audio_bytes)
+    clean_audio = denoise_audio(audio)
+    return audio_to_bytes(clean_audio)
+
+
+if __name__ == '__main__':
+    dataset = ComplexAudioDataset(train_clean_dir, train_noisy_dir, max_files=3500)
+
+    if len(dataset) == 0:
+        print("Ошибка: датасет пуст или пути указаны неверно.")
+        exit()
+
+    dataloader = DataLoader(dataset, batch_size=16, shuffle=True)
+    model = ComplexUNetDenoiser().to(device)
+
+    criterion = nn.L1Loss()
+    optimizer = optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
+
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode='min', factor=0.5, patience=2
     )
+
+    EPOCHS = 30
+    print("Старт обучения комплексной U-Net...")
+    for epoch in range(EPOCHS):
+        model.train()
+        running_loss = 0.0
+        for inputs, targets in dataloader:
+            inputs, targets = inputs.to(device), targets.to(device)
+
+            optimizer.zero_grad()
+            outputs = model(inputs)
+            loss = criterion(outputs, targets)
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            optimizer.step()
+
+            running_loss += loss.item()
+        epoch_loss = running_loss / len(dataloader)
+        scheduler.step(epoch_loss)
+        current_lr = optimizer.param_groups[0]['lr']
+        print(f"Эпоха [{epoch + 1}/{EPOCHS}]    Loss: {epoch_loss :.6f}")
+
+    torch.save(model.state_dict(), model_path)
+    print(f"Модель сохранена: {model_path}")
+
+
+
+    print("Проверка качества на тестовых файлах...")
+    evaluate(model, test_clean_dir, test_noisy_dir)
+
+def main():
+    parser = argparse.ArgumentParser(description='Комплексный U-Net Denoiser CLI')
     sub = parser.add_subparsers(dest='command', required=True)
 
-    p_train = sub.add_parser(
-        'train', help='Обучить модель на dataset/train и сохранить remove_noise_model.pkl'
-    )
-    p_train.add_argument('--max-files', type=int, default=40)
-    p_train.add_argument('--max-test-files', type=int, default=40)
+    p_train = sub.add_parser('train', help='Обучить модель')
+    p_train.add_argument('--max-files', type=int, default=3500)
+    p_train.add_argument('--max-test-files', type=int, default=200)
+    p_train.add_argument('--epochs', type=int, default=30)
 
-    p_test = sub.add_parser(
-        'test', help='Оценить точность уже обученной модели на dataset/train'
-    )
-    p_test.add_argument('--max-files', type=int, default=40)
+    p_test = sub.add_parser('test', help='Проверить метрики модели')
+    p_test.add_argument('--max-files', type=int, default=200)
 
-    p_denoise = sub.add_parser(
-        'denoise', help='Прогнать один wav-файл через модель (для ручной проверки)'
-    )
-    p_denoise.add_argument('input', help='Путь к зашумлённому wav')
-    p_denoise.add_argument('output', help='Куда сохранить очищенный wav')
+    p_denoise = sub.add_parser('denoise', help='Очистить один файл')
+    p_denoise.add_argument('input', help='Путь к зашумленному wav')
+    p_denoise.add_argument('output', help='Путь для сохранения очищенного wav')
 
     args = parser.parse_args()
 
     if args.command == 'train':
-        train(max_files=args.max_files, max_test_files=args.max_test_files)
+        train(max_files=args.max_files, max_test_files=args.max_test_files, epochs=args.epochs)
     elif args.command == 'test':
         model = get_model()
-        calculate_dataset_accuracy(model, clean_dir, noisy_dir, max_test_files=args.max_files)
+        evaluate(model, test_clean_dir, test_noisy_dir, max_test_files=args.max_files)
     elif args.command == 'denoise':
-        denoise_audio_file(args.input, args.output)
-        print(f'Готово: {args.output}')
+        clean_audio, _ = denoise_audio(args.input)
+        save_wav(clean_audio, args.output)
+        print(f"Очищенный файл сохранен в: {args.output}")
 
 
 if __name__ == '__main__':
