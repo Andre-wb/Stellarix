@@ -1,8 +1,7 @@
-// Stellarix — SVG-иконки (серые с белой окантовкой), заменяют эмодзи в баннерах.
+// Stellarix — SVG-иконки (серые, тонкая линия), заменяют эмодзи в баннерах.
 const StxIcons = (() => {
     function icon(inner) {
         return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px" aria-hidden="true">'
-            + '<g stroke="#ffffff" stroke-width="3.6" fill="none" stroke-linecap="round" stroke-linejoin="round">' + inner + '</g>'
             + '<g stroke="#8a8a88" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round">' + inner + '</g>'
             + '</svg>';
     }

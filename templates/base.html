@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{% endblock %}</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <script>(function(){try{var t=localStorage.getItem('stx_theme');if(t&&t!=='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();</script>
+    <script>(function(){try{var m=window.matchMedia?window.matchMedia('(prefers-color-scheme: light)'):null;function a(){var t=localStorage.getItem('stx_theme');if(t==='auto'){t=(m&&m.matches)?'light':'dark';}if(t&&t!=='dark'){document.documentElement.setAttribute('data-theme',t);}else{document.documentElement.removeAttribute('data-theme');}}a();if(m){if(m.addEventListener){m.addEventListener('change',a);}else if(m.addListener){m.addListener(a);}}}catch(e){}})();</script>
     <script src="/static/js/i18n.js"></script>
+    <script src="/static/js/confirm-modal.js"></script>
     <script src="/static/js/menu.js"></script>
     {% block extra_head %}{% endblock %}
 </head>
