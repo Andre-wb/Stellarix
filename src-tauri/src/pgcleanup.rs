@@ -182,39 +182,6 @@ pub async fn free_stale_instance(pg_data: &Path, port: u16) -> Result<(), String
     Ok(())
 }
 
-fn parse_pg_major(version_output: &str) -> Option<String> {
-    let token = version_output
-        .split_whitespace()
-        .find(|t| t.chars().next().map_or(false, |c| c.is_ascii_digit()))?;
-    let major: String = token.chars().take_while(|c| c.is_ascii_digit()).collect();
-    if major.is_empty() {
-        None
-    } else {
-        Some(major)
-    }
-}
-
-pub fn datadir_version_conflict(pg_data: &Path, binary_dir: &Path) -> Option<(String, String)> {
-    let data_major = std::fs::read_to_string(pg_data.join("PG_VERSION"))
-        .ok()?
-        .trim()
-        .to_string();
-    if data_major.is_empty() {
-        return None;
-    }
-    let binary = binary_dir.join(if cfg!(windows) { "postgres.exe" } else { "postgres" });
-    let output = std::process::Command::new(&binary)
-        .arg("--version")
-        .output()
-        .ok()?;
-    let binary_major = parse_pg_major(&String::from_utf8_lossy(&output.stdout))?;
-    if data_major != binary_major {
-        Some((data_major, binary_major))
-    } else {
-        None
-    }
-}
-
 pub fn start_log_tail(pg_data: &Path, max_bytes: usize) -> Option<String> {
     let data = std::fs::read(pg_data.join("start.log")).ok()?;
     if data.is_empty() {

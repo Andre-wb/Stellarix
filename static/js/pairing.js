@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function lockAudioUi() {
         bannerEl.style.display = 'block';
         bannerEl.style.background = 'rgba(230, 80, 60, 0.15)';
-        bannerEl.textContent = '⚠️ ' + AudioModem.unavailableReason;
+        bannerEl.innerHTML = StxIcons.warn + ' ' + AudioModem.unavailableReason;
         shareBtn.disabled = true;
         receiveBtn.disabled = true;
         resetBtn.disabled = true;
@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
             bannerEl.style.display = 'block';
             bannerEl.style.background = 'rgba(40, 180, 99, 0.15)';
             bannerEl.innerHTML =
-                '✅ Сопряжение выполнено. Отпечаток ключа: <strong>' + E2E.getFingerprint() + '</strong>. ' +
+                StxIcons.ok + ' Сопряжение выполнено. Отпечаток ключа: <strong>' + E2E.getFingerprint() + '</strong>. ' +
                 'Сверьте его вслух с собеседником — если отпечатки совпадают, можно переходить в ' +
                 '<a href="/chat">чат</a>.';
         } else if (E2E.hasPendingKey()) {

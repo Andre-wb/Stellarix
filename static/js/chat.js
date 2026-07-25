@@ -68,7 +68,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const bubble = makeBubble(kind);
         bubble.classList.add('chat-file');
         const title = document.createElement('div');
-        title.textContent = '📎 ' + name;
+        title.textContent = ' ' + name;
+        title.insertAdjacentHTML('afterbegin', StxIcons.clip);
         const metaEl = document.createElement('div');
         metaEl.className = 'chat-file-meta';
         metaEl.textContent = meta;
@@ -90,7 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function lockAudioUi() {
         bannerEl.style.display = 'block';
         bannerEl.style.background = 'rgba(230, 80, 60, 0.15)';
-        bannerEl.textContent = '⚠️ ' + AudioModem.unavailableReason;
+        bannerEl.innerHTML = StxIcons.warn + ' ' + AudioModem.unavailableReason;
         sendBtn.disabled = true;
         attachBtn.disabled = true;
         listenBtn.disabled = true;
@@ -108,19 +109,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!E2E.isSupported()) {
             bannerEl.style.display = 'block';
             bannerEl.style.background = 'rgba(230, 80, 60, 0.15)';
-            bannerEl.textContent = '⚠️ Встроенный движок приложения не поддерживает нужную криптографию (WebCrypto). Обновите систему или компонент WebView.';
+            bannerEl.innerHTML = StxIcons.warn + ' Встроенный движок приложения не поддерживает нужную криптографию (WebCrypto). Обновите систему или компонент WebView.';
             sendBtn.disabled = true;
             return;
         }
         if (!E2E.isPaired()) {
             bannerEl.style.display = 'block';
             bannerEl.style.background = 'rgba(230, 80, 60, 0.15)';
-            bannerEl.innerHTML = '⚠️ Сопряжение ещё не выполнено. <a href="/pairing">Выполните сопряжение по звуку</a> перед началом чата.';
+            bannerEl.innerHTML = StxIcons.warn + ' Сопряжение ещё не выполнено. <a href="/pairing">Выполните сопряжение по звуку</a> перед началом чата.';
             sendBtn.disabled = true;
         } else {
             bannerEl.style.display = 'block';
             bannerEl.style.background = 'rgba(40, 180, 99, 0.15)';
-            bannerEl.textContent = '✅ Сопряжено. Отпечаток ключа: ' + E2E.getFingerprint();
+            bannerEl.innerHTML = StxIcons.ok + ' Сопряжено. Отпечаток ключа: ' + E2E.getFingerprint();
             sendBtn.disabled = false;
         }
     }
