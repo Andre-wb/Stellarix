@@ -210,3 +210,60 @@ pub fn decode_recording(samples: &[f32], sample_rate: u32) -> DecodeResult {
 pub fn decode(samples: &[f32], sample_rate: u32) -> Option<Vec<u8>> {
     decode_recording(samples, sample_rate).payload
 }
+
+/// Абстракция над обращением к нейросети, которая чистит сэмплы от шума.
+/// Конкретную реализацию (HTTP-запрос к Python-сервису с моделью,
+/// синхронный/асинхронный клиент и т.д.) нужно подставить снаружи —
+/// здесь только контракт: вход - "грязные" сэмплы, выход - очищенные,
+/// либо None, если обратиться к нейросети не удалось (сеть недоступна и т.п.).
+pub trait Denoiser {
+    fn denoise(&self, samples: &[f32], sample_rate: u32) -> Option<Vec<f32>>;
+}
+
+/// Максимальное число попыток декодирования одной записи, прежде чем сдаться.
+pub const MAX_DECODE_ATTEMPTS: usize = 5;
+
+/// То же самое, что `decode_recording`, но если декодер не справляется сам,
+/// то после первой неудачи запись отправляется в нейросеть на очистку от шума
+/// и декодирование повторяется на очищенных сэмплах. Так до `MAX_DECODE_ATTEMPTS`
+/// попыток суммарно (1 "как есть" + до `MAX_DECODE_ATTEMPTS - 1` после очистки,
+/// причём каждый следующий проход чистит уже предыдущий очищенный результат,
+/// а не исходную запись — это дает эффект постепенного улучшения).
+pub fn decode_recording_with_denoise(
+    samples: &[f32],
+    sample_rate: u32,
+    denoiser: &dyn Denoiser,
+) -> DecodeResult {
+    let mut current: Vec<f32> = samples.to_vec();
+
+    let mut result = decode_recording(&current, sample_rate);
+    if result.payload.is_some() {
+        return result;
+    }
+
+    for _attempt in 1..MAX_DECODE_ATTEMPTS {
+        match denoiser.denoise(&current, sample_rate) {
+            Some(cleaned) => {
+                current = cleaned;
+                result = decode_recording(&current, sample_rate);
+                if result.payload.is_some() {
+                    return result;
+                }
+            }
+            // Нейросеть недоступна/вернула ошибку — дальше пробовать нечего
+            None => break,
+        }
+    }
+
+    result
+}
+
+/// Удобная обёртка, возвращающая сразу декодированный payload (как `decode`),
+/// но с фолбэком на нейросеть при неудаче.
+pub fn decode_with_denoise(
+    samples: &[f32],
+    sample_rate: u32,
+    denoiser: &dyn Denoiser,
+) -> Option<Vec<u8>> {
+    decode_recording_with_denoise(samples, sample_rate, denoiser).payload
+}
