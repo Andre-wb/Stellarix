@@ -26,12 +26,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const hasAvatar = typeof Avatar !== 'undefined';
 
+    function ownName() {
+        const el = document.querySelector('.chat-user');
+        return el ? (el.textContent || '').trim() : '';
+    }
+
     function showPeerAvatar(dataUrl) {
         if (!peerBox || !hasAvatar) return;
-        Avatar.render(peerAvatarEl, dataUrl, '?');
+        Avatar.render(peerAvatarEl, dataUrl, Avatar.peerLetter());
         peerLabelEl.textContent = dataUrl
             ? 'Аватар собеседника получен — он будет слева в чате.'
-            : 'Собеседник без аватара — покажем букву по умолчанию.';
+            : '';
         peerBox.classList.add('show');
     }
 
@@ -39,11 +44,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (peerBox) peerBox.classList.remove('show');
     }
 
-    function applyPeerFromHex(avatarHex) {
+    function applyPeerFromProfile(profileHex) {
         if (!hasAvatar) return;
-        const dataUrl = avatarHex ? Avatar.bytesToDataUrl(Avatar.hexToBytes(avatarHex)) : '';
-        Avatar.setPeer(dataUrl);
-        showPeerAvatar(dataUrl);
+        const profile = Avatar.parseProfileHex(profileHex);
+        Avatar.setPeerName(profile.name);
+        Avatar.setPeer(profile.avatar);
+        showPeerAvatar(profile.avatar);
     }
 
     if (hasAvatar && E2E.isPaired() && Avatar.getPeer()) {
@@ -189,9 +195,9 @@ document.addEventListener('DOMContentLoaded', () => {
             setStatus('Готовлю ключ...');
             const publicHex = await keypairReady();
             if (gen !== shareGen) return;
-            const avatarHex = hasAvatar ? Avatar.ownHex() : '';
-            setStatus(avatarHex ? 'Передаю ключ и аватар...' : 'Передаю ключ...');
-            const report = await AudioModem.playPublicKeyHex(publicHex + avatarHex, liveStatus);
+            const profileHex = hasAvatar ? Avatar.profileHex(ownName()) : '';
+            setStatus(hasAvatar && Avatar.getOwn() ? 'Передаю ключ и аватар...' : 'Передаю ключ...');
+            const report = await AudioModem.playPublicKeyHex(publicHex + profileHex, liveStatus);
             if (gen !== shareGen) return;
             if (wasDelivered(report)) {
                 setStatus(E2E.isPaired()
@@ -229,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 onLevel: setLevel,
                 onDecoded: async (hex) => {
                     const peerHex = hex.slice(0, 64);
-                    const avatarHex = hex.slice(64);
+                    const profileHex = hex.slice(64);
                     const own = E2E.getPublicHex();
                     if (own && peerHex.toLowerCase() === own.toLowerCase()) {
                         activeListener = null;
@@ -240,7 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     resetListenUi();
                     if (E2E.isPaired()) {
                         if (E2E.getPeerHex() === peerHex.toLowerCase()) {
-                            if (avatarHex) applyPeerFromHex(avatarHex);
+                            if (profileHex) applyPeerFromProfile(profileHex);
                             setStatus('Это тот же ключ собеседника — сопряжение уже выполнено, отпечаток прежний: ' + E2E.getFingerprint());
                         } else {
                             setStatus('Принят ключ другого устройства. Текущее сопряжение сохранено — чтобы связаться с новым собеседником, нажмите «Начать заново».');
@@ -252,7 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     try {
                         await keypairReady();
                         const fingerprint = await E2E.completePairing(peerHex);
-                        applyPeerFromHex(avatarHex);
+                        applyPeerFromProfile(profileHex);
                         setStatus('Готово! Теперь нажмите «Поделиться ключом», чтобы собеседник тоже завершил сопряжение.');
                         resultEl.textContent =
                             'Сеансовый ключ создан в браузере. Сверьте отпечаток с собеседником вслух: ' + fingerprint;
@@ -305,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
         disarmReset();
         cancelActivity();
         E2E.reset();
-        if (hasAvatar) Avatar.clearPeer();
+        if (hasAvatar) { Avatar.clearPeer(); Avatar.clearPeerName(); }
         hidePeerAvatar();
         keypairPromise = null;
         if (levelEl) levelEl.textContent = IDLE_LEVEL;

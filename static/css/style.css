@@ -568,6 +568,78 @@ header nav {
     word-break: break-all;
 }
 
+.msg-bubble-media {
+    position: relative;
+    cursor: pointer;
+    padding: 0;
+    overflow: hidden;
+    width: fit-content;
+    max-width: min(320px, 72%);
+    border-radius: 12px;
+    transition: opacity 0.15s;
+    align-self: flex-start;
+    background: none;
+    border: none;
+    box-shadow: none;
+}
+.msg-bubble-media.own { align-self: flex-end; }
+.msg-bubble-media:hover { opacity: 0.9; }
+
+.chat-image {
+    width: 100%;
+    max-width: 100%;
+    max-height: 300px;
+    height: auto;
+    object-fit: contain;
+    border-radius: 12px;
+    display: block;
+}
+
+#image-viewer-overlay {
+    position: fixed; inset: 0; z-index: 400;
+    background: rgba(0, 0, 0, 0.96);
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    cursor: zoom-out;
+}
+#image-viewer-overlay.show { display: flex; }
+
+.iv-close {
+    position: absolute; top: 20px; right: 20px;
+    width: 40px; height: 40px; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #fff; font-size: 20px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s; z-index: 1;
+}
+.iv-close:hover { background: rgba(255, 255, 255, 0.18); }
+
+.iv-name {
+    position: absolute; top: 22px; left: 50%; transform: translateX(-50%);
+    color: rgba(255, 255, 255, 0.6); font-size: 13px; font-family: var(--mono);
+    white-space: nowrap; max-width: 60%; overflow: hidden; text-overflow: ellipsis;
+}
+
+.iv-content { max-width: 94vw; max-height: 88vh; cursor: default; }
+
+#image-viewer-img {
+    max-width: 100%; max-height: 88vh;
+    object-fit: contain; border-radius: 6px;
+    display: block;
+    width: auto; height: auto;
+    box-shadow: 0 8px 60px rgba(0, 0, 0, 0.7);
+}
+
+.iv-download {
+    position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 4px;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 12px; font-family: var(--mono);
+    text-decoration: none;
+    transition: color 0.15s;
+}
+.iv-download:hover { color: var(--accent-2); }
+
 /* --------------------------------------------------------------------------
    Сопряжение
    -------------------------------------------------------------------------- */
@@ -1098,3 +1170,6 @@ canvas.chart { display: block; width: 100%; height: 180px; }
 .msg-row { display: flex; align-items: flex-end; gap: 8px; max-width: 85%; align-self: flex-start; }
 .msg-row .avatar-circle { width: 30px; height: 30px; font-size: 13px; }
 .msg-row .chat-bubble { align-self: auto; }
+.msg-col { display: flex; flex-direction: column; gap: 2px; min-width: 0; align-items: flex-start; }
+.msg-name { font-size: 11px; font-weight: 600; color: var(--text-3); padding-left: 3px; }
+.msg-name:empty { display: none; }

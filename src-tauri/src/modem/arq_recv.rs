@@ -40,6 +40,14 @@ struct FileEvent {
     hash_ok: bool,
     saved: bool,
     reason: String,
+    data_hex: String,
+}
+
+fn is_image_name(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"]
+        .iter()
+        .any(|ext| lower.ends_with(ext))
 }
 
 pub struct Listener {
@@ -236,6 +244,11 @@ fn handle_envelope(app: &AppHandle, envelope: Vec<u8>) -> Result<(), String> {
                 path = save_file(app, &safe, &content)?;
                 saved = true;
             }
+            let data_hex = if saved && is_image_name(&safe) {
+                to_hex(&content)
+            } else {
+                String::new()
+            };
             let _ = app.emit(
                 "modem-file",
                 FileEvent {
@@ -245,6 +258,7 @@ fn handle_envelope(app: &AppHandle, envelope: Vec<u8>) -> Result<(), String> {
                     hash_ok,
                     saved,
                     reason,
+                    data_hex,
                 },
             );
         }
