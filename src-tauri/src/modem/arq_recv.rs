@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -6,18 +6,24 @@ use std::time::{Duration, Instant};
 use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Emitter, Manager};
 
-use audiodsp::ofdm::{decode_stream, encode_transmission, unpack_payload, OfdmConfig};
+use audiodsp::ofdm::{
+    encode_one_packet, encode_transmission, pack_payload, scan_packets, unpack_payload,
+    Modulation, OfdmConfig, RateAdapter,
+};
 
-use super::capture::start_capture;
+use super::capture::{start_capture, Capture};
 use super::hexutil::to_hex;
-use super::player::play_wave;
+use super::player::OutputPlayer;
 use super::proto::{self, Frame};
-use super::session::snapshot_at;
+use super::session::tail_at;
 
 const RECV_TIMEOUT: Duration = Duration::from_secs(240);
 const QUIET: Duration = Duration::from_secs(5);
 const MAX_NAKS: usize = 8;
 const NAK_LIST_CAP: usize = 500;
+const POLL_INTERVAL: Duration = Duration::from_millis(150);
+const DATA_TAIL_SECONDS: f32 = 6.0;
+const ECHO_MUTE: Duration = Duration::from_millis(250);
 
 #[derive(Clone, serde::Serialize)]
 struct Packets {
@@ -33,115 +39,134 @@ struct FileEvent {
     hash_ok: bool,
 }
 
-enum Outcome {
-    Complete,
-    SendNak,
-    Stopped,
-    Deadline,
+pub struct Listener {
+    stop: Arc<AtomicBool>,
 }
 
-pub fn run_receive(app: AppHandle, stop: Arc<AtomicBool>) {
-    if let Err(e) = receive_loop(&app, &stop) {
-        let _ = app.emit("modem-error", e);
+impl Listener {
+    pub fn signal_stop(&self) {
+        self.stop.store(true, Ordering::SeqCst);
     }
 }
 
-fn receive_loop(app: &AppHandle, stop: &Arc<AtomicBool>) -> Result<(), String> {
+pub fn start(app: AppHandle) -> Result<Listener, String> {
+    let cap = start_capture()?;
+    let out = OutputPlayer::open()?;
+    let stop = Arc::new(AtomicBool::new(false));
+    let flag = stop.clone();
+    std::thread::spawn(move || {
+        if let Err(e) = receive_loop(&app, &flag, cap, out) {
+            let _ = app.emit("modem-error", e);
+        }
+    });
+    Ok(Listener { stop })
+}
+
+fn build_control_wave(bytes: &[u8], cfg: &OfdmConfig) -> Vec<f32> {
+    let mut ctrl_cfg = cfg.clone();
+    ctrl_cfg.modulation = Modulation::Bpsk;
+    let packed = pack_payload(bytes, None);
+    let pkt = encode_one_packet(&packed, 0, &ctrl_cfg).unwrap_or_default();
+    let pad = (ctrl_cfg.fs / 20) as usize;
+    let mut out = vec![0f32; pad];
+    out.extend(pkt);
+    out.extend(std::iter::repeat_n(0f32, pad));
+    out
+}
+
+fn receive_loop(
+    app: &AppHandle,
+    stop: &Arc<AtomicBool>,
+    cap: Capture,
+    out: OutputPlayer,
+) -> Result<(), String> {
     let cfg = OfdmConfig::default_48k();
     let mut play_cfg = cfg.clone();
     play_cfg.headroom = audiodsp::PLAYBACK_GAIN.clamp(0.05, 1.0);
-    let mut deadline = Instant::now() + RECV_TIMEOUT;
+    play_cfg.modulation = Modulation::Bpsk;
+
+    let mut adapter = RateAdapter::new(Modulation::Bpsk);
     let mut parts: HashMap<usize, Vec<u8>> = HashMap::new();
+    let mut resolved: HashSet<usize> = HashSet::new();
+    let mut watermark: usize = 0;
     let mut total: Option<usize> = None;
+    let mut deadline = Instant::now() + RECV_TIMEOUT;
+    let mut last_progress = Instant::now();
+    let mut mute_until = Instant::now();
     let mut naks = 0usize;
+
     loop {
-        let cap = start_capture()?;
-        let mut scan_from = 0usize;
-        let mut last_decode_len = 0usize;
-        let mut last_progress = Instant::now();
-        let outcome = loop {
-            std::thread::sleep(Duration::from_millis(250));
-            let _ = app.emit("modem-level", cap.level());
-            if stop.load(Ordering::SeqCst) {
-                break Outcome::Stopped;
-            }
-            if Instant::now() >= deadline {
-                break Outcome::Deadline;
-            }
-            let len = cap.len();
-            if len >= last_decode_len + cfg.fs as usize * 2 {
-                last_decode_len = len;
-                let snap = snapshot_at(&cap, cfg.fs);
-                let rep = decode_stream(&snap, &cfg, scan_from);
-                scan_from = rep.consumed;
+        std::thread::sleep(POLL_INTERVAL);
+        let _ = app.emit("modem-level", cap.level());
+        if stop.load(Ordering::SeqCst) {
+            let _ = app.emit("modem-stopped", "Приём остановлен.".to_string());
+            return Ok(());
+        }
+        if Instant::now() >= deadline {
+            let _ = app.emit(
+                "modem-error",
+                "Не удалось принять данные полностью. Сблизьте устройства, увеличьте громкость и повторите.".to_string(),
+            );
+            return Ok(());
+        }
+
+        if Instant::now() >= mute_until {
+            let max_raw = (cap.sample_rate as f32 * DATA_TAIL_SECONDS) as usize;
+            let (snap, raw_start) = tail_at(&cap, cfg.fs, max_raw);
+            let ratio = cap.sample_rate as f64 / cfg.fs as f64;
+            let mut news = false;
+            for pkt in scan_packets(&snap, &cfg) {
+                let abs = raw_start + (pkt.start_sample as f64 * ratio).round() as usize;
+                if abs <= watermark {
+                    continue;
+                }
+
+                let seq = pkt.header.seq as usize;
+                let hdr_total = pkt.header.total as usize;
                 if total.is_none() {
-                    total = rep.total;
+                    total = Some(hdr_total);
                 }
+                if Some(hdr_total) != total {
+                    continue;
+                }
+                watermark = abs;
+                if resolved.contains(&seq) {
+                    continue;
+                }
+                let ok = pkt.payload.is_some();
+
+                let previous = adapter.current();
+                let recommended = if ok {
+                    adapter.observe_snr(pkt.snr_db)
+                } else {
+                    adapter.observe_failure()
+                };
+                if ok {
+                    if let Some(payload) = pkt.payload {
+                        parts.insert(seq, payload);
+                        resolved.insert(seq);
+                        news = true;
+                    }
+                }
+                if !ok || recommended != previous {
+                    let bytes =
+                        proto::encode_rate(seq as u16, ok, recommended.id(), pkt.snr_db);
+                    let wave = build_control_wave(&bytes, &play_cfg);
+                    out.play(&wave, cfg.fs, stop)?;
+                    mute_until = Instant::now() + ECHO_MUTE;
+                }
+            }
+            if news {
+                last_progress = Instant::now();
+                deadline = Instant::now() + RECV_TIMEOUT;
                 if let Some(t) = total {
-                    let mut news = false;
-                    if rep.total.is_none() || rep.total == Some(t) {
-                        for (s, p) in rep.parts {
-                            if s < t && !parts.contains_key(&s) {
-                                parts.insert(s, p);
-                                news = true;
-                            }
-                        }
-                    }
-                    if news {
-                        last_progress = Instant::now();
-                        deadline = Instant::now() + RECV_TIMEOUT;
-                        let _ = app.emit(
-                            "modem-packets",
-                            Packets {
-                                have: parts.len(),
-                                total: t,
-                            },
-                        );
-                    }
-                    if parts.len() >= t {
-                        break Outcome::Complete;
-                    }
+                    let _ = app.emit("modem-packets", Packets { have: parts.len(), total: t });
                 }
             }
-            if !parts.is_empty() && total.is_some() && last_progress.elapsed() >= QUIET {
-                if naks < MAX_NAKS {
-                    break Outcome::SendNak;
-                }
-                break Outcome::Deadline;
-            }
-        };
-        drop(cap);
-        match outcome {
-            Outcome::Stopped => {
-                let _ = app.emit("modem-stopped", "Приём остановлен.".to_string());
-                return Ok(());
-            }
-            Outcome::Deadline => {
-                let _ = app.emit(
-                    "modem-error",
-                    "Не удалось принять данные полностью. Сблизьте устройства, увеличьте громкость и повторите.".to_string(),
-                );
-                return Ok(());
-            }
-            Outcome::SendNak => {
-                let t = total.unwrap();
-                let missing: Vec<u16> = (0..t)
-                    .filter(|s| !parts.contains_key(s))
-                    .map(|s| s as u16)
-                    .take(NAK_LIST_CAP)
-                    .collect();
-                naks += 1;
-                let _ = app.emit(
-                    "modem-status",
-                    format!("Запрашиваю повтор {} пакетов...", missing.len()),
-                );
-                let wave =
-                    encode_transmission(&proto::encode_nak(t as u16, &missing), &play_cfg);
-                let _ = play_wave(&wave, play_cfg.fs);
-                let _ = app.emit("modem-status", "Жду повторную передачу...".to_string());
-            }
-            Outcome::Complete => {
-                let t = total.unwrap();
+        }
+
+        if let Some(t) = total {
+            if parts.len() >= t {
                 let mut packed = Vec::new();
                 for s in 0..t {
                     packed.extend_from_slice(&parts[&s]);
@@ -156,9 +181,38 @@ fn receive_loop(app: &AppHandle, stop: &Arc<AtomicBool>) -> Result<(), String> {
                 handle_envelope(app, envelope)?;
                 let _ = app.emit("modem-status", "Отправляю подтверждение приёма...".to_string());
                 let wave = encode_transmission(&proto::encode_ack(t as u16), &play_cfg);
-                let _ = play_wave(&wave, play_cfg.fs);
+                out.play(&wave, cfg.fs, stop)?;
                 std::thread::sleep(Duration::from_millis(200));
-                let _ = play_wave(&wave, play_cfg.fs);
+                out.play(&wave, cfg.fs, stop)?;
+                return Ok(());
+            }
+        }
+
+        if Instant::now() >= mute_until
+            && !parts.is_empty()
+            && last_progress.elapsed() >= QUIET
+        {
+            if let (true, Some(t)) = (naks < MAX_NAKS, total) {
+                let missing: Vec<u16> = (0..t)
+                    .filter(|s| !parts.contains_key(s))
+                    .map(|s| s as u16)
+                    .take(NAK_LIST_CAP)
+                    .collect();
+                naks += 1;
+                let _ = app.emit(
+                    "modem-status",
+                    format!("Запрашиваю повтор {} пакетов...", missing.len()),
+                );
+                let wave = encode_transmission(&proto::encode_nak(t as u16, &missing), &play_cfg);
+                out.play(&wave, cfg.fs, stop)?;
+                mute_until = Instant::now() + ECHO_MUTE;
+                last_progress = Instant::now();
+                let _ = app.emit("modem-status", "Жду повторную передачу...".to_string());
+            } else {
+                let _ = app.emit(
+                    "modem-error",
+                    "Не удалось принять данные полностью. Сблизьте устройства, увеличьте громкость и повторите.".to_string(),
+                );
                 return Ok(());
             }
         }
@@ -190,7 +244,7 @@ fn handle_envelope(app: &AppHandle, envelope: Vec<u8>) -> Result<(), String> {
                 },
             );
         }
-        Some(Frame::Nak { .. }) | Some(Frame::Ack { .. }) => {
+        Some(Frame::Nak { .. }) | Some(Frame::Ack { .. }) | Some(Frame::Rate { .. }) => {
             let _ = app.emit(
                 "modem-error",
                 "Принят служебный сигнал вместо данных. Повторите передачу.".to_string(),
