@@ -19,7 +19,7 @@ pub async fn create_router(pool: DbPool, static_dir: PathBuf) -> axum::Router {
     use routes::{
         get_profile, get_login, post_login,
         get_register, post_register, logout,
-        get_pairing, get_chat, get_dashboard,
+        get_pairing, get_chat, get_dashboard, get_settings,
     };
 
     Router::new()
@@ -33,6 +33,7 @@ pub async fn create_router(pool: DbPool, static_dir: PathBuf) -> axum::Router {
         .route("/pairing", get(get_pairing))
         .route("/chat", get(get_chat))
         .route("/dashboard", get(get_dashboard))
+        .route("/settings", get(get_settings))
         .route("/api/stats", post(stats::record_transfer))
         .route("/diagnostics", get(get_diagnostics))
         .nest_service("/static", ServeDir::new(static_dir))
