@@ -20,9 +20,10 @@ use super::session::{listen_once, tail_at, wait_ctrl_on, CtrlWait};
 const LISTEN_WINDOW: Duration = Duration::from_millis(900);
 const LISTEN_TAIL_SECONDS: f32 = 2.5;
 const MAX_PACKET_RETRIES: usize = 3;
-const MAX_ROUNDS: usize = 6;
+const MAX_ROUNDS: usize = 8;
 const MAX_FULL_REPLAYS: usize = 1;
 const ACK_WAIT: Duration = Duration::from_secs(12);
+const GAIN_SWEEP: [f32; 4] = [0.4, 0.25, 0.7, 0.95];
 
 const SENSE_POLL: Duration = Duration::from_millis(700);
 const SENSE_TAIL_SECONDS: f32 = 3.0;
@@ -128,6 +129,7 @@ pub fn run_send(
 
     let mut modulation = Modulation::Bpsk;
     let mut gain = GainController::new(cfg.headroom);
+    let mut heard = false;
     for seq in 0..total {
         if stop.load(Ordering::SeqCst) {
             return Ok("Передача остановлена.".to_string());
@@ -154,6 +156,7 @@ pub fn run_send(
                     snr_db,
                     gain: adv,
                 }) if s as usize == seq => {
+                    heard = true;
                     modulation = m;
                     let g = gain.apply(adv);
                     let _ = app.emit(
@@ -176,11 +179,23 @@ pub fn run_send(
     }
 
     let mut ack = sendplan::AckLoop::new(total, MAX_FULL_REPLAYS, missing);
+    let mut sweep_idx = 0usize;
     for _round in 1..=MAX_ROUNDS {
         if stop.load(Ordering::SeqCst) {
             return Ok("Передача остановлена.".to_string());
         }
         if let Some(t) = ack.targets() {
+            if !heard && sweep_idx < GAIN_SWEEP.len() {
+                gain = GainController::new(GAIN_SWEEP[sweep_idx]);
+                sweep_idx += 1;
+                let _ = app.emit(
+                    "modem-status",
+                    format!(
+                        "Ответа нет — подбираю громкость {:.0}%...",
+                        gain.current() * 100.0
+                    ),
+                );
+            }
             let mut safe_cfg = cfg.clone();
             safe_cfg.modulation = Modulation::Bpsk;
             safe_cfg.headroom = gain.current();
@@ -193,7 +208,16 @@ pub fn run_send(
             out.play(&wave, cfg.fs, &stop)?;
         }
         let _ = app.emit("modem-status", "Жду подтверждение приёма...".to_string());
-        let outcome = match wait_ctrl_on(app, &stop, &cfg, &cap, ACK_WAIT) {
+        let ctrl = wait_ctrl_on(app, &stop, &cfg, &cap, ACK_WAIT);
+        match &ctrl {
+            CtrlWait::Ack(_) | CtrlWait::Nak(_, _) => heard = true,
+            CtrlWait::Rate { gain: adv, .. } => {
+                heard = true;
+                gain.apply(*adv);
+            }
+            _ => {}
+        }
+        let outcome = match ctrl {
             CtrlWait::Ack(t) => CtrlOutcome::Ack(t as usize),
             CtrlWait::Nak(t, miss) => CtrlOutcome::Nak(t as usize, miss),
             CtrlWait::Rate { .. } => CtrlOutcome::Rate,

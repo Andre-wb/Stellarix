@@ -3,6 +3,8 @@ pub const MAX_GAIN: f32 = 0.95;
 const STEP: f32 = 0.1;
 
 const CLIP_FRAC: f32 = 0.002;
+const HOT_PEAK: f32 = 0.8;
+const POOR_SNR_DB: f32 = 12.0;
 const LOW_PEAK: f32 = 0.2;
 const RAISE_SNR_DB: f32 = 8.0;
 
@@ -32,7 +34,7 @@ impl GainAdvice {
 }
 
 pub fn advise_gain(snr_db: f32, clip_ratio: f32, peak: f32) -> GainAdvice {
-    if clip_ratio > CLIP_FRAC {
+    if clip_ratio > CLIP_FRAC || (peak > HOT_PEAK && snr_db < POOR_SNR_DB) {
         GainAdvice::Lower
     } else if peak < LOW_PEAK && snr_db < RAISE_SNR_DB {
         GainAdvice::Raise
@@ -83,6 +85,16 @@ mod tests {
     #[test]
     fn healthy_link_holds() {
         assert_eq!(advise_gain(20.0, 0.0, 0.6), GainAdvice::Hold);
+    }
+
+    #[test]
+    fn loud_but_dirty_link_advises_lower_without_hard_railing() {
+        assert_eq!(advise_gain(8.0, 0.0, 0.9), GainAdvice::Lower);
+    }
+
+    #[test]
+    fn loud_and_clean_link_is_left_alone() {
+        assert_eq!(advise_gain(25.0, 0.0, 0.9), GainAdvice::Hold);
     }
 
     #[test]
