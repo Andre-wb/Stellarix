@@ -141,12 +141,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const payloadHex = await E2E.encrypt(text);
             addMessage(text, 'sent');
             input.value = '';
-            setStatus('Передаю сообщение (1/2)...');
-            await AudioModem.playHexPayload(payloadHex, setStatus);
-            await new Promise(r => setTimeout(r, 300));
-            setStatus('Передаю сообщение (2/2)...');
-            await AudioModem.playHexPayload(payloadHex, setStatus);
-            setStatus('Сообщение передано.');
+            setStatus('Передаю сообщение...');
+            const report = await AudioModem.playHexPayload(payloadHex, setStatus);
+            if (AudioModem.wasDelivered(report)) {
+                setStatus('Сообщение доставлено — собеседник подтвердил получение.');
+            } else if (report && !AudioModem.wasStopped(report)) {
+                setStatus(report + ' Убедитесь, что собеседник нажал «Слушать», и отправьте ещё раз.');
+            }
         } catch (err) {
             setStatus('Ошибка: ' + err.message);
         } finally {
@@ -321,6 +322,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     setStatus(`Повторная попытка (${retryCount}/${MAX_RETRIES})...`);
                     setTimeout(startListenCycle, 2000);
                 }
+            },
+            onStopped: (msg) => {
+                resetListenUi();
+                setStatus(msg);
             }
         });
     }
