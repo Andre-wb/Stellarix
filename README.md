@@ -382,10 +382,14 @@ WebView на macOS — системный **WKWebView**, отдельно ста
 ### 5.5 Сборка проекта
 
 ```bash
-git clone <repo>
+git clone https://github.com/Andre-wb/Stellarix
 cd Stellarix
 cargo tauri dev      # режим разработки, hot-reload фронтенда
 cargo tauri build     # финальная сборка инсталлятора под текущую ОС
+
+# Или если нужно запустить приложение бещ установщика (лучше подходит для тестов и разработки, так как после остановки процесса оно сворачивается)
+cd src-tauri/
+cargo run
 ```
 
 При первом запуске `bring_up()` (`main.rs`) сам:
