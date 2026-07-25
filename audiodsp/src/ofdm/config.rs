@@ -37,7 +37,7 @@ impl Modulation {
         constellation::table(*self)
     }
 
-    pub(crate) fn id(&self) -> u8 {
+    pub fn id(&self) -> u8 {
         match self {
             Modulation::Bpsk => 0,
             Modulation::Qpsk => 1,
@@ -46,7 +46,7 @@ impl Modulation {
         }
     }
 
-    pub(crate) fn from_id(id: u8) -> Option<Modulation> {
+    pub fn from_id(id: u8) -> Option<Modulation> {
         match id {
             0 => Some(Modulation::Bpsk),
             1 => Some(Modulation::Qpsk),
@@ -71,20 +71,6 @@ impl Modulation {
             Modulation::Qpsk => 2.0 / 2f32.sqrt(),
             Modulation::Qam16 => 2.0 / 10f32.sqrt(),
             Modulation::Qam64 => 2.0 / 42f32.sqrt(),
-        }
-    }
-}
-
-impl std::str::FromStr for Modulation {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_ascii_lowercase().as_str() {
-            "bpsk" => Ok(Modulation::Bpsk),
-            "qpsk" => Ok(Modulation::Qpsk),
-            "qam16" => Ok(Modulation::Qam16),
-            "qam64" => Ok(Modulation::Qam64),
-            _ => Err(()),
         }
     }
 }

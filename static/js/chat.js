@@ -2,23 +2,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('chat-form');
     const input = document.getElementById('chat-input');
     const sendBtn = document.getElementById('send-btn');
-    const fileBtn = document.getElementById('send-file-btn');
-    const fileInput = document.getElementById('file-input');
     const listenBtn = document.getElementById('listen-btn');
     const stopListenBtn = document.getElementById('stop-listen-btn');
+    const stopSendBtn = document.getElementById('stop-send-btn');
+    const attachBtn = document.getElementById('attach-btn');
+    const fileInput = document.getElementById('file-input');
     const messagesEl = document.getElementById('chat-messages');
     const statusEl = document.getElementById('chat-status');
     const levelEl = document.getElementById('mic-level');
     const bannerEl = document.getElementById('chat-banner');
-    const modulationEl = document.getElementById('modulation-select');
+    const nativeReady = AudioModem.isAvailable();
     let activeListener = null;
     let retryCount = 0;
-    let chatId = null;
+    let sending = false;
     const MAX_RETRIES = 3;
+    const MAX_FILE_BYTES = 64 * 1024;
+    const MAX_RAW_BYTES = 8 * 1024 * 1024;
 
-    function currentModulation() {
-        return modulationEl ? modulationEl.value : undefined;
-    }
+    if (fileInput && typeof FilePolicy !== 'undefined') fileInput.accept = FilePolicy.accept();
 
     function setStatus(text) {
         statusEl.textContent = text;
@@ -30,9 +31,8 @@ document.addEventListener('DOMContentLoaded', () => {
         levelEl.textContent = 'Уровень микрофона: [' + '#'.repeat(bars) + '-'.repeat(20 - bars) + ']';
     }
 
-    function addMessage(text, kind) {
+    function makeBubble(kind) {
         const bubble = document.createElement('div');
-        bubble.textContent = text;
         bubble.style.padding = '0.5rem 0.75rem';
         bubble.style.borderRadius = '10px';
         bubble.style.maxWidth = '75%';
@@ -50,15 +50,65 @@ document.addEventListener('DOMContentLoaded', () => {
             bubble.style.opacity = '0.7';
             bubble.style.background = 'transparent';
         }
+        return bubble;
+    }
+
+    function appendBubble(bubble) {
         messagesEl.appendChild(bubble);
         messagesEl.scrollTop = messagesEl.scrollHeight;
     }
 
+    function addMessage(text, kind) {
+        const bubble = makeBubble(kind);
+        bubble.textContent = text;
+        appendBubble(bubble);
+    }
+
+    function addFileMessage(name, meta, kind) {
+        const bubble = makeBubble(kind);
+        bubble.classList.add('chat-file');
+        const title = document.createElement('div');
+        title.textContent = '📎 ' + name;
+        const metaEl = document.createElement('div');
+        metaEl.className = 'chat-file-meta';
+        metaEl.textContent = meta;
+        bubble.appendChild(title);
+        bubble.appendChild(metaEl);
+        appendBubble(bubble);
+    }
+
+    function formatSize(bytes) {
+        if (bytes < 1024) return bytes + ' Б';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' КиБ';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' МиБ';
+    }
+
+    function recordStats(session) {
+        if (typeof StxStats !== 'undefined') StxStats.record(session);
+    }
+
+    function lockAudioUi() {
+        bannerEl.style.display = 'block';
+        bannerEl.style.background = 'rgba(230, 80, 60, 0.15)';
+        bannerEl.textContent = '⚠️ ' + AudioModem.unavailableReason;
+        sendBtn.disabled = true;
+        attachBtn.disabled = true;
+        listenBtn.disabled = true;
+        input.disabled = true;
+        stopListenBtn.style.display = 'none';
+        stopSendBtn.style.display = 'none';
+        setStatus('Аудиоканал недоступен в браузере.');
+    }
+
     function checkPairing() {
+        if (!nativeReady) {
+            lockAudioUi();
+            return;
+        }
         if (!E2E.isSupported()) {
             bannerEl.style.display = 'block';
             bannerEl.style.background = 'rgba(230, 80, 60, 0.15)';
-            bannerEl.textContent = '⚠️ Этот браузер не поддерживает нужную криптографию (WebCrypto).';
+            bannerEl.textContent = '⚠️ Встроенный движок приложения не поддерживает нужную криптографию (WebCrypto). Обновите систему или компонент WebView.';
             sendBtn.disabled = true;
             return;
         }
@@ -77,179 +127,204 @@ document.addEventListener('DOMContentLoaded', () => {
 
     checkPairing();
 
-    async function loadHistory() {
-        if (!E2E.isSupported() || !E2E.isPaired()) return;
-        try {
-            const chatRes = await fetch('/api/chats', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ peer_fingerprint: E2E.getFingerprint() }),
-            });
-            if (!chatRes.ok) return;
-            chatId = (await chatRes.json()).id;
-
-            const msgRes = await fetch('/api/chats/' + chatId + '/messages');
-            if (!msgRes.ok) return;
-            const messages = await msgRes.json();
-            let failed = 0;
-            for (const m of messages) {
-                try {
-                    const text = await E2E.decrypt(m.payload_hex);
-                    addMessage(text, m.outgoing ? 'sent' : 'received');
-                } catch (err) {
-                    failed++;
-                }
-            }
-            if (failed > 0) {
-                addMessage('Не удалось расшифровать сохранённых сообщений: ' + failed, 'info');
-            }
-        } catch (err) {
-            console.warn('Не удалось загрузить историю чата:', err);
-        }
-    }
-
-    function saveMessage(payloadHex, outgoing) {
-        if (!chatId) return;
-        fetch('/api/chats/' + chatId + '/messages', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ payload_hex: payloadHex, outgoing }),
-        }).catch((err) => console.warn('Не удалось сохранить сообщение:', err));
-    }
-
-    loadHistory();
-
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const text = input.value;
-        if (!text) return;
-        if (activeListener) return;
+        if (!text || sending || !nativeReady) return;
 
+        sending = true;
         sendBtn.disabled = true;
-        listenBtn.disabled = true;
-        fileBtn.disabled = true;
+        attachBtn.disabled = true;
         try {
             setStatus('Шифрую сообщение в браузере...');
             const payloadHex = await E2E.encrypt(text);
             addMessage(text, 'sent');
-            saveMessage(payloadHex, true);
             input.value = '';
-            await AudioModem.sendHexPayload(payloadHex, setStatus, currentModulation());
+            setStatus('Передаю сообщение (1/2)...');
+            await AudioModem.playHexPayload(payloadHex, setStatus);
+            await new Promise(r => setTimeout(r, 300));
+            setStatus('Передаю сообщение (2/2)...');
+            await AudioModem.playHexPayload(payloadHex, setStatus);
+            setStatus('Сообщение передано.');
         } catch (err) {
-            setStatus('Ошибка: ' + (err.message || err));
+            setStatus('Ошибка: ' + err.message);
         } finally {
+            sending = false;
+            attachBtn.disabled = false;
             sendBtn.disabled = false;
-            listenBtn.disabled = false;
-            fileBtn.disabled = false;
         }
     });
 
-    function formatSize(n) {
-        if (n < 1024) return n + ' Б';
-        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' КБ';
-        return (n / (1024 * 1024)).toFixed(1) + ' МБ';
-    }
-
-    fileBtn.addEventListener('click', () => {
-        if (activeListener) return;
+    attachBtn.addEventListener('click', () => {
+        if (sending || !nativeReady) return;
         fileInput.click();
     });
+
+    async function runTransmit(name, bytes, metaLabel) {
+        stopSendBtn.style.display = 'inline-block';
+        const startedAt = Date.now();
+        try {
+            addFileMessage(name, metaLabel, 'sent');
+            const keyHex = E2E.getSessionKeyHex();
+            const ok = await AudioModem.sendFile(name, AudioModem.bytesToHex(bytes), keyHex, setStatus);
+            recordStats({ kind: 'tx', ok: ok, bytes: bytes.length, ms: Date.now() - startedAt });
+        } catch (err) {
+            setStatus('Ошибка: ' + err.message);
+            recordStats({ kind: 'tx', ok: false, bytes: bytes.length, ms: Date.now() - startedAt });
+        } finally {
+            stopSendBtn.style.display = 'none';
+        }
+    }
 
     fileInput.addEventListener('change', async () => {
         const file = fileInput.files && fileInput.files[0];
         fileInput.value = '';
-        if (!file || activeListener) return;
-        if (file.size > 4 * 1024 * 1024) {
-            setStatus('Файл больше 4 МБ — для звукового канала это слишком много.');
+        if (!file || sending || !nativeReady) return;
+        if (file.size === 0) {
+            setStatus('Файл пуст — нечего передавать.');
             return;
         }
-        const estSec = Math.max(3, Math.round(file.size / 700));
-        if (estSec > 30 && !confirm(
-            `Передача файла «${file.name}» (${formatSize(file.size)}) займёт примерно ` +
-            `${Math.ceil(estSec / 60)} мин. Продолжить?`)) return;
-        sendBtn.disabled = true;
-        listenBtn.disabled = true;
-        fileBtn.disabled = true;
-        try {
-            const buf = new Uint8Array(await file.arrayBuffer());
-            let hex = '';
-            for (let i = 0; i < buf.length; i += 4096) {
-                hex += Array.from(buf.subarray(i, i + 4096), b => b.toString(16).padStart(2, '0')).join('');
-            }
-            addMessage(`📎 Отправка файла: ${file.name} (${formatSize(file.size)})`, 'sent');
-            const result = await AudioModem.sendFileHex(file.name, hex, setStatus, currentModulation());
-            addMessage(`📎 ${file.name}: ${result}`, 'info');
-        } catch (err) {
-            setStatus('Ошибка: ' + (err.message || err));
-        } finally {
-            sendBtn.disabled = !E2E.isPaired();
-            listenBtn.disabled = false;
-            fileBtn.disabled = false;
+        if (!E2E.isPaired()) {
+            setStatus('Сначала выполните сопряжение по звуку — без него файл не зашифровать.');
+            return;
         }
+
+        sending = true;
+        attachBtn.disabled = true;
+        sendBtn.disabled = true;
+        try {
+            if (ImageCompress.isImage(file)) {
+                setStatus('Изображение — открываю сжатие для передачи звуком...');
+                const prepared = await AttachImage.open(file, {
+                    maxBytes: MAX_FILE_BYTES,
+                });
+                if (!prepared) {
+                    setStatus('Отправка отменена.');
+                    return;
+                }
+                setStatus('Готовлю сжатое изображение к передаче...');
+                await runTransmit(prepared.name, prepared.bytes, prepared.meta);
+                return;
+            }
+
+            if (FilePolicy.hasDangerousDoubleExtension(file.name)) {
+                setStatus('Отклонено: подозрительное двойное расширение в имени файла.');
+                return;
+            }
+            if (!FilePolicy.isAllowed(file.name)) {
+                setStatus('Формат «.' + FilePolicy.extOf(file.name) + '» не разрешён к передаче. ' +
+                    'Разрешены: ' + FilePolicy.list() + '.');
+                return;
+            }
+            if (file.size <= MAX_FILE_BYTES) {
+                setStatus('Готовлю файл к передаче...');
+                const bytes = new Uint8Array(await file.arrayBuffer());
+                await runTransmit(file.name, bytes, formatSize(file.size) + ' · зашифровано E2E');
+                return;
+            }
+            if (file.size > MAX_RAW_BYTES) {
+                setStatus('Файл слишком большой: ' + formatSize(file.size) +
+                    ' — даже со сжатием не поместится (потолок ' + formatSize(MAX_RAW_BYTES) + ').');
+                return;
+            }
+            if (typeof FileCompress === 'undefined' || !FileCompress.supported()) {
+                setStatus('Файл слишком большой: максимум ' + formatSize(MAX_FILE_BYTES) +
+                    ', у вас ' + formatSize(file.size) + '.');
+                return;
+            }
+            setStatus('Оцениваю сжатие (' + formatSize(file.size) + ')...');
+            let est;
+            try {
+                est = await FileCompress.estimate(file);
+            } catch (e) {
+                setStatus('Файл слишком большой: максимум ' + formatSize(MAX_FILE_BYTES) +
+                    ', у вас ' + formatSize(file.size) + '.');
+                return;
+            }
+            if (est.compressed > MAX_FILE_BYTES) {
+                setStatus('Не поместится даже после сжатия: ' + formatSize(file.size) +
+                    ' → ~' + formatSize(est.compressed) + ' (лимит ' + formatSize(MAX_FILE_BYTES) + ').');
+                return;
+            }
+            setStatus('Файл ' + formatSize(file.size) + ' → ~' + formatSize(est.compressed) +
+                ' после сжатия — отправляю...');
+            const bytes = new Uint8Array(await file.arrayBuffer());
+            const meta = formatSize(file.size) + ' → ~' + formatSize(est.compressed) +
+                ' · сжатие · зашифровано E2E';
+            await runTransmit(file.name, bytes, meta);
+        } catch (err) {
+            setStatus('Ошибка: ' + err.message);
+        } finally {
+            sending = false;
+            attachBtn.disabled = false;
+            checkPairing();
+        }
+    });
+
+    stopSendBtn.addEventListener('click', () => {
+        if (!sending) return;
+        setStatus('Останавливаю передачу...');
+        AudioModem.stopPlaying();
     });
 
     function resetListenUi() {
         activeListener = null;
         listenBtn.disabled = false;
-        sendBtn.disabled = !E2E.isPaired();
-        fileBtn.disabled = false;
         stopListenBtn.style.display = 'none';
+        retryCount = 0;
     }
 
     function startListenCycle() {
-        if (activeListener) return;
+        if (activeListener || !nativeReady) return;
         listenBtn.disabled = true;
-        sendBtn.disabled = true;
-        fileBtn.disabled = true;
         stopListenBtn.style.display = 'inline-block';
         if (levelEl) levelEl.textContent = 'Уровень микрофона: [--------------------]';
+        retryCount = 0;
 
         activeListener = AudioModem.startListening({
+            key: E2E.getSessionKeyHex(),
             onStatus: setStatus,
             onLevel: setLevel,
-            onFile: (f) => {
-                resetListenUi();
-                const ok = f.hash_ok ? 'хеш SHA-256 совпал ✅' : 'ХЕШ SHA-256 НЕ СОВПАЛ ❌';
-                addMessage(`📎 Получен файл ${f.name} (${formatSize(f.size)}) — ${ok}. Сохранён: ${f.path}`, 'received');
-                setStatus('Файл получен.');
-            },
             onDecoded: async (hex) => {
                 resetListenUi();
                 setStatus('Сигнал получен, расшифровываю в браузере...');
                 try {
                     const plaintext = await E2E.decrypt(hex);
                     addMessage(plaintext, 'received');
-                    saveMessage(hex, false);
                     setStatus('Сообщение получено.');
                 } catch (err) {
                     setStatus('Ошибка расшифровки: ' + err.message);
-                    if (retryCount < MAX_RETRIES) {
+                    if (nativeReady && retryCount < MAX_RETRIES) {
                         retryCount++;
                         setStatus(`Повторная попытка (${retryCount}/${MAX_RETRIES})...`);
                         setTimeout(startListenCycle, 2000);
                     }
                 }
             },
+            onFile: (info) => {
+                resetListenUi();
+                const meta = info.saved
+                    ? formatSize(info.size) + ' · E2E · SHA-256 совпала · ' + info.path
+                    : formatSize(info.size) + ' · ' + (info.reason || 'файл не сохранён');
+                addFileMessage(info.name, meta, 'received');
+                setStatus(info.saved
+                    ? 'Файл получен и сохранён.'
+                    : 'Файл не сохранён: ' + (info.reason || 'ошибка приёма.'));
+                recordStats({ kind: 'rx', ok: info.saved, bytes: info.size });
+            },
             onError: (msg) => {
                 resetListenUi();
                 setStatus(msg);
-                if (retryCount < MAX_RETRIES) {
+                if (nativeReady && retryCount < MAX_RETRIES) {
                     retryCount++;
                     setStatus(`Повторная попытка (${retryCount}/${MAX_RETRIES})...`);
                     setTimeout(startListenCycle, 2000);
                 }
-            },
-            onStopped: (msg) => {
-                resetListenUi();
-                setStatus(msg || 'Приём остановлен.');
             }
         });
     }
 
-    listenBtn.addEventListener('click', () => {
-        retryCount = 0;
-        startListenCycle();
-    });
+    listenBtn.addEventListener('click', startListenCycle);
 
     stopListenBtn.addEventListener('click', () => {
         if (!activeListener) return;

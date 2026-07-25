@@ -1,96 +1,168 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use sha2::{Digest, Sha256};
 use tauri::{AppHandle, State};
 
 use crate::modem;
-use crate::modem::hexutil::from_hex;
-use crate::modem::proto;
 
-const MAX_FILE_BYTES: usize = 4 * 1024 * 1024;
+pub struct ListenerState(pub Mutex<Option<modem::Listener>>);
 
-pub struct ModemState(pub Mutex<Option<Arc<AtomicBool>>>);
-
-impl Default for ModemState {
+impl Default for ListenerState {
     fn default() -> Self {
-        ModemState(Mutex::new(None))
+        ListenerState(Mutex::new(None))
     }
 }
 
-fn begin(state: &State<'_, ModemState>) -> Result<Arc<AtomicBool>, String> {
-    let mut guard = state.0.lock().map_err(|_| "состояние занято".to_string())?;
-    if let Some(old) = guard.take() {
-        old.store(true, Ordering::SeqCst);
-    }
-    let flag = Arc::new(AtomicBool::new(false));
-    *guard = Some(flag.clone());
-    Ok(flag)
-}
+#[derive(Default)]
+pub struct PlaybackState(pub Mutex<Option<Arc<AtomicBool>>>);
 
-fn parse_modulation(name: Option<&str>) -> Result<audiodsp::ofdm::Modulation, String> {
-    match name {
-        None => Ok(audiodsp::ofdm::Modulation::Qpsk),
-        Some(s) => s
-            .parse()
-            .map_err(|_| format!("неизвестная модуляция: {s}")),
+const MAX_FILE_BYTES: usize = 64 * 1024;
+
+async fn run_playback<F>(state: State<'_, PlaybackState>, send: F) -> Result<bool, String>
+where
+    F: FnOnce(Arc<AtomicBool>) -> Result<String, String> + Send + 'static,
+{
+    let stop = Arc::new(AtomicBool::new(false));
+    {
+        let mut guard = state.0.lock().map_err(|_| "состояние занято".to_string())?;
+        if let Some(prev) = guard.replace(stop.clone()) {
+            prev.store(true, Ordering::SeqCst);
+        }
     }
+    let flag = stop.clone();
+    let joined = tauri::async_runtime::spawn_blocking(move || {
+        send(flag.clone()).map(|_| !flag.load(Ordering::SeqCst))
+    })
+    .await;
+    if let Ok(mut guard) = state.0.lock() {
+        if guard.as_ref().is_some_and(|cur| Arc::ptr_eq(cur, &stop)) {
+            guard.take();
+        }
+    }
+    joined.map_err(|e| format!("сбой потока воспроизведения: {e}"))?
 }
 
 #[tauri::command]
-pub async fn send_payload_arq(
+pub async fn play_payload(
     app: AppHandle,
-    state: State<'_, ModemState>,
+    state: State<'_, PlaybackState>,
     hex: String,
-    modulation: Option<String>,
-) -> Result<String, String> {
-    let body = from_hex(&hex)?;
-    let modulation = parse_modulation(modulation.as_deref())?;
-    let stop = begin(&state)?;
-    let envelope = proto::encode_msg(&body);
-    tauri::async_runtime::spawn_blocking(move || modem::run_send(&app, stop, &envelope, modulation))
-        .await
-        .map_err(|e| format!("сбой потока передачи: {e}"))?
+) -> Result<bool, String> {
+    let payload = hex_to_bytes(&hex)?;
+    run_playback(state, move |stop| modem::run_send_msg(&app, stop, &payload)).await
 }
 
 #[tauri::command]
-pub async fn send_file_arq(
+pub async fn send_file(
     app: AppHandle,
-    state: State<'_, ModemState>,
+    state: State<'_, PlaybackState>,
     name: String,
     hex: String,
-    modulation: Option<String>,
-) -> Result<String, String> {
-    let content = from_hex(&hex)?;
+    key: String,
+) -> Result<bool, String> {
+    let content = hex_to_bytes(&hex)?;
     if content.is_empty() {
-        return Err("Файл пуст.".to_string());
+        return Err("файл пуст".to_string());
     }
     if content.len() > MAX_FILE_BYTES {
-        return Err("Файл больше 4 МБ — для звукового канала это слишком много.".to_string());
+        return Err(format!(
+            "файл слишком большой для передачи звуком: максимум {} КиБ",
+            MAX_FILE_BYTES / 1024
+        ));
     }
-    let modulation = parse_modulation(modulation.as_deref())?;
-    let stop = begin(&state)?;
-    let mut hasher = Sha256::new();
-    hasher.update(&content);
-    let digest: [u8; 32] = hasher.finalize().into();
-    let envelope = proto::encode_file(&name, &digest, &content);
-    tauri::async_runtime::spawn_blocking(move || modem::run_send(&app, stop, &envelope, modulation))
-        .await
-        .map_err(|e| format!("сбой потока передачи: {e}"))?
+    modem::check_file_policy(&name, &content)?;
+    let key = parse_key(&key)?;
+    run_playback(state, move |stop| {
+        modem::run_send_file(&app, stop, &name, &content, key)
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn start_listening(app: AppHandle, state: State<'_, ModemState>) -> Result<(), String> {
-    let stop = begin(&state)?;
-    std::thread::spawn(move || modem::run_receive(app, stop));
+pub fn stop_playing(state: State<PlaybackState>) {
+    if let Ok(guard) = state.0.lock() {
+        if let Some(stop) = guard.as_ref() {
+            stop.store(true, Ordering::SeqCst);
+        }
+    }
+}
+
+#[tauri::command]
+pub fn start_listening(
+    app: AppHandle,
+    state: State<ListenerState>,
+    key: String,
+) -> Result<(), String> {
+    let key = parse_optional_key(&key)?;
+    let mut guard = state.0.lock().map_err(|_| "состояние занято".to_string())?;
+    if let Some(old) = guard.take() {
+        old.signal_stop();
+    }
+    let listener = modem::start(app, key)?;
+    *guard = Some(listener);
     Ok(())
 }
 
 #[tauri::command]
-pub fn stop_listening(state: State<'_, ModemState>) {
+pub fn stop_listening(state: State<ListenerState>) {
     if let Ok(mut guard) = state.0.lock() {
-        if let Some(flag) = guard.take() {
-            flag.store(true, Ordering::SeqCst);
+        if let Some(listener) = guard.take() {
+            listener.signal_stop();
         }
+    }
+}
+
+fn hex_to_bytes(hex: &str) -> Result<Vec<u8>, String> {
+    if hex.len() % 2 != 0 {
+        return Err("нечётная длина hex".to_string());
+    }
+    (0..hex.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).map_err(|_| "некорректный hex".to_string()))
+        .collect()
+}
+
+fn parse_key(hex: &str) -> Result<[u8; 32], String> {
+    let bytes = hex_to_bytes(hex)?;
+    if bytes.len() != 32 {
+        return Err("нет ключа шифрования — выполните сопряжение по звуку".to_string());
+    }
+    let mut key = [0u8; 32];
+    key.copy_from_slice(&bytes);
+    Ok(key)
+}
+
+fn parse_optional_key(hex: &str) -> Result<Option<[u8; 32]>, String> {
+    if hex.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(parse_key(hex)?))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_hex_is_empty_bytes() {
+        assert_eq!(hex_to_bytes("").unwrap(), Vec::<u8>::new());
+    }
+
+    #[test]
+    fn decodes_lower_and_upper_case() {
+        assert_eq!(hex_to_bytes("00ffA7").unwrap(), vec![0x00, 0xff, 0xa7]);
+        assert_eq!(hex_to_bytes("deadBEEF").unwrap(), vec![0xde, 0xad, 0xbe, 0xef]);
+    }
+
+    #[test]
+    fn rejects_odd_length() {
+        assert_eq!(hex_to_bytes("abc").unwrap_err(), "нечётная длина hex");
+    }
+
+    #[test]
+    fn rejects_non_hex_digits() {
+        assert_eq!(hex_to_bytes("zz").unwrap_err(), "некорректный hex");
+        assert_eq!(hex_to_bytes("0g").unwrap_err(), "некорректный hex");
     }
 }

@@ -3,8 +3,9 @@ fn main() {
         tauri_build::Attributes::new().app_manifest(
             tauri_build::AppManifest::new()
                 .commands(&[
-                    "send_payload_arq",
-                    "send_file_arq",
+                    "play_payload",
+                    "send_file",
+                    "stop_playing",
                     "start_listening",
                     "stop_listening",
                 ]),

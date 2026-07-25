@@ -2,17 +2,18 @@ pub fn to_hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{:02x}", b)).collect()
 }
 
-pub fn from_hex(hex: &str) -> Result<Vec<u8>, String> {
-    if !hex.is_ascii() {
-        return Err("некорректный hex".to_string());
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_is_empty() {
+        assert_eq!(to_hex(&[]), "");
     }
-    if hex.len() % 2 != 0 {
-        return Err("нечётная длина hex".to_string());
+
+    #[test]
+    fn pads_each_byte_to_two_lowercase_digits() {
+        assert_eq!(to_hex(&[0x00, 0x0f, 0xa7, 0xff]), "000fa7ff");
+        assert_eq!(to_hex(&[0x53]), "53");
     }
-    (0..hex.len())
-        .step_by(2)
-        .map(|i| {
-            u8::from_str_radix(&hex[i..i + 2], 16).map_err(|_| "некорректный hex".to_string())
-        })
-        .collect()
 }

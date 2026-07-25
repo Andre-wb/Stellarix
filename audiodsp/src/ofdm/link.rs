@@ -12,6 +12,7 @@ use super::sync::{chirp, find_chirp, refine_by_cp};
 use super::util::{bits_to_bytes, bytes_to_bits};
 
 pub const CHIRP_THRESHOLD: f32 = 0.35;
+pub const MAX_PACKETS: usize = 4095;
 
 pub fn max_packet_payload(cfg: &OfdmConfig) -> usize {
     let cap_bytes = MAX_DATA_SYMBOLS * cfg.bits_per_symbol() / 8;
@@ -38,6 +39,14 @@ pub fn packed_chunk_count(packed_len: usize, cfg: &OfdmConfig) -> usize {
     (packed_len + max_chunk - 1) / max_chunk
 }
 
+pub fn transmission_lead(cfg: &OfdmConfig) -> usize {
+    cfg.fs as usize / 4
+}
+
+pub fn transmission_gap(cfg: &OfdmConfig) -> usize {
+    cfg.fs as usize / 10
+}
+
 fn n_symbols_for(cfg: &OfdmConfig, header: &PacketHeader) -> usize {
     let coded_bits = fec::FecLayout::for_len(header.payload_len as usize + 4).coded_len() * 8;
     let bps = cfg.n_data_carriers() * header.modulation.bits_per_carrier();
@@ -56,49 +65,91 @@ pub fn encode_transmission_encrypted(
     encode_packed(&pack(payload, Some(key)), cfg)
 }
 
-pub fn encode_packed_transmission(
-    packed: &[u8],
+fn build_one(
+    modulator: &mut Modulator,
+    chunk: &[u8],
+    seq: usize,
+    total: usize,
     cfg: &OfdmConfig,
-    seqs: Option<&[u16]>,
 ) -> Vec<f32> {
+    let mut data = chunk.to_vec();
+    data.extend_from_slice(&crc32(chunk).to_be_bytes());
+    let coded = fec::encode(&data);
+    let bits = bytes_to_bits(&coded);
+    let bps = cfg.bits_per_symbol();
+    let n_sym = (bits.len() + bps - 1) / bps;
+    assert!(n_sym <= MAX_DATA_SYMBOLS);
+    let hdr = PacketHeader {
+        version: HEADER_VERSION,
+        seq: seq as u16,
+        total: total as u16,
+        payload_len: chunk.len() as u16,
+        modulation: cfg.modulation,
+        n_data_symbols: n_sym as u8,
+    };
+    modulator.build_packet(&hdr, &bits)
+}
+
+pub fn encode_one_packet(packed: &[u8], seq: usize, cfg: &OfdmConfig) -> Option<Vec<f32>> {
+    let total = packed_chunk_count(packed.len(), cfg);
     let max_chunk = max_packet_payload(cfg).max(1);
-    let chunks: Vec<&[u8]> = packed.chunks(max_chunk).collect();
-    let total = chunks.len();
-    assert!(total <= 4095, "payload too large");
+    encode_one_packet_sized(packed, seq, total, max_chunk, cfg)
+}
+
+pub fn encode_one_packet_sized(
+    packed: &[u8],
+    seq: usize,
+    total: usize,
+    chunk_max: usize,
+    cfg: &OfdmConfig,
+) -> Option<Vec<f32>> {
+    if seq >= total || chunk_max == 0 {
+        return None;
+    }
+    let start = seq * chunk_max;
+    if start >= packed.len() {
+        return None;
+    }
+    let end = (start + chunk_max).min(packed.len());
     let mut modulator = Modulator::new(cfg.clone());
-    let lead = cfg.fs as usize / 2;
-    let inter = cfg.fs as usize / 10;
+    Some(build_one(&mut modulator, &packed[start..end], seq, total, cfg))
+}
+
+pub fn encode_packets_sized(
+    packed: &[u8],
+    seqs: &[usize],
+    total: usize,
+    chunk_max: usize,
+    cfg: &OfdmConfig,
+) -> Vec<f32> {
+    let lead = transmission_lead(cfg);
+    let inter = transmission_gap(cfg);
     let mut out = vec![0f32; lead];
-    for (seq, chunk) in chunks.iter().enumerate() {
-        if let Some(list) = seqs {
-            if !list.contains(&(seq as u16)) {
-                continue;
-            }
+    for &seq in seqs {
+        if let Some(wave) = encode_one_packet_sized(packed, seq, total, chunk_max, cfg) {
+            out.extend(wave);
+            out.extend(std::iter::repeat(0f32).take(inter));
         }
-        let mut data = chunk.to_vec();
-        data.extend_from_slice(&crc32(chunk).to_be_bytes());
-        let coded = fec::encode(&data);
-        let bits = bytes_to_bits(&coded);
-        let bps = cfg.bits_per_symbol();
-        let n_sym = (bits.len() + bps - 1) / bps;
-        assert!(n_sym <= MAX_DATA_SYMBOLS);
-        let hdr = PacketHeader {
-            version: HEADER_VERSION,
-            seq: seq as u16,
-            total: total as u16,
-            payload_len: chunk.len() as u16,
-            modulation: cfg.modulation,
-            n_data_symbols: n_sym as u8,
-        };
-        out.extend(modulator.build_packet(&hdr, &bits));
-        out.extend(std::iter::repeat(0f32).take(inter));
     }
     out.extend(std::iter::repeat(0f32).take(lead));
     out
 }
 
 fn encode_packed(packed: &[u8], cfg: &OfdmConfig) -> Vec<f32> {
-    encode_packed_transmission(packed, cfg, None)
+    let max_chunk = max_packet_payload(cfg).max(1);
+    let chunks: Vec<&[u8]> = packed.chunks(max_chunk).collect();
+    let total = chunks.len();
+    assert!(total <= MAX_PACKETS, "payload too large");
+    let mut modulator = Modulator::new(cfg.clone());
+    let lead = transmission_lead(cfg);
+    let inter = transmission_gap(cfg);
+    let mut out = vec![0f32; lead];
+    for (seq, chunk) in chunks.iter().enumerate() {
+        out.extend(build_one(&mut modulator, chunk, seq, total, cfg));
+        out.extend(std::iter::repeat(0f32).take(inter));
+    }
+    out.extend(std::iter::repeat(0f32).take(lead));
+    out
 }
 
 fn finish_packet(cfg: &OfdmConfig, r: &PacketRx) -> Option<Vec<u8>> {
@@ -146,13 +197,19 @@ fn resample_segment(rx: &[f32], seg_start: usize, out_len: usize, eps: f64) -> V
     seg
 }
 
+pub struct PacketTry {
+    pub header: PacketHeader,
+    pub payload: Option<Vec<u8>>,
+    pub snr_db: f32,
+}
+
 fn attempt_resampled(
     rx: &[f32],
     train: usize,
     demod: &mut Demodulator,
     cfg: &OfdmConfig,
     eps: f64,
-) -> Option<(PacketHeader, Vec<u8>)> {
+) -> Option<PacketTry> {
     let seg_start = train.saturating_sub(cfg.cp_len);
     let nominal = cfg.cp_len + (2 + MAX_DATA_SYMBOLS) * cfg.symbol_samples() + 4 * cfg.cp_len;
     let seg = resample_segment(rx, seg_start, nominal, eps);
@@ -160,7 +217,11 @@ fn attempt_resampled(
     let (train2, _) = refine_by_cp(&seg, approx, cfg);
     let r = demod.receive_packet_full(&seg, train2)?;
     let payload = finish_packet(cfg, &r)?;
-    Some((r.header, payload))
+    Some(PacketTry {
+        header: r.header,
+        payload: Some(payload),
+        snr_db: r.snr_db,
+    })
 }
 
 pub(crate) fn try_packet(
@@ -168,12 +229,16 @@ pub(crate) fn try_packet(
     train: usize,
     demod: &mut Demodulator,
     cfg: &OfdmConfig,
-) -> Option<(PacketHeader, Vec<u8>)> {
+) -> Option<PacketTry> {
     let first = demod.receive_packet_full(rx, train);
     let mut eps_hint = None;
-    if let Some(r) = first {
-        if let Some(p) = finish_packet(cfg, &r) {
-            return Some((r.header, p));
+    if let Some(r) = &first {
+        if let Some(p) = finish_packet(cfg, r) {
+            return Some(PacketTry {
+                header: r.header.clone(),
+                payload: Some(p),
+                snr_db: r.snr_db,
+            });
         }
         if r.sfo.abs() >= 1e-4 {
             eps_hint = Some(r.sfo);
@@ -188,11 +253,57 @@ pub(crate) fn try_packet(
         candidates.push(-ppm * 1e-6);
     }
     for eps in candidates {
-        if let Some(ok) = attempt_resampled(rx, train, demod, cfg, eps) {
-            return Some(ok);
+        if let Some(t) = attempt_resampled(rx, train, demod, cfg, eps) {
+            return Some(t);
         }
     }
-    None
+    first.map(|r| PacketTry {
+        header: r.header,
+        payload: None,
+        snr_db: r.snr_db,
+    })
+}
+
+pub struct StreamPacket {
+    pub header: PacketHeader,
+    pub payload: Option<Vec<u8>>,
+    pub snr_db: f32,
+    pub start_sample: usize,
+}
+
+pub fn scan_packets(rx: &[f32], cfg: &OfdmConfig) -> Vec<StreamPacket> {
+    let template = chirp(cfg);
+    let mut demod = Demodulator::new(cfg.clone());
+    let sym_len = cfg.symbol_samples();
+    let mut cursor = 0usize;
+    let mut found_packets = Vec::new();
+    while cursor + template.len() < rx.len() {
+        let found = match find_chirp(&rx[cursor..], &template, CHIRP_THRESHOLD) {
+            Some(p) => cursor + p,
+            None => break,
+        };
+        let approx = found + cfg.chirp_len() + cfg.gap_len();
+        let (train, _) = refine_by_cp(rx, approx, cfg);
+        match try_packet(rx, train, &mut demod, cfg) {
+            Some(t) => {
+                let advance = cfg.chirp_len()
+                    + cfg.gap_len()
+                    + (2 + t.header.n_data_symbols as usize) * sym_len
+                    + cfg.gap_len();
+                cursor = found + advance;
+                found_packets.push(StreamPacket {
+                    header: t.header,
+                    payload: t.payload,
+                    snr_db: t.snr_db,
+                    start_sample: found,
+                });
+            }
+            None => {
+                cursor = found + cfg.chirp_len();
+            }
+        }
+    }
+    found_packets
 }
 
 pub struct DecodeReport {
@@ -206,8 +317,8 @@ pub fn max_total_seconds(cfg: &OfdmConfig) -> f32 {
         + cfg.gap_len()
         + (2 + MAX_DATA_SYMBOLS) * cfg.symbol_samples()
         + cfg.gap_len();
-    let lead = cfg.fs as usize / 2;
-    let inter = cfg.fs as usize / 10;
+    let lead = transmission_lead(cfg);
+    let inter = transmission_gap(cfg);
     (2 * lead + pkt + inter) as f32 / cfg.fs as f32
 }
 
@@ -230,19 +341,22 @@ pub fn decode_transmission_report(
         let approx = found + cfg.chirp_len() + cfg.gap_len();
         let (train, _cfo) = refine_by_cp(rx, approx, cfg);
         let mut advance = cfg.chirp_len();
-        if let Some((hdr, payload)) = try_packet(rx, train, &mut demod, cfg) {
-            if total.is_none() {
-                total = Some(hdr.total as usize);
-            }
-            if Some(hdr.total as usize) == total {
-                parts.entry(hdr.seq as usize).or_insert(payload);
-            }
+        if let Some(t) = try_packet(rx, train, &mut demod, cfg) {
+            let hdr = t.header;
             advance = cfg.chirp_len()
                 + cfg.gap_len()
                 + (2 + hdr.n_data_symbols as usize) * sym_len
                 + cfg.gap_len();
-            if parts.len() == total.unwrap() {
-                break;
+            if let Some(payload) = t.payload {
+                if total.is_none() {
+                    total = Some(hdr.total as usize);
+                }
+                if Some(hdr.total as usize) == total {
+                    parts.entry(hdr.seq as usize).or_insert(payload);
+                }
+                if total.is_some_and(|t| parts.len() == t) {
+                    break;
+                }
             }
         }
         cursor = found + advance;
@@ -297,6 +411,26 @@ mod tests {
     }
 
     #[test]
+    fn streamed_packets_match_single_shot() {
+        let cfg = OfdmConfig::default_48k();
+        let mut rng = Prng::new(11);
+        let payload: Vec<u8> = (0..8000).map(|_| (rng.next_u64() & 0xff) as u8).collect();
+        let packed = pack_payload(&payload, None);
+        let total = packed_chunk_count(packed.len(), &cfg);
+        assert!(total > 1, "test needs a multi-packet payload, got {}", total);
+        let mut streamed = vec![0f32; transmission_lead(&cfg)];
+        for seq in 0..total {
+            streamed.extend(encode_one_packet(&packed, seq, &cfg).unwrap());
+            streamed.extend(std::iter::repeat(0f32).take(transmission_gap(&cfg)));
+        }
+        streamed.extend(std::iter::repeat(0f32).take(transmission_lead(&cfg)));
+        let single = encode_packed(&packed, &cfg);
+        assert_eq!(streamed.len(), single.len());
+        assert!(streamed == single, "streamed wave differs from single-shot wave");
+        assert!(encode_one_packet(&packed, total, &cfg).is_none());
+    }
+
+    #[test]
     fn sfo_tracker_estimates_true_drift() {
         let cfg = OfdmConfig::default_48k();
         let mut rng = Prng::new(5);
@@ -318,7 +452,7 @@ mod tests {
             expected
         );
         let got = try_packet(&rx, train, &mut demod, &cfg).expect("packet not recovered");
-        assert_eq!(unpack(&got.1, None).unwrap(), payload);
+        assert_eq!(unpack(&got.payload.unwrap(), None).unwrap(), payload);
     }
 
     #[test]

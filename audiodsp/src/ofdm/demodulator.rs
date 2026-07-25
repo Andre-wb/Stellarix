@@ -25,6 +25,7 @@ pub(crate) struct PacketRx {
     pub(crate) bits: Vec<u8>,
     pub(crate) bad_bytes: Vec<usize>,
     pub(crate) sfo: f64,
+    pub(crate) snr_db: f32,
 }
 
 pub struct Demodulator {
@@ -231,6 +232,7 @@ impl Demodulator {
             bits,
             bad_bytes,
             sfo: tracker.estimate(),
+            snr_db: ch.mean_snr_db,
         })
     }
 }
