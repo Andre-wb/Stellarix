@@ -3,6 +3,7 @@ pub mod db;
 pub mod routes;
 pub mod schemas;
 pub mod middleware;
+pub mod stats;
 
 pub use config::Config;
 pub use db::DbPool;
@@ -32,6 +33,7 @@ pub async fn create_router(pool: DbPool, static_dir: PathBuf) -> axum::Router {
         .route("/pairing", get(get_pairing))
         .route("/chat", get(get_chat))
         .route("/dashboard", get(get_dashboard))
+        .route("/api/stats", post(stats::record_transfer))
         .route("/diagnostics", get(get_diagnostics))
         .nest_service("/static", ServeDir::new(static_dir))
         .with_state(pool)

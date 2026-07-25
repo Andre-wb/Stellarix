@@ -2,6 +2,7 @@
 
 mod commands;
 mod modem;
+mod pgcleanup;
 mod pgpaths;
 
 use std::net::SocketAddr;
@@ -184,23 +185,7 @@ async fn bring_up(app: AppHandle, pg_state: Arc<Mutex<Option<PostgreSQL>>>) -> R
     create_private_dir(&pg_data)?;
     debug!("Каталог PostgreSQL: {}", pg_data.display());
 
-    let stale_pid = pg_data.join("postmaster.pid");
-    if let Ok(contents) = std::fs::read_to_string(&stale_pid) {
-        info!("Найден устаревший PID файл PostgreSQL, очистка...");
-        if let Some(pid) = contents.lines().next().and_then(|l| l.trim().parse::<i32>().ok()) {
-            #[cfg(unix)]
-            { let _ = std::process::Command::new("kill").arg(pid.to_string()).status(); }
-            #[cfg(windows)]
-            { let _ = std::process::Command::new("taskkill").args(["/PID", &pid.to_string(), "/F"]).status(); }
-            for _ in 0..100 {
-                if tokio::net::TcpListener::bind(("127.0.0.1", PG_PORT)).await.is_ok() {
-                    break;
-                }
-                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-            }
-        }
-        let _ = std::fs::remove_file(&stale_pid);
-    }
+    pgcleanup::free_stale_instance(&pg_data, PG_PORT).await?;
 
     let pg_password = load_or_create_secret(&data_dir, "pg_password")?;
     debug!("Пароль PostgreSQL загружен");
@@ -235,8 +220,12 @@ async fn bring_up(app: AppHandle, pg_state: Arc<Mutex<Option<PostgreSQL>>>) -> R
 
     info!("Запуск PostgreSQL на порту {}...", PG_PORT);
     pg.start().await.map_err(|e| {
-        error!("Ошибка запуска PostgreSQL: {}", e);
-        format!("Не удалось запустить PostgreSQL: {e}")
+        let log_tail = pgcleanup::start_log_tail(&pg_data, 1500);
+        error!("Ошибка запуска PostgreSQL: {} | лог: {:?}", e, log_tail);
+        match log_tail {
+            Some(tail) => format!("Не удалось запустить PostgreSQL: {e}\n\nЖурнал PostgreSQL:\n{tail}"),
+            None => format!("Не удалось запустить PostgreSQL: {e}"),
+        }
     })?;
     info!("✅ PostgreSQL успешно запущен");
 

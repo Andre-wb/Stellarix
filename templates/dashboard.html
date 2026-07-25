@@ -77,7 +77,7 @@
                     <td>{{ session.volume }}</td>
                     <td>{{ session.duration }}</td>
                     <td>{{ session.speed }}</td>
-                    <td><span class="status-badge success">{{ session.status }}</span></td>
+                    <td><span class="pill {% if session.ok %}pill-ok{% else %}pill-err{% endif %}">{{ session.status }}</span></td>
                 </tr>
                 {% endfor %}
                 </tbody>
@@ -104,19 +104,7 @@
 {% block extra_scripts %}
 <!-- Для объединения localstorage обновления в реальном времени и подачи с бэкенда -->
 <script>
-    const dashboardData = {
-        speedChart: {{ speed_chart_data|safe }},
-    resultChart: {{ result_chart_data|safe }},
-    durationChart: {{ duration_chart_data|safe }},
-    bytesChart: {{ bytes_chart_data|safe }}
-    };
-    window.dashboardData = {
-        speedChart: {{ speed_chart_data|safe }},
-        resultChart: {{ result_chart_data|safe }},
-        durationChart: {{ duration_chart_data|safe }},
-        bytesChart: {{ bytes_chart_data|safe }}
-    };
-
+    window.dashboardSessions = {{ sessions_json|safe }};
 </script>
 <script src="/static/js/stats.js"></script>
 <script src="/static/js/dashboard.js"></script>

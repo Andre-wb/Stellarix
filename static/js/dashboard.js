@@ -11,26 +11,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const $ = (id) => document.getElementById(id);
     const pad = (n) => String(n).padStart(2, '0');
 
-    const KIND_LABEL = { tx: 'передача', rx: 'приём', key: 'обмен ключами' };
-
-    // Читаем начальные данные из HTML
-    function getInitialData() {
-        const speedData = window.dashboardData?.speedChart || [];
-        const resultData = window.dashboardData?.resultChart || [0, 0];
-        const durationData = window.dashboardData?.durationChart || [];
-        const bytesData = window.dashboardData?.bytesChart || [];
-
-        return {
-            speedData,
-            resultData,
-            durationData,
-            bytesData,
-            totalSent: parseInt($('stat-tx')?.textContent || '0'),
-            totalReceived: parseInt($('stat-rx')?.textContent || '0'),
-            successRate: $('stat-success')?.textContent || '—',
-            averageSpeed: $('stat-speed')?.textContent || '—'
-        };
-    }
+    const KIND_LABEL = { tx: 'Исходящая', rx: 'Входящая', key: 'Обмен ключами' };
+    const DASH = '—';
+    const PAGE_LOAD = Date.now();
+    const serverRows = Array.isArray(window.dashboardSessions) ? window.dashboardSessions.slice() : [];
 
     function fmtTime(ts) {
         const d = new Date(ts);
@@ -196,117 +180,94 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.textAlign = 'left';
     }
 
-    // Получаем начальные данные из HTML
-    const initialData = getInitialData();
+    function toRow(entry) {
+        const bytes = (typeof entry.bytes === 'number' && entry.bytes >= 0) ? entry.bytes : null;
+        const ms = (typeof entry.ms === 'number' && entry.ms > 0) ? entry.ms : null;
+        const speed = (bytes && ms) ? Math.round((bytes * 8) / (ms / 1000)) : null;
+        return {
+            time: fmtTime(entry.at),
+            session_type: KIND_LABEL[entry.kind] || entry.kind || DASH,
+            volume: bytes == null ? DASH : bytes + ' Б',
+            duration: ms == null ? DASH : fmtMs(ms),
+            speed: speed == null ? DASH : speed + ' бит/с',
+            status: entry.ok ? 'Успешно' : 'Ошибка',
+            ok: !!entry.ok,
+            at: entry.at,
+            kind: entry.kind,
+            bytes: bytes,
+            ms: ms,
+        };
+    }
 
-    // Функция для объединения данных из localStorage и HTML
-    function getAllStats() {
-        // Пытаемся получить данные из localStorage через StxStats
-        if (typeof StxStats !== 'undefined' && StxStats.all) {
-            return StxStats.all();
-        }
+    function liveRows() {
+        if (typeof StxStats === 'undefined' || !StxStats.all) return [];
+        return StxStats.all()
+            .filter((entry) => entry && entry.at > PAGE_LOAD)
+            .map(toRow)
+            .reverse();
+    }
 
-        // Если StxStats нет, используем данные из HTML
-        // Создаем имитацию данных из сессий
-        const sessions = window.dashboardSessions || [];
-        return sessions.map(s => ({
-            kind: s.session_type === 'Исходящая' ? 'tx' : 'rx',
-            ok: s.status === 'Успешно',
-            bytes: parseInt(s.volume) || 0,
-            ms: parseFloat(s.duration) * 1000 || 0,
-            at: new Date().getTime() // Используем текущее время как заглушку
-        }));
+    function allRows() {
+        return liveRows().concat(serverRows);
     }
 
     let lastSig = null;
 
     function render(force) {
-        const all = getAllStats();
-        const sig = all.length + ':' + (all.length ? all[all.length - 1].at : 0);
+        const rows = allRows();
+        const sig = rows.length + ':' + (rows.length ? rows[0].at : 0);
         if (!force && sig === lastSig) return;
         lastSig = sig;
 
-        const tx = all.filter((s) => s.kind === 'tx');
-        const rx = all.filter((s) => s.kind === 'rx');
-        const okCount = all.filter((s) => s.ok).length;
-        const errCount = all.length - okCount;
-        const txOk = tx.filter((s) => s.ok);
-        const speeds = txOk.map(speedOf).filter((v) => v);
+        const chrono = rows.slice().reverse();
+        const okCount = rows.filter((r) => r.ok).length;
+        const errCount = rows.length - okCount;
+        const speeds = chrono.filter((r) => r.ok).map(speedOf).filter((v) => v);
 
-        $('stat-tx').textContent = String(tx.length);
-        $('stat-rx').textContent = String(rx.length);
-        $('stat-success').textContent = all.length ? Math.round((okCount / all.length) * 100) + '%' : '—';
+        $('stat-tx').textContent = String(rows.filter((r) => r.kind === 'tx').length);
+        $('stat-rx').textContent = String(rows.filter((r) => r.kind === 'rx').length);
+        $('stat-success').textContent = rows.length ? Math.round((okCount / rows.length) * 100) + '%' : DASH;
         $('stat-speed').textContent = speeds.length
             ? String(Math.round(speeds.reduce((a, b) => a + b, 0) / speeds.length))
-            : '—';
+            : DASH;
 
-        // Если есть данные из HTML и нет данных из localStorage, используем их
-        if (!all.length && initialData.speedData.length) {
-            drawLine('chart-speed', initialData.speedData);
-            drawBars('chart-duration', initialData.durationData, 1);
-            drawBars('chart-bytes', initialData.bytesData, null);
-            drawDonut('chart-donut', initialData.resultData[0] || 0, initialData.resultData[1] || 0);
+        drawLine('chart-speed', speeds.slice(-20));
+        drawBars('chart-duration', chrono.filter((r) => r.ms).slice(-12).map((r) => r.ms / 1000), 1);
+        drawBars('chart-bytes', chrono.filter((r) => r.bytes != null).slice(-12).map((r) => r.bytes), null);
+        drawDonut('chart-donut', okCount, errCount);
 
-            const legOk = $('leg-ok');
-            const legErr = $('leg-err');
-            if (legOk) legOk.textContent = 'Успешно · ' + (initialData.resultData[0] || 0);
-            if (legErr) legErr.textContent = 'Ошибки · ' + (initialData.resultData[1] || 0);
-        } else {
-            drawLine('chart-speed', speeds.slice(-20));
-            drawBars('chart-duration', txOk.slice(-12).map((s) => s.ms / 1000), 1);
-            drawBars('chart-bytes', txOk.slice(-12).map((s) => s.bytes || 0), null);
-            drawDonut('chart-donut', okCount, errCount);
-
-            const legOk = $('leg-ok');
-            const legErr = $('leg-err');
-            if (legOk) legOk.textContent = 'Успешно · ' + okCount;
-            if (legErr) legErr.textContent = 'Ошибки · ' + errCount;
-        }
+        const legOk = $('leg-ok');
+        const legErr = $('leg-err');
+        if (legOk) legOk.textContent = 'Успешно · ' + okCount;
+        if (legErr) legErr.textContent = 'Ошибки · ' + errCount;
 
         const tbody = $('sessions-tbody');
         if (tbody) {
             tbody.innerHTML = '';
-            const sessions = window.dashboardSessions || [];
-            sessions.slice(-12).reverse().forEach((s, idx) => {
+            rows.slice(0, 12).forEach((r, idx) => {
                 const tr = document.createElement('tr');
                 if (idx === 0) tr.className = 'row-new';
-                tr.innerHTML =
-                    '<td>' + s.time + '</td>' +
-                    '<td>' + s.session_type + '</td>' +
-                    '<td>' + s.volume + '</td>' +
-                    '<td>' + s.duration + '</td>' +
-                    '<td>' + s.speed + '</td>' +
-                    '<td><span class="pill ' + (s.status === 'Успешно' ? 'pill-ok">успех' : 'pill-err">ошибка') + '</span></td>';
+                [r.time, r.session_type, r.volume, r.duration, r.speed].forEach((value) => {
+                    const td = document.createElement('td');
+                    td.textContent = value;
+                    tr.appendChild(td);
+                });
+                const statusTd = document.createElement('td');
+                const badge = document.createElement('span');
+                badge.className = 'pill ' + (r.ok ? 'pill-ok' : 'pill-err');
+                badge.textContent = r.status;
+                statusTd.appendChild(badge);
+                tr.appendChild(statusTd);
                 tbody.appendChild(tr);
             });
         }
 
         const empty = $('dash-empty');
         const wrap = $('sessions-wrap');
-        const hasSessions = window.dashboardSessions && window.dashboardSessions.length > 0;
         if (empty && wrap) {
-            empty.style.display = hasSessions ? 'none' : 'block';
-            wrap.style.display = hasSessions ? '' : 'none';
+            empty.style.display = rows.length ? 'none' : 'block';
+            wrap.style.display = rows.length ? '' : 'none';
         }
-    }
-
-    // Сессии из данных HTML, чтобы обновлять актуальную информацию
-    window.dashboardSessions = window.dashboardSessions || [];
-
-    // Если есть данные в HTML, обновляем их
-    const sessionRows = document.querySelectorAll('#sessions-tbody tr');
-    if (sessionRows.length) {
-        window.dashboardSessions = Array.from(sessionRows).map(row => {
-            const cells = row.querySelectorAll('td');
-            return {
-                time: cells[0]?.textContent || '',
-                session_type: cells[1]?.textContent || '',
-                volume: cells[2]?.textContent || '',
-                duration: cells[3]?.textContent || '',
-                speed: cells[4]?.textContent || '',
-                status: cells[5]?.querySelector('.pill')?.textContent || 'успех'
-            };
-        });
     }
 
     render(true);

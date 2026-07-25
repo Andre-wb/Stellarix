@@ -141,6 +141,10 @@ const E2E = (() => {
         return localStorage.getItem(FINGERPRINT) || '';
     }
 
+    function getPublicHex() {
+        return localStorage.getItem(PUB_HEX) || '';
+    }
+
     function hasPendingKey() {
         return !!localStorage.getItem(PRIV_JWK) && !localStorage.getItem(SESSION_HEX);
     }
@@ -180,6 +184,7 @@ const E2E = (() => {
         completePairing,
         isPaired,
         getFingerprint,
+        getPublicHex,
         hasPendingKey,
         reset,
         encrypt,

@@ -98,18 +98,18 @@
 
         // статистика для дашборда — запись сразу по завершении
         if (typeof StxStats === 'undefined') return;
-        if (/Шифрую/.test(s)) {
+        if (/Шифрую сообщение/.test(s)) {
             txStart = Date.now();
         } else if (/Сообщение передано/.test(s) && txStart) {
             StxStats.record({ kind: 'tx', ok: true, bytes: txBytes, ms: Date.now() - txStart });
-            txStart = 0;
-        } else if (/^Ошибка/.test(s) && txStart) {
-            StxStats.record({ kind: 'tx', ok: false, bytes: txBytes, ms: Date.now() - txStart });
             txStart = 0;
         } else if (/Сообщение получено/.test(s)) {
             StxStats.record({ kind: 'rx', ok: true });
         } else if (/Ошибка расшифровки/.test(s)) {
             StxStats.record({ kind: 'rx', ok: false });
+        } else if (/^Ошибка/.test(s) && txStart) {
+            StxStats.record({ kind: 'tx', ok: false, bytes: txBytes, ms: Date.now() - txStart });
+            txStart = 0;
         }
     }
 
