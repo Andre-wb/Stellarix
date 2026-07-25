@@ -3,14 +3,10 @@ name = "stellarix"
 version = "0.1.0"
 edition = "2021"
 
-[[bin]]
-name = "stellarix"
-path = "src/main.rs"
-
 [dependencies]
 axum = "0.7"
 tokio = { version = "1", features = ["full"] }
-tower-http = { version = "0.5", features = ["fs"] }
+tower-http = { version = "0.5", features = ["fs", "set-header"] }
 tower-sessions = "0.12"
 tower-sessions-sqlx-store = { version = "0.12", features = ["postgres"] }
 time = "0.3"
@@ -27,7 +23,7 @@ askama = "0.12"
 argon2 = "0.5"
 
 dotenvy = "0.15"
-percent-encoding = "2"
 
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+hex = "0.4.3"

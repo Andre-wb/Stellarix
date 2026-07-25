@@ -3,59 +3,145 @@
 {% block title %}Чат по звуку{% endblock %}
 
 {% block main %}
-<div class="form-container">
-    <div class="form-card" style="max-width: 640px;">
-        <div class="form-header">
-            <h1 class="form-title">Чат по звуку</h1>
-            <p>Вы вошли как <strong>{{ username }}</strong></p>
+<div class="wave-page"><canvas id="wave-bg"></canvas></div>
+
+<div class="scene">
+    <section class="chat-window">
+        <div class="chat-top">
+            <span class="chat-user">{{ username }}</span>
+            <div class="chat-top-actions">
+                <button id="listen-btn" class="chip-btn" type="button">Слушать</button>
+                <button id="stop-listen-btn" class="chip-btn" type="button" style="display:none;">Стоп и распознать</button>
+                <button id="stop-send-btn" class="chip-btn" type="button" style="display:none;">Отменить передачу</button>
+            </div>
         </div>
 
-        <div id="chat-banner" class="flash-message" style="display:none; margin-bottom: 1rem;"></div>
+        <div id="chat-banner" class="chat-banner" style="display:none;"></div>
 
-        <div id="chat-messages" style="
-            border: 1px solid var(--border, #333);
-            border-radius: 8px;
-            padding: 1rem;
-            height: 320px;
-            overflow-y: auto;
-            margin-bottom: 1rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-        "></div>
+        <div id="chat-messages" class="chat-feed"></div>
 
-        <div id="mic-level" class="pairing-status" style="font-family: monospace;"></div>
-        <div id="chat-status" class="pairing-status">Готово к работе.</div>
+        <div id="mic-level" class="chat-meta-line"></div>
+        <div id="chat-status" class="chat-meta-line">Готово к работе.</div>
 
-        <form id="chat-form" style="display:flex; gap: 0.5rem; margin-top: 1rem;" autocomplete="off">
+        <form id="chat-form" class="chat-form" autocomplete="off">
+            <input type="file" id="file-input" style="display:none;">
+            <button type="button" id="attach-btn" class="attach-btn" title="Отправить файл звуком · изображения сжимаются автоматически" aria-label="Отправить файл">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M20 11.5 11.6 20a5 5 0 0 1-7-7l8.4-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.4 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"
+                          stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
             <input
                     type="text"
                     id="chat-input"
                     class="form-input"
                     placeholder="Сообщение (до 68 байт)..."
                     maxlength="68"
-                    style="flex: 1;"
             >
-            <button type="submit" id="send-btn" class="btn btn-primary" style="white-space: nowrap;">🔊 Отправить</button>
+            <button type="submit" id="send-btn" class="send-btn" title="Отправить" aria-label="Отправить">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M3 11.5 21 3l-8.5 18-2.4-7.1L3 11.5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+                </svg>
+            </button>
         </form>
+    </section>
+</div>
 
-        <div class="pairing-actions" style="display:flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap;">
-            <button id="listen-btn" class="btn btn-outline" type="button">🎤 Слушать</button>
-            <button id="stop-listen-btn" class="btn btn-outline" type="button" style="display:none;">⏹ Стоп и распознать</button>
-        </div>
-
-        <p style="margin-top: 1rem; font-size: 0.85rem; opacity: 0.75;">
-            Сообщения шифруются и расшифровываются <strong>прямо в браузере</strong> сеансовым ключом,
-            полученным на странице «Сопряжение» — сервер не видит ни ключ, ни текст. Передаются
-            исключительно звуком — как отправка, так и приём. Если сопряжение ещё не выполнено,
-            <a href="/pairing">перейдите на страницу сопряжения</a>.
-        </p>
+<div id="image-viewer-overlay" onclick="closeImageViewer()">
+    <button class="iv-close" onclick="closeImageViewer()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+            <path d="m7.76 14.83-2.83 2.83 1.41 1.41 2.83-2.83 2.12-2.12.71-.71.71.71 1.41 1.42 3.54 3.53 1.41-1.41-3.53-3.54-1.42-1.41-.71-.71 5.66-5.66-1.41-1.41L12 10.59 6.34 4.93 4.93 6.34 10.59 12l-.71.71z"></path>
+        </svg>
+    </button>
+    <div class="iv-name" id="image-viewer-name"></div>
+    <div class="iv-content" onclick="event.stopPropagation()">
+        <img id="image-viewer-img" src="" alt="">
     </div>
+    <a id="image-viewer-download" class="iv-download" onclick="event.stopPropagation()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 15v4c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-4M17 9l-5 5-5-5M12 12.8V2.5"/>
+        </svg>
+        Скачать
+    </a>
 </div>
 {% endblock %}
 
 {% block extra_scripts %}
 <script src="/static/js/native-modem.js"></script>
 <script src="/static/js/e2e-crypto.js"></script>
+<script src="/static/js/avatar.js"></script>
+<script src="/static/js/wave-visualizer.js"></script>
+<script src="/static/js/wave-mic.js"></script>
+<script src="/static/js/stats.js"></script>
+<script src="/static/js/file-policy.js"></script>
+<script src="/static/js/image-compress.js"></script>
+<script src="/static/js/attach-image.js"></script>
+<script src="/static/js/file-compress.js"></script>
+<script src="/static/js/icons.js"></script>
+<script src="/static/js/image-viewer.js"></script>
 <script src="/static/js/chat.js"></script>
+<script>
+(function () {
+    var canvas = document.getElementById('wave-bg');
+    if (!canvas || typeof SoundWave === 'undefined') return;
+    SoundWave.attach(canvas);
+
+    // Волна следует за статусом чата, а завершённые передачи
+    // сразу записываются в статистику для дашборда.
+    var statusEl = document.getElementById('chat-status');
+    var levelEl = document.getElementById('mic-level');
+    var input = document.getElementById('chat-input');
+    var form = document.getElementById('chat-form');
+
+    var lastStatus = '';
+    var txStart = 0;
+    var txBytes = 0;
+
+    if (form && input) {
+        form.addEventListener('submit', function () {
+            try {
+                txBytes = new TextEncoder().encode(input.value || '').length;
+            } catch (e) {
+                txBytes = (input.value || '').length;
+            }
+        });
+    }
+
+    function onStatus() {
+        var s = statusEl ? (statusEl.textContent || '') : '';
+        if (s === lastStatus) return;
+        lastStatus = s;
+
+        // режим волны
+        if (/передано|получено|Готово|Ошибка/i.test(s)) SoundWave.mode('idle');
+        else if (/Шифрую|Передаю|Проигр/i.test(s)) SoundWave.mode('transmit');
+        else if (/Слушаю|Записыва|запись|Анализ|распозна/i.test(s)) SoundWave.mode('listen');
+        else SoundWave.mode('idle');
+
+        // статистика для дашборда — запись сразу по завершении
+        if (typeof StxStats === 'undefined') return;
+        if (/Шифрую сообщение/.test(s)) {
+            txStart = Date.now();
+        } else if (/Сообщение передано/.test(s) && txStart) {
+            StxStats.record({ kind: 'tx', ok: true, bytes: txBytes, ms: Date.now() - txStart });
+            txStart = 0;
+        } else if (/Сообщение получено/.test(s)) {
+            StxStats.record({ kind: 'rx', ok: true });
+        } else if (/Ошибка расшифровки/.test(s)) {
+            StxStats.record({ kind: 'rx', ok: false });
+        } else if (/^Ошибка/.test(s) && txStart) {
+            StxStats.record({ kind: 'tx', ok: false, bytes: txBytes, ms: Date.now() - txStart });
+            txStart = 0;
+        }
+    }
+
+    function syncLevel() {
+        var m = (levelEl ? levelEl.textContent || '' : '').match(/#+/);
+        if (m) SoundWave.level((m[0].length / 20) * 0.16);
+    }
+
+    if (statusEl) new MutationObserver(onStatus).observe(statusEl, { childList: true, characterData: true, subtree: true });
+    if (levelEl) new MutationObserver(syncLevel).observe(levelEl, { childList: true, characterData: true, subtree: true });
+})();
+</script>
 {% endblock %}

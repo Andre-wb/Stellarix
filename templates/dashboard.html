@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Дашборд{% endblock %}
+
+{% block main %}
+<div class="dash">
+    <div class="profile-hero">
+        <div class="profile-avatar" id="profile-avatar" data-letter="{{ avatar_letter }}">{{ avatar_letter }}</div>
+        <div class="profile-info">
+            <h1 class="profile-name">{{ username }}</h1>
+        </div>
+    </div>
+
+    <div class="dash-head">
+        <div>
+            <h1>Дашборд</h1>
+            <div class="dash-sub">статистика сеанса · {{ username }} · обновляется в реальном времени</div>
+        </div>
+        <button id="stats-reset" class="chip-btn" type="button">Сбросить</button>
+    </div>
+
+    <div class="dash-grid stats">
+        <div class="stat-card">
+            <div class="stat-label">Передано сообщений</div>
+            <div class="stat-value" id="stat-tx">{{ total_messages_sent }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Принято сообщений</div>
+            <div class="stat-value" id="stat-rx">{{ total_messages_received }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Успешность</div>
+            <div class="stat-value" id="stat-success">{{ success_rate }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Средняя скорость</div>
+            <div class="stat-value"><span id="stat-speed">{{ average_speed }}</span><span class="unit">бит/с</span></div>
+        </div>
+    </div>
+
+    <div class="dash-grid charts">
+        <div class="chart-card">
+            <div class="chart-title">Скорость передач <span class="tag">бит/с · последние 20</span></div>
+            <canvas id="chart-speed" class="chart"></canvas>
+        </div>
+        <div class="chart-card">
+            <div class="chart-title">Результаты <span class="tag">все записи</span></div>
+            <canvas id="chart-donut" class="chart"></canvas>
+            <div class="legend">
+                <span><i style="background:#72bc8f"></i><span id="leg-ok">Успешно · {{ total_messages_sent + total_messages_received }}</span></span>
+                <span><i style="background:#e97366"></i><span id="leg-err">Ошибки · 0</span></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="dash-grid charts2">
+        <div class="chart-card">
+            <div class="chart-title">Длительность передач <span class="tag">сек · последние 12</span></div>
+            <canvas id="chart-duration" class="chart"></canvas>
+        </div>
+        <div class="chart-card">
+            <div class="chart-title">Объём сообщений <span class="tag">байт · последние 12</span></div>
+            <canvas id="chart-bytes" class="chart"></canvas>
+        </div>
+    </div>
+
+    <div class="chart-card">
+        <div class="chart-title">Завершённые передачи <span class="tag">запись появляется сразу после завершения</span></div>
+        {% if has_sessions %}
+        <div id="dash-empty" class="dash-empty" style="display:none;">
+            Пока нет завершённых передач. Отправьте или примите сообщение в чате —
+            запись появится здесь автоматически.
+        </div>
+        <div class="table-scroll" id="sessions-wrap">
+            <table class="dash-table">
+                <thead>
+                <tr><th>Время</th><th>Тип</th><th>Объём</th><th>Длительность</th><th>Скорость</th><th>Статус</th></tr>
+                </thead>
+                <tbody id="sessions-tbody">
+                {% for session in sessions %}
+                <tr>
+                    <td>{{ session.time }}</td>
+                    <td>{{ session.session_type }}</td>
+                    <td>{{ session.volume }}</td>
+                    <td>{{ session.duration }}</td>
+                    <td>{{ session.speed }}</td>
+                    <td><span class="pill {% if session.ok %}pill-ok{% else %}pill-err{% endif %}">{{ session.status }}</span></td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div id="dash-empty" class="dash-empty">
+            Пока нет завершённых передач. Отправьте или примите сообщение в чате —
+            запись появится здесь автоматически.
+        </div>
+        <div class="table-scroll" id="sessions-wrap" style="display:none;">
+            <table class="dash-table">
+                <thead>
+                <tr><th>Время</th><th>Тип</th><th>Объём</th><th>Длительность</th><th>Скорость</th><th>Статус</th></tr>
+                </thead>
+                <tbody id="sessions-tbody"></tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- Для объединения localstorage обновления в реальном времени и подачи с бэкенда -->
+<script>
+    window.dashboardSessions = {{ sessions_json|safe }};
+</script>
+<script src="/static/js/avatar.js"></script>
+<script>
+    (function () {
+        var el = document.getElementById('profile-avatar');
+        if (!el || typeof Avatar === 'undefined') return;
+        var own = Avatar.getOwn();
+        if (own) Avatar.render(el, own, el.getAttribute('data-letter') || '');
+    })();
+</script>
+<script src="/static/js/stats.js"></script>
+<script src="/static/js/dashboard.js"></script>
+{% endblock %}

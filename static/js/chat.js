@@ -4,13 +4,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const sendBtn = document.getElementById('send-btn');
     const listenBtn = document.getElementById('listen-btn');
     const stopListenBtn = document.getElementById('stop-listen-btn');
+    const stopSendBtn = document.getElementById('stop-send-btn');
+    const attachBtn = document.getElementById('attach-btn');
+    const fileInput = document.getElementById('file-input');
     const messagesEl = document.getElementById('chat-messages');
     const statusEl = document.getElementById('chat-status');
     const levelEl = document.getElementById('mic-level');
     const bannerEl = document.getElementById('chat-banner');
+    const nativeReady = AudioModem.isAvailable();
     let activeListener = null;
     let retryCount = 0;
+    let sending = false;
     const MAX_RETRIES = 3;
+    const MAX_FILE_BYTES = 64 * 1024;
+    const MAX_RAW_BYTES = 8 * 1024 * 1024;
+
+    if (fileInput && typeof FilePolicy !== 'undefined') fileInput.accept = FilePolicy.accept();
 
     function setStatus(text) {
         statusEl.textContent = text;
@@ -22,9 +31,9 @@ document.addEventListener('DOMContentLoaded', () => {
         levelEl.textContent = 'Уровень микрофона: [' + '#'.repeat(bars) + '-'.repeat(20 - bars) + ']';
     }
 
-    function addMessage(text, kind) {
-        const bubble = document.createElement('div');
-        bubble.textContent = text;
+    const hasAvatar = typeof Avatar !== 'undefined';
+
+    function applyBubbleStyle(bubble, kind) {
         bubble.style.padding = '0.5rem 0.75rem';
         bubble.style.borderRadius = '10px';
         bubble.style.maxWidth = '75%';
@@ -42,27 +51,169 @@ document.addEventListener('DOMContentLoaded', () => {
             bubble.style.opacity = '0.7';
             bubble.style.background = 'transparent';
         }
-        messagesEl.appendChild(bubble);
+    }
+
+    function makeBubble(kind) {
+        const bubble = document.createElement('div');
+        bubble.classList.add('chat-bubble');
+        applyBubbleStyle(bubble, kind);
+        return bubble;
+    }
+
+    function peerName() {
+        return hasAvatar ? Avatar.getPeerName() : '';
+    }
+
+    function makePeerAvatar() {
+        const el = document.createElement('div');
+        el.className = 'avatar-circle';
+        if (hasAvatar) Avatar.render(el, Avatar.getPeer(), Avatar.peerLetter());
+        else el.textContent = '?';
+        return el;
+    }
+
+    function makePeerName() {
+        const el = document.createElement('div');
+        el.className = 'msg-name';
+        el.textContent = peerName();
+        return el;
+    }
+
+    function appendBubble(bubble, kind) {
+        if (kind === 'received') {
+            const row = document.createElement('div');
+            row.className = 'msg-row received';
+            bubble.style.alignSelf = 'auto';
+            row.appendChild(makePeerAvatar());
+            const col = document.createElement('div');
+            col.className = 'msg-col';
+            col.appendChild(makePeerName());
+            col.appendChild(bubble);
+            row.appendChild(col);
+            messagesEl.appendChild(row);
+        } else {
+            messagesEl.appendChild(bubble);
+        }
         messagesEl.scrollTop = messagesEl.scrollHeight;
     }
 
+    function refreshPeerAvatars() {
+        if (!hasAvatar) return;
+        const peer = Avatar.getPeer();
+        const name = peerName();
+        messagesEl.querySelectorAll('.msg-row.received .avatar-circle').forEach((el) => {
+            Avatar.render(el, peer, Avatar.peerLetter());
+        });
+        messagesEl.querySelectorAll('.msg-row.received .msg-name').forEach((el) => {
+            el.textContent = name;
+        });
+    }
+
+    function addMessage(text, kind) {
+        const bubble = makeBubble(kind);
+        bubble.textContent = text;
+        appendBubble(bubble, kind);
+    }
+
+    function isImageName(name) {
+        return /\.(png|jpe?g|webp|gif|bmp)$/i.test(name || '');
+    }
+
+    function bytesToImageUrl(bytes) {
+        if (hasAvatar && typeof Avatar.bytesToDataUrl === 'function') return Avatar.bytesToDataUrl(bytes);
+        let bin = '';
+        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+        return 'data:image/jpeg;base64,' + btoa(bin);
+    }
+
+    function fillFileCard(bubble, name, meta) {
+        bubble.textContent = '';
+        bubble.classList.add('chat-file');
+        const title = document.createElement('div');
+        title.textContent = ' ' + name;
+        title.insertAdjacentHTML('afterbegin', StxIcons.clip);
+        bubble.appendChild(title);
+        if (meta) {
+            const metaEl = document.createElement('div');
+            metaEl.className = 'chat-file-meta';
+            metaEl.textContent = meta;
+            bubble.appendChild(metaEl);
+        }
+    }
+
+    function addFileCard(name, meta, kind) {
+        const bubble = makeBubble(kind);
+        fillFileCard(bubble, name, meta);
+        appendBubble(bubble, kind);
+    }
+
+    function addImageMessage(name, dataUrl, kind) {
+        const bubble = document.createElement('div');
+        bubble.className = 'msg-bubble-media' + (kind === 'sent' ? ' own' : '');
+        const img = document.createElement('img');
+        img.className = 'chat-image';
+        img.alt = name || '';
+        img.loading = 'lazy';
+        img.src = dataUrl;
+        img.addEventListener('click', () => window.openImageViewer(img.src, name || ''));
+        img.addEventListener('error', () => {
+            bubble.className = 'chat-bubble';
+            applyBubbleStyle(bubble, kind);
+            fillFileCard(bubble, name || 'файл', '');
+        });
+        bubble.appendChild(img);
+        appendBubble(bubble, kind);
+    }
+
+    function addSentFile(name, bytes) {
+        if (isImageName(name)) addImageMessage(name, bytesToImageUrl(bytes), 'sent');
+        else addFileCard(name, formatSize(bytes.length), 'sent');
+    }
+
+    function formatSize(bytes) {
+        if (bytes < 1024) return bytes + ' Б';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' КиБ';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' МиБ';
+    }
+
+    function recordStats(session) {
+        if (typeof StxStats !== 'undefined') StxStats.record(session);
+    }
+
+    function lockAudioUi() {
+        bannerEl.style.display = 'block';
+        bannerEl.style.background = 'rgba(230, 80, 60, 0.15)';
+        bannerEl.innerHTML = StxIcons.warn + ' ' + AudioModem.unavailableReason;
+        sendBtn.disabled = true;
+        attachBtn.disabled = true;
+        listenBtn.disabled = true;
+        input.disabled = true;
+        stopListenBtn.style.display = 'none';
+        stopSendBtn.style.display = 'none';
+        setStatus('Аудиоканал недоступен в браузере.');
+    }
+
     function checkPairing() {
+        if (!nativeReady) {
+            lockAudioUi();
+            return;
+        }
         if (!E2E.isSupported()) {
             bannerEl.style.display = 'block';
             bannerEl.style.background = 'rgba(230, 80, 60, 0.15)';
-            bannerEl.textContent = '⚠️ Этот браузер не поддерживает нужную криптографию (WebCrypto).';
+            bannerEl.innerHTML = StxIcons.warn + ' Встроенный движок приложения не поддерживает нужную криптографию (WebCrypto). Обновите систему или компонент WebView.';
             sendBtn.disabled = true;
             return;
         }
         if (!E2E.isPaired()) {
             bannerEl.style.display = 'block';
             bannerEl.style.background = 'rgba(230, 80, 60, 0.15)';
-            bannerEl.innerHTML = '⚠️ Сопряжение ещё не выполнено. <a href="/pairing">Выполните сопряжение по звуку</a> перед началом чата.';
+            bannerEl.innerHTML = StxIcons.warn + ' Сопряжение ещё не выполнено. <a href="/pairing">Выполните сопряжение по звуку</a> перед началом чата.';
             sendBtn.disabled = true;
         } else {
             bannerEl.style.display = 'block';
             bannerEl.style.background = 'rgba(40, 180, 99, 0.15)';
-            bannerEl.textContent = '✅ Сопряжено. Отпечаток ключа: ' + E2E.getFingerprint();
+            bannerEl.innerHTML = StxIcons.ok + ' Сопряжено. Отпечаток ключа: ' + E2E.getFingerprint();
             sendBtn.disabled = false;
         }
     }
@@ -72,25 +223,146 @@ document.addEventListener('DOMContentLoaded', () => {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const text = input.value;
-        if (!text) return;
+        if (!text || sending || !nativeReady) return;
 
+        sending = true;
         sendBtn.disabled = true;
+        attachBtn.disabled = true;
         try {
             setStatus('Шифрую сообщение в браузере...');
             const payloadHex = await E2E.encrypt(text);
             addMessage(text, 'sent');
             input.value = '';
-            setStatus('Передаю сообщение (1/2)...');
-            await AudioModem.playHexPayload(payloadHex, setStatus);
-            await new Promise(r => setTimeout(r, 300));
-            setStatus('Передаю сообщение (2/2)...');
-            await AudioModem.playHexPayload(payloadHex, setStatus);
-            setStatus('Сообщение передано.');
+            setStatus('Передаю сообщение...');
+            const report = await AudioModem.playHexPayload(payloadHex, setStatus);
+            if (/^Доставлено/.test(report || '')) {
+                setStatus('Сообщение доставлено — собеседник подтвердил получение.');
+            } else if (report && !/остановлена/.test(report)) {
+                setStatus(report + ' Убедитесь, что собеседник нажал «Слушать», и отправьте ещё раз.');
+            }
         } catch (err) {
             setStatus('Ошибка: ' + err.message);
         } finally {
+            sending = false;
+            attachBtn.disabled = false;
             sendBtn.disabled = false;
         }
+    });
+
+    attachBtn.addEventListener('click', () => {
+        if (sending || !nativeReady) return;
+        fileInput.click();
+    });
+
+    async function runTransmit(name, bytes) {
+        stopSendBtn.style.display = 'inline-block';
+        const startedAt = Date.now();
+        try {
+            addSentFile(name, bytes);
+            const keyHex = E2E.getSessionKeyHex();
+            const report = await AudioModem.sendFile(name, AudioModem.bytesToHex(bytes), keyHex, setStatus);
+            const delivered = /^Доставлено/.test(report || '');
+            if (delivered) {
+                setStatus('Файл доставлен — собеседник подтвердил получение.');
+            } else if (report && !/остановлена|отменена/.test(report)) {
+                setStatus(report + ' Убедитесь, что собеседник нажал «Слушать», и отправьте ещё раз.');
+            }
+            recordStats({ kind: 'tx', ok: delivered, bytes: bytes.length, ms: Date.now() - startedAt });
+        } catch (err) {
+            setStatus('Ошибка: ' + err.message);
+            recordStats({ kind: 'tx', ok: false, bytes: bytes.length, ms: Date.now() - startedAt });
+        } finally {
+            stopSendBtn.style.display = 'none';
+        }
+    }
+
+    fileInput.addEventListener('change', async () => {
+        const file = fileInput.files && fileInput.files[0];
+        fileInput.value = '';
+        if (!file || sending || !nativeReady) return;
+        if (file.size === 0) {
+            setStatus('Файл пуст — нечего передавать.');
+            return;
+        }
+        if (!E2E.isPaired()) {
+            setStatus('Сначала выполните сопряжение по звуку — без него файл не зашифровать.');
+            return;
+        }
+
+        sending = true;
+        attachBtn.disabled = true;
+        sendBtn.disabled = true;
+        try {
+            if (ImageCompress.isImage(file)) {
+                setStatus('Изображение — открываю сжатие для передачи звуком...');
+                const prepared = await AttachImage.open(file, {
+                    maxBytes: MAX_FILE_BYTES,
+                });
+                if (!prepared) {
+                    setStatus('Отправка отменена.');
+                    return;
+                }
+                setStatus('Готовлю сжатое изображение к передаче...');
+                await runTransmit(prepared.name, prepared.bytes);
+                return;
+            }
+
+            if (FilePolicy.hasDangerousDoubleExtension(file.name)) {
+                setStatus('Отклонено: подозрительное двойное расширение в имени файла.');
+                return;
+            }
+            if (!FilePolicy.isAllowed(file.name)) {
+                setStatus('Формат «.' + FilePolicy.extOf(file.name) + '» не разрешён к передаче. ' +
+                    'Разрешены: ' + FilePolicy.list() + '.');
+                return;
+            }
+            if (file.size <= MAX_FILE_BYTES) {
+                setStatus('Готовлю файл к передаче...');
+                const bytes = new Uint8Array(await file.arrayBuffer());
+                await runTransmit(file.name, bytes);
+                return;
+            }
+            if (file.size > MAX_RAW_BYTES) {
+                setStatus('Файл слишком большой: ' + formatSize(file.size) +
+                    ' — даже со сжатием не поместится (потолок ' + formatSize(MAX_RAW_BYTES) + ').');
+                return;
+            }
+            if (typeof FileCompress === 'undefined' || !FileCompress.supported()) {
+                setStatus('Файл слишком большой: максимум ' + formatSize(MAX_FILE_BYTES) +
+                    ', у вас ' + formatSize(file.size) + '.');
+                return;
+            }
+            setStatus('Оцениваю сжатие (' + formatSize(file.size) + ')...');
+            let est;
+            try {
+                est = await FileCompress.estimate(file);
+            } catch (e) {
+                setStatus('Файл слишком большой: максимум ' + formatSize(MAX_FILE_BYTES) +
+                    ', у вас ' + formatSize(file.size) + '.');
+                return;
+            }
+            if (est.compressed > MAX_FILE_BYTES) {
+                setStatus('Не поместится даже после сжатия: ' + formatSize(file.size) +
+                    ' → ~' + formatSize(est.compressed) + ' (лимит ' + formatSize(MAX_FILE_BYTES) + ').');
+                return;
+            }
+            setStatus('Файл ' + formatSize(file.size) + ' → ~' + formatSize(est.compressed) +
+                ' после сжатия — отправляю...');
+            const bytes = new Uint8Array(await file.arrayBuffer());
+            await runTransmit(file.name, bytes);
+        } catch (err) {
+            setStatus('Ошибка: ' + err.message);
+        } finally {
+            sending = false;
+            attachBtn.disabled = false;
+            checkPairing();
+        }
+    });
+
+    stopSendBtn.addEventListener('click', () => {
+        if (!sending) return;
+        setStatus('Останавливаю передачу...');
+        AudioModem.stopPlaying();
     });
 
     function resetListenUi() {
@@ -101,17 +373,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function startListenCycle() {
-        if (activeListener) return;
+        if (activeListener || !nativeReady) return;
         listenBtn.disabled = true;
         stopListenBtn.style.display = 'inline-block';
         if (levelEl) levelEl.textContent = 'Уровень микрофона: [--------------------]';
         retryCount = 0;
 
         activeListener = AudioModem.startListening({
+            key: E2E.getSessionKeyHex(),
             onStatus: setStatus,
             onLevel: setLevel,
             onDecoded: async (hex) => {
                 resetListenUi();
+                if (hasAvatar && Avatar.isUpdateHex(hex)) {
+                    const profile = Avatar.profileFromUpdateHex(hex);
+                    Avatar.setPeerName(profile.name);
+                    Avatar.setPeer(profile.avatar);
+                    refreshPeerAvatars();
+                    setStatus('Собеседник обновил аватар.');
+                    return;
+                }
                 setStatus('Сигнал получен, расшифровываю в браузере...');
                 try {
                     const plaintext = await E2E.decrypt(hex);
@@ -119,21 +400,39 @@ document.addEventListener('DOMContentLoaded', () => {
                     setStatus('Сообщение получено.');
                 } catch (err) {
                     setStatus('Ошибка расшифровки: ' + err.message);
-                    if (retryCount < MAX_RETRIES) {
+                    if (nativeReady && retryCount < MAX_RETRIES) {
                         retryCount++;
                         setStatus(`Повторная попытка (${retryCount}/${MAX_RETRIES})...`);
                         setTimeout(startListenCycle, 2000);
                     }
                 }
             },
+            onFile: (info) => {
+                resetListenUi();
+                if (info.saved && info.data_hex) {
+                    addImageMessage(info.name, bytesToImageUrl(AudioModem.hexToBytes(info.data_hex)), 'received');
+                    setStatus('Изображение получено.');
+                } else if (info.saved) {
+                    addFileCard(info.name, formatSize(info.size), 'received');
+                    setStatus('Файл получен.');
+                } else {
+                    addFileCard(info.name, info.reason || 'файл не сохранён', 'received');
+                    setStatus('Файл не сохранён: ' + (info.reason || 'ошибка приёма.'));
+                }
+                recordStats({ kind: 'rx', ok: info.saved, bytes: info.size });
+            },
             onError: (msg) => {
                 resetListenUi();
                 setStatus(msg);
-                if (retryCount < MAX_RETRIES) {
+                if (nativeReady && retryCount < MAX_RETRIES) {
                     retryCount++;
                     setStatus(`Повторная попытка (${retryCount}/${MAX_RETRIES})...`);
                     setTimeout(startListenCycle, 2000);
                 }
+            },
+            onStopped: (msg) => {
+                resetListenUi();
+                setStatus(msg);
             }
         });
     }

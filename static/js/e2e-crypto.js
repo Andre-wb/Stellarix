@@ -1,6 +1,7 @@
 const E2E = (() => {
     const PRIV_JWK = 'e2ee_priv_jwk';
     const PUB_HEX = 'e2ee_pub_hex';
+    const PEER_HEX = 'e2ee_peer_hex';
     const SESSION_HEX = 'e2ee_session_hex';
     const FINGERPRINT = 'e2ee_fingerprint';
     const SALT = 'stellarix-session-key-v1';
@@ -128,8 +129,7 @@ const E2E = (() => {
         const derived = await deriveSessionKey(JSON.parse(privJwkStr), pubHex, peerPublicHex);
         localStorage.setItem(SESSION_HEX, derived.keyHex);
         localStorage.setItem(FINGERPRINT, derived.fingerprint);
-        localStorage.removeItem(PRIV_JWK);
-        localStorage.removeItem(PUB_HEX);
+        localStorage.setItem(PEER_HEX, peerPublicHex.toLowerCase());
         return derived.fingerprint;
     }
 
@@ -141,6 +141,18 @@ const E2E = (() => {
         return localStorage.getItem(FINGERPRINT) || '';
     }
 
+    function getPublicHex() {
+        return localStorage.getItem(PUB_HEX) || '';
+    }
+
+    function getPeerHex() {
+        return localStorage.getItem(PEER_HEX) || '';
+    }
+
+    function hasKeypair() {
+        return !!localStorage.getItem(PRIV_JWK) && !!localStorage.getItem(PUB_HEX);
+    }
+
     function hasPendingKey() {
         return !!localStorage.getItem(PRIV_JWK) && !localStorage.getItem(SESSION_HEX);
     }
@@ -148,6 +160,7 @@ const E2E = (() => {
     function reset() {
         localStorage.removeItem(PRIV_JWK);
         localStorage.removeItem(PUB_HEX);
+        localStorage.removeItem(PEER_HEX);
         localStorage.removeItem(SESSION_HEX);
         localStorage.removeItem(FINGERPRINT);
     }
@@ -164,6 +177,10 @@ const E2E = (() => {
         return decryptWithKeyHex(keyHex, payloadHex);
     }
 
+    function getSessionKeyHex() {
+        return localStorage.getItem(SESSION_HEX) || '';
+    }
+
     return {
         MAX_PLAINTEXT_BYTES,
         isSupported,
@@ -176,10 +193,14 @@ const E2E = (() => {
         completePairing,
         isPaired,
         getFingerprint,
+        getPublicHex,
+        getPeerHex,
+        hasKeypair,
         hasPendingKey,
         reset,
         encrypt,
         decrypt,
+        getSessionKeyHex,
         bytesToHex,
         hexToBytes,
     };

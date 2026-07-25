@@ -5,15 +5,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{% endblock %}</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <script>(function(){try{var m=window.matchMedia?window.matchMedia('(prefers-color-scheme: light)'):null;function a(){var t=localStorage.getItem('stx_theme');if(t==='auto'){t=(m&&m.matches)?'light':'dark';}if(t&&t!=='dark'){document.documentElement.setAttribute('data-theme',t);}else{document.documentElement.removeAttribute('data-theme');}}a();if(m){if(m.addEventListener){m.addEventListener('change',a);}else if(m.addListener){m.addListener(a);}}}catch(e){}})();</script>
+    <link rel="stylesheet" href="/static/css/lang-picker.css">
+    <script src="/static/js/i18n.js"></script>
+    <script src="/static/js/confirm-modal.js"></script>
     <script src="/static/js/menu.js"></script>
     {% block extra_head %}{% endblock %}
 </head>
 <body>
+<div id="lang-picker-screen" style="display:none;">
+    <div class="lp-bg">
+        <div class="lp-orb lp-orb-1"></div>
+        <div class="lp-orb lp-orb-2"></div>
+        <div class="lp-orb lp-orb-3"></div>
+    </div>
+
+    <div class="lp-content">
+        <div class="lp-logo">
+            <div class="lp-logo-icon">
+                <img class="lp-logo-img" src="/static/img/logo.png" alt="Stellarix">
+            </div>
+            <div class="lp-logo-text">Stellarix</div>
+        </div>
+
+        <h2 class="lp-title" id="lp-title"></h2>
+        <p class="lp-subtitle" id="lp-subtitle">Можно изменить позже в настройках</p>
+
+        <div class="lp-list" id="lp-list"></div>
+
+        <button class="lp-continue-btn" id="lp-continue" onclick="window._lpConfirm()" disabled>
+            <span id="lp-continue-text">Продолжить</span>
+            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+        </button>
+    </div>
+</div>
+<script>try{if(!localStorage.getItem('stx_lang'))document.getElementById('lang-picker-screen').style.display='flex'}catch(e){}</script>
 <div class="nav-links-mobile" id="nav-links-mobile">
     {% if logged_in %}
     <a href="/pairing" class="nav-link">Сопряжение</a>
     <a href="/chat" class="nav-link">Чат</a>
-    <a href="/profile" class="nav-link">Профиль</a>
+    <a href="/dashboard" class="nav-link">Дашборд</a>
+    <a href="/settings" class="nav-link">Настройки</a>
     <a href="/logout" class="nav-link">Выйти</a>
     {% else %}
     <a href="/login" class="nav-link">Войти</a>
@@ -22,15 +54,17 @@
 </div>
 <header>
     <nav>
-        <a href="/" class="brand">
+        <a href="https://github.com/Andre-wb/Stellarix" target="_blank" rel="noopener" class="brand">
             <span>Stellarix</span>
         </a>
 
         <div class="nav-links" id="nav-links">
+            <span class="nav-pill" id="nav-pill"></span>
             {% if logged_in %}
             <a href="/pairing" class="nav-link">Сопряжение</a>
             <a href="/chat" class="nav-link">Чат</a>
-            <a href="/profile" class="nav-link">Профиль</a>
+            <a href="/dashboard" class="nav-link">Дашборд</a>
+            <a href="/settings" class="nav-link">Настройки</a>
             <a href="/logout" class="nav-link">Выйти</a>
             {% else %}
             <a href="/login" class="nav-link">Войти</a>
@@ -51,5 +85,67 @@
 </main>
 
 {% block extra_scripts %}{% endblock %}
+<script>
+(function () {
+    var pill = document.getElementById('nav-pill');
+    var nav = document.getElementById('nav-links');
+    if (!pill || !nav) return;
+
+    function moveTo(el) {
+        var nr = nav.getBoundingClientRect();
+        var er = el.getBoundingClientRect();
+        pill.style.width = er.width + 'px';
+        pill.style.transform = 'translateX(' + (er.left - nr.left) + 'px)';
+        pill.style.opacity = '1';
+    }
+
+    function hide() {
+        pill.style.opacity = '0';
+    }
+
+    var links = nav.querySelectorAll('.nav-link');
+
+    // подсветить активную ссылку сразу
+    var active = null;
+    links.forEach(function (a) {
+        if (a.pathname === location.pathname) active = a;
+    });
+    if (active) {
+        pill.style.transition = 'none';
+        moveTo(active);
+        requestAnimationFrame(function () {
+            pill.style.transition = '';
+        });
+    }
+
+    links.forEach(function (a) {
+        a.addEventListener('mouseenter', function () { moveTo(a); });
+        a.addEventListener('focus', function () { moveTo(a); });
+    });
+
+    nav.addEventListener('mouseleave', function () {
+        if (active) moveTo(active); else hide();
+    });
+
+    nav.addEventListener('focusout', function (e) {
+        if (!nav.contains(e.relatedTarget)) {
+            if (active) moveTo(active); else hide();
+        }
+    });
+})();
+
+(function () {
+    var brand = document.querySelector('a.brand');
+    if (!brand) return;
+    brand.addEventListener('click', function (e) {
+        var opener = window.__TAURI__ && window.__TAURI__.opener;
+        if (opener && typeof opener.openUrl === 'function') {
+            e.preventDefault();
+            opener.openUrl(brand.href);
+        }
+    });
+})();
+</script>
+<script src="/static/js/lang-picker.js"></script>
 </body>
 </html>

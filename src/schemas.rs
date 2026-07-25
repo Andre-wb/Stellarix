@@ -1,6 +1,7 @@
 use askama::Template;
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
+use serde::Serialize;
 use sqlx::{FromRow};
 use uuid::Uuid;
 
@@ -8,10 +9,6 @@ use uuid::Uuid;
 pub struct User {
     pub id: Uuid,
     pub username: String,
-    // Эти два поля пока не возвращаются SQL-запросами (нет чатов и аватаров в схеме БД).
-    // #[sqlx(skip)] полностью исключает поле из генерируемого кода декодирования строки —
-    // значение всегда берётся из Default::default(), поэтому Chat не обязан реализовывать
-    // sqlx::Type/Decode (в отличие от #[sqlx(default)], который это по-прежнему требует).
     #[sqlx(skip)]
     pub avatar_url: String,
     pub password_hash: String,
@@ -86,6 +83,37 @@ pub struct ChatTemplate {
     pub username: String,
 }
 
+// Структура для статистики сессий
+#[derive(Debug, Clone, Serialize)]
+pub struct SessionStats {
+    pub time: String,
+    pub session_type: String,
+    pub volume: String,
+    pub duration: String,
+    pub speed: String,
+    pub status: String,
+    pub ok: bool,
+    pub at: i64,
+    pub kind: String,
+    pub bytes: Option<i64>,
+    pub ms: Option<i64>,
+}
+
+#[derive(Template)]
+#[template(path = "dashboard.html")]
+pub struct DashboardTemplate {
+    pub logged_in: bool,
+    pub username: String,
+    pub avatar_letter: String,
+    pub total_messages_sent: i64,
+    pub total_messages_received: i64,
+    pub success_rate: String,
+    pub average_speed: String,
+    pub sessions: Vec<SessionStats>,
+    pub sessions_json: String,
+    pub has_sessions: bool,
+}
+
 #[derive(Deserialize, Debug)]
 pub struct RegisterForm {
     pub username: String,
@@ -97,4 +125,10 @@ pub struct RegisterForm {
 pub struct LoginForm {
     pub username: String,
     pub password: String,
+}
+#[derive(Template)]
+#[template(path = "settings.html")]
+pub struct SettingsTemplate {
+    pub logged_in: bool,
+    pub username: String,
 }

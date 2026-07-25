@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Настройки{% endblock %}
+
+{% block main %}
+<div class="dash">
+    <div class="dash-head">
+        <div>
+            <h1 data-i18n="settings.title">Настройки</h1>
+            <div class="dash-sub">аккаунт · {{ username }}</div>
+        </div>
+    </div>
+
+    <div class="chart-card settings-card">
+        <div class="chart-title">Аватар</div>
+        <div class="avatar-settings" id="avatar-settings" data-username="{{ username }}">
+            <div class="avatar-circle avatar-preview" id="avatar-preview" title="Сменить аватар"></div>
+            <div class="avatar-settings-actions">
+                <button type="button" class="chip-btn" id="avatar-change-btn">Сменить фото</button>
+                <button type="button" class="avatar-remove" id="avatar-remove-btn" hidden>Убрать фото</button>
+            </div>
+        </div>
+        <input type="file" id="avatar-file" accept="image/*" hidden>
+        <div class="settings-hint">Перетащите фото на круг или нажмите «Сменить». Если вы сопряжены и собеседник сейчас слушает в чате, новый аватар уйдёт ему по звуку.</div>
+        <div class="avatar-settings-status" id="avatar-status"></div>
+    </div>
+
+    <div class="chart-card settings-card">
+        <div class="chart-title" data-i18n="settings.theme">Тема</div>
+        <div class="theme-grid">
+            <button type="button" class="theme-option" data-theme-value="dark">
+                <span class="theme-swatch swatch-dark"></span>
+                <span data-i18n="settings.theme.dark">Тёмная</span>
+            </button>
+            <button type="button" class="theme-option" data-theme-value="light">
+                <span class="theme-swatch swatch-light"></span>
+                <span data-i18n="settings.theme.light">Светлая</span>
+            </button>
+            <button type="button" class="theme-option" data-theme-value="auto">
+                <span class="theme-swatch swatch-auto"></span>
+                <span data-i18n="settings.theme.auto">Как в системе</span>
+            </button>
+        </div>
+        <div class="settings-hint" data-i18n="settings.theme.hint">Тема сохраняется на этом устройстве и применяется сразу.</div>
+    </div>
+
+    <div class="chart-card settings-card">
+        <div class="chart-title" data-i18n="settings.language">Язык</div>
+        <div class="lang-switch" id="lang-switch">
+            <button type="button" class="lang-option" data-lang="ru">Русский</button>
+            <button type="button" class="lang-option" data-lang="en">English</button>
+        </div>
+        <div class="settings-hint" data-i18n="settings.language.hint">Переключает язык интерфейса. Настройка хранится на этом устройстве.</div>
+    </div>
+
+    <div class="chart-card settings-card">
+        <div class="chart-title" data-i18n="settings.transfer">Экспорт и импорт чатов</div>
+        <div class="settings-actions">
+            <button id="export-chats-btn" class="chip-btn" type="button">
+                <svg class="btn-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g stroke="#8a8a88" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4"/><path d="M7.5 8.5 12 4l4.5 4.5"/><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15"/></g></svg>
+                <span data-i18n="settings.export">Экспорт чатов</span>
+            </button>
+            <button id="import-chats-btn" class="chip-btn" type="button">
+                <svg class="btn-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><g stroke="#8a8a88" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7.5 10.5 12 15l4.5-4.5"/><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15"/></g></svg>
+                <span data-i18n="settings.import">Импорт чатов</span>
+            </button>
+        </div>
+        <div id="transfer-stub" class="settings-stub" data-i18n="settings.stub">Функция в разработке — появится в следующем обновлении.</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/native-modem.js"></script>
+<script src="/static/js/e2e-crypto.js"></script>
+<script src="/static/js/avatar.js"></script>
+<script src="/static/js/settings.js"></script>
+{% endblock %}

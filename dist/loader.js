@@ -21,6 +21,13 @@
   let stageInterval = null;
   let isComplete = false;
   let hasError = false;
+  let recoveryTimer = null;
+  let lastBackendStage = null;
+  const bridgePresent = !!(window.__TAURI__ && window.__TAURI__.event);
+
+  function log() {
+    try { console.log.apply(console, ['[loader]'].concat([].slice.call(arguments))); } catch (e) {}
+  }
 
   // Функция обновления прогресса
   function updateProgress(stageIndex) {
@@ -71,9 +78,10 @@
     if (isComplete) return;
     isComplete = true;
     clearInterval(stageInterval);
+    clearInterval(recoveryTimer);
 
     progressBar.style.width = '100%';
-    statusEl.innerHTML = 'Готово! Приложение запущено ✅';
+    statusEl.innerHTML = 'Готово! Приложение запущено ' + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px" aria-hidden="true"><g stroke="#8a8a88" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.2l2.6 2.6L16 9.4"/></g></svg>';
     detailsEl.textContent = 'Переход в основной интерфейс...';
     appEl.classList.add('success');
 
@@ -91,43 +99,78 @@
 
     progressContainer.classList.remove('active');
     appEl.classList.add('error');
-    statusEl.innerHTML = '❌ Ошибка запуска';
+    statusEl.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px" aria-hidden="true"><g stroke="#8a8a88" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.2l5.6 5.6M14.8 9.2l-5.6 5.6"/></g></svg>' + ' Ошибка запуска';
     detailsEl.textContent = message || 'Проверьте логи для подробностей';
   }
 
   // Обработка событий от Tauri
-  if (window.__TAURI__) {
+  if (bridgePresent) {
     const { listen } = window.__TAURI__.event;
+    log('Мост Tauri доступен, регистрирую слушатели событий старта');
+
+    listen('server-progress', (event) => {
+      lastBackendStage = event.payload;
+      log('этап бэкенда:', event.payload);
+      if (!isComplete && !hasError) detailsEl.textContent = event.payload;
+    });
 
     // Слушаем событие готовности сервера
-    listen('server-ready', () => {
+    listen('server-ready', (event) => {
+      log('получено server-ready', event && event.payload);
       completeLoading();
     });
 
     // Слушаем ошибки
     listen('server-error', (event) => {
+      log('получено server-error', event.payload);
       showError(event.payload || 'Неизвестная ошибка');
       // Показываем ошибку в консоли для отладки
       console.error('Server error:', event.payload);
     });
+  } else {
+    console.error('[loader] window.__TAURI__ недоступен — IPC-мост не готов, события старта не придут');
+    detailsEl.textContent = 'IPC-мост Tauri недоступен (window.__TAURI__ отсутствует)';
   }
 
   // Запускаем анимацию прогресса
   startProgress();
 
+  const SERVER_URL = 'http://127.0.0.1:8000/';
+  let recoveryAttempts = 0;
+  recoveryTimer = setInterval(() => {
+    if (isComplete) { clearInterval(recoveryTimer); return; }
+    recoveryAttempts++;
+    if (recoveryAttempts > 90) { clearInterval(recoveryTimer); return; }
+    fetch(SERVER_URL, { mode: 'no-cors', cache: 'no-store' })
+      .then(() => {
+        if (isComplete) return;
+        console.warn('[loader] сервер отвечает, но server-ready не пришло — навигация по резервному опросу (событие потеряно)');
+        completeLoading();
+      })
+      .catch(() => { /* сервер ещё не готов */ });
+  }, 2000);
+
   // Таймаут на случай, если что-то пошло не так и событие не пришло
   const timeoutId = setTimeout(() => {
     if (!isComplete && !hasError) {
-      // Если прошло 30 секунд, а сервер не запустился
-      showError('Превышено время ожидания запуска сервера');
-      console.error('Timeout: Server did not start within 30 seconds');
+      let msg = 'Превышено время ожидания запуска сервера';
+      if (!bridgePresent) {
+        msg += ' — IPC-мост Tauri (window.__TAURI__) не инициализировался';
+      } else if (lastBackendStage) {
+        msg += ' — застряли на этапе: ' + lastBackendStage;
+      } else {
+        msg += ' — бэкенд не прислал ни одного этапа (возможно, события потеряны)';
+      }
+      showError(msg);
+      console.error('Timeout:', msg);
     }
-  }, 60000);
+  }, 90000);
 
   // Очищаем таймаут при завершении
   window.addEventListener('beforeunload', () => {
     clearTimeout(timeoutId);
     clearInterval(stageInterval);
+    clearInterval(recoveryTimer);
   });
 
   // Экспортируем функции для отладки

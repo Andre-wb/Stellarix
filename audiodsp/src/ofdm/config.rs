@@ -37,7 +37,7 @@ impl Modulation {
         constellation::table(*self)
     }
 
-    pub(crate) fn id(&self) -> u8 {
+    pub fn id(&self) -> u8 {
         match self {
             Modulation::Bpsk => 0,
             Modulation::Qpsk => 1,
@@ -46,7 +46,7 @@ impl Modulation {
         }
     }
 
-    pub(crate) fn from_id(id: u8) -> Option<Modulation> {
+    pub fn from_id(id: u8) -> Option<Modulation> {
         match id {
             0 => Some(Modulation::Bpsk),
             1 => Some(Modulation::Qpsk),
