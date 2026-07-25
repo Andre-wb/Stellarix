@@ -99,7 +99,7 @@
 
     progressContainer.classList.remove('active');
     appEl.classList.add('error');
-    statusEl.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px" aria-hidden="true"><g stroke="#ffffff" stroke-width="3.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.2l5.6 5.6M14.8 9.2l-5.6 5.6"/></g><g stroke="#8a8a88" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.2l5.6 5.6M14.8 9.2l-5.6 5.6"/></g></svg>' + ' Ошибка запуска';
+    statusEl.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px" aria-hidden="true"><g stroke="#8a8a88" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.2l5.6 5.6M14.8 9.2l-5.6 5.6"/></g></svg>' + ' Ошибка запуска';
     detailsEl.textContent = message || 'Проверьте логи для подробностей';
   }
 
