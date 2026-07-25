@@ -1,6 +1,4 @@
-// Stellarix — дашборд в реальном времени.
-// Данные берутся из StxStats (localStorage): запись появляется сразу после
-// завершения передачи/приёма в чате (событие storage + опрос раз в секунду).
+// Работает с данными из HTML (серверный рендеринг) + localStorage для реального времени
 document.addEventListener('DOMContentLoaded', () => {
     const ACCENT = '#5e9fe8';
     const ACCENT_DIM = 'rgba(94, 159, 232, 0.25)';
@@ -14,6 +12,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const pad = (n) => String(n).padStart(2, '0');
 
     const KIND_LABEL = { tx: 'передача', rx: 'приём', key: 'обмен ключами' };
+
+    // Читаем начальные данные из HTML
+    function getInitialData() {
+        const speedData = window.dashboardData?.speedChart || [];
+        const resultData = window.dashboardData?.resultChart || [0, 0];
+        const durationData = window.dashboardData?.durationChart || [];
+        const bytesData = window.dashboardData?.bytesChart || [];
+
+        return {
+            speedData,
+            resultData,
+            durationData,
+            bytesData,
+            totalSent: parseInt($('stat-tx')?.textContent || '0'),
+            totalReceived: parseInt($('stat-rx')?.textContent || '0'),
+            successRate: $('stat-success')?.textContent || '—',
+            averageSpeed: $('stat-speed')?.textContent || '—'
+        };
+    }
 
     function fmtTime(ts) {
         const d = new Date(ts);
@@ -70,9 +87,9 @@ document.addEventListener('DOMContentLoaded', () => {
             ctx.fillText(String(Math.round((max * g) / 3)), 2, y + 3);
         }
     }
-
+    
     function drawLine(id, dataIn) {
-        if (!dataIn.length) { placeholder(id); return; }
+        if (!dataIn || !dataIn.length) { placeholder(id); return; }
         const data = dataIn.length === 1 ? [dataIn[0], dataIn[0]] : dataIn;
         const s = ctx2d(id);
         if (!s) return;
@@ -111,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawBars(id, data, decimals) {
-        if (!data.length) { placeholder(id); return; }
+        if (!data || !data.length) { placeholder(id); return; }
         const s = ctx2d(id);
         if (!s) return;
         const { ctx, w, h } = s;
@@ -179,10 +196,32 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.textAlign = 'left';
     }
 
+    // Получаем начальные данные из HTML
+    const initialData = getInitialData();
+
+    // Функция для объединения данных из localStorage и HTML
+    function getAllStats() {
+        // Пытаемся получить данные из localStorage через StxStats
+        if (typeof StxStats !== 'undefined' && StxStats.all) {
+            return StxStats.all();
+        }
+
+        // Если StxStats нет, используем данные из HTML
+        // Создаем имитацию данных из сессий
+        const sessions = window.dashboardSessions || [];
+        return sessions.map(s => ({
+            kind: s.session_type === 'Исходящая' ? 'tx' : 'rx',
+            ok: s.status === 'Успешно',
+            bytes: parseInt(s.volume) || 0,
+            ms: parseFloat(s.duration) * 1000 || 0,
+            at: new Date().getTime() // Используем текущее время как заглушку
+        }));
+    }
+
     let lastSig = null;
 
     function render(force) {
-        const all = (typeof StxStats !== 'undefined') ? StxStats.all() : [];
+        const all = getAllStats();
         const sig = all.length + ':' + (all.length ? all[all.length - 1].at : 0);
         if (!force && sig === lastSig) return;
         lastSig = sig;
@@ -201,40 +240,73 @@ document.addEventListener('DOMContentLoaded', () => {
             ? String(Math.round(speeds.reduce((a, b) => a + b, 0) / speeds.length))
             : '—';
 
-        drawLine('chart-speed', speeds.slice(-20));
-        drawBars('chart-duration', txOk.slice(-12).map((s) => s.ms / 1000), 1);
-        drawBars('chart-bytes', txOk.slice(-12).map((s) => s.bytes || 0), null);
-        drawDonut('chart-donut', okCount, errCount);
+        // Если есть данные из HTML и нет данных из localStorage, используем их
+        if (!all.length && initialData.speedData.length) {
+            drawLine('chart-speed', initialData.speedData);
+            drawBars('chart-duration', initialData.durationData, 1);
+            drawBars('chart-bytes', initialData.bytesData, null);
+            drawDonut('chart-donut', initialData.resultData[0] || 0, initialData.resultData[1] || 0);
 
-        const legOk = $('leg-ok');
-        const legErr = $('leg-err');
-        if (legOk) legOk.textContent = 'Успешно · ' + okCount;
-        if (legErr) legErr.textContent = 'Ошибки · ' + errCount;
+            const legOk = $('leg-ok');
+            const legErr = $('leg-err');
+            if (legOk) legOk.textContent = 'Успешно · ' + (initialData.resultData[0] || 0);
+            if (legErr) legErr.textContent = 'Ошибки · ' + (initialData.resultData[1] || 0);
+        } else {
+            drawLine('chart-speed', speeds.slice(-20));
+            drawBars('chart-duration', txOk.slice(-12).map((s) => s.ms / 1000), 1);
+            drawBars('chart-bytes', txOk.slice(-12).map((s) => s.bytes || 0), null);
+            drawDonut('chart-donut', okCount, errCount);
+
+            const legOk = $('leg-ok');
+            const legErr = $('leg-err');
+            if (legOk) legOk.textContent = 'Успешно · ' + okCount;
+            if (legErr) legErr.textContent = 'Ошибки · ' + errCount;
+        }
 
         const tbody = $('sessions-tbody');
         if (tbody) {
             tbody.innerHTML = '';
-            all.slice(-12).reverse().forEach((s, idx) => {
-                const sp = speedOf(s);
+            const sessions = window.dashboardSessions || [];
+            sessions.slice(-12).reverse().forEach((s, idx) => {
                 const tr = document.createElement('tr');
                 if (idx === 0) tr.className = 'row-new';
                 tr.innerHTML =
-                    '<td>' + fmtTime(s.at) + '</td>' +
-                    '<td>' + (KIND_LABEL[s.kind] || s.kind) + '</td>' +
-                    '<td>' + (s.bytes != null ? s.bytes + ' Б' : '—') + '</td>' +
-                    '<td>' + fmtMs(s.ms) + '</td>' +
-                    '<td>' + (sp ? sp + ' бит/с' : '—') + '</td>' +
-                    '<td><span class="pill ' + (s.ok ? 'pill-ok">успех' : 'pill-err">ошибка') + '</span></td>';
+                    '<td>' + s.time + '</td>' +
+                    '<td>' + s.session_type + '</td>' +
+                    '<td>' + s.volume + '</td>' +
+                    '<td>' + s.duration + '</td>' +
+                    '<td>' + s.speed + '</td>' +
+                    '<td><span class="pill ' + (s.status === 'Успешно' ? 'pill-ok">успех' : 'pill-err">ошибка') + '</span></td>';
                 tbody.appendChild(tr);
             });
         }
 
         const empty = $('dash-empty');
         const wrap = $('sessions-wrap');
+        const hasSessions = window.dashboardSessions && window.dashboardSessions.length > 0;
         if (empty && wrap) {
-            empty.style.display = all.length ? 'none' : 'block';
-            wrap.style.display = all.length ? '' : 'none';
+            empty.style.display = hasSessions ? 'none' : 'block';
+            wrap.style.display = hasSessions ? '' : 'none';
         }
+    }
+
+    // Сессии из данных HTML, чтобы обновлять актуальную информацию
+    window.dashboardSessions = window.dashboardSessions || [];
+
+    // Если есть данные в HTML, обновляем их
+    const sessionRows = document.querySelectorAll('#sessions-tbody tr');
+    if (sessionRows.length) {
+        window.dashboardSessions = Array.from(sessionRows).map(row => {
+            const cells = row.querySelectorAll('td');
+            return {
+                time: cells[0]?.textContent || '',
+                session_type: cells[1]?.textContent || '',
+                volume: cells[2]?.textContent || '',
+                duration: cells[3]?.textContent || '',
+                speed: cells[4]?.textContent || '',
+                status: cells[5]?.querySelector('.pill')?.textContent || 'успех'
+            };
+        });
     }
 
     render(true);
@@ -259,7 +331,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         resetBtn.addEventListener('click', () => {
-            if (typeof StxStats === 'undefined') return;
+            if (typeof StxStats === 'undefined' || !StxStats.reset) return;
             if (!resetArmed) {
                 resetArmed = true;
                 resetBtn.textContent = 'Нажмите ещё раз';
