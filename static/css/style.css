@@ -935,3 +935,72 @@ canvas.chart { display: block; width: 100%; height: 180px; }
 
 .imgc-btn-ghost { background: transparent; border-color: var(--border); color: var(--text-2); }
 .imgc-btn-ghost:hover { border-color: var(--border-hi); color: #fff; }
+
+/* ==========================================================================
+   Themes (addon) — переопределения переменных, базовые стили не меняются
+   ========================================================================== */
+:root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f3f3f1;
+    --surface: #ffffff;
+    --raised: #e9e9e6;
+    --accent: #3f78c2;
+    --accent-deep: #2f5f9e;
+    --accent-2: #3f78c2;
+    --text: #191919;
+    --text-2: rgba(0, 0, 0, 0.65);
+    --text-3: rgba(0, 0, 0, 0.45);
+    --panel: rgba(255, 255, 255, 0.9);
+    --panel-2: rgba(240, 240, 238, 0.9);
+    --border: rgba(0, 0, 0, 0.15);
+    --border-hi: rgba(0, 0, 0, 0.28);
+}
+
+:root[data-theme="light"] .chip-btn:hover { color: #191919; }
+
+:root[data-theme="amoled"] {
+    --bg: #000000;
+    --surface: #0a0a0a;
+    --raised: #171717;
+    --panel: rgba(8, 8, 8, 0.88);
+    --panel-2: rgba(23, 23, 23, 0.88);
+    --border: rgba(255, 255, 255, 0.16);
+    --border-hi: rgba(255, 255, 255, 0.28);
+}
+
+/* ==========================================================================
+   Settings page (addon)
+   ========================================================================== */
+.settings-card { margin-bottom: 18px; }
+.theme-grid { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.theme-option {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--panel-2);
+    color: var(--text); cursor: pointer; font-family: inherit; font-size: 14px;
+    transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease;
+}
+.theme-option:hover { border-color: var(--border-hi); transform: translateY(-1px); }
+.theme-option.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.theme-swatch { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--border-hi); display: inline-block; }
+.swatch-dark { background: linear-gradient(135deg, #191919 50%, #383836 50%); }
+.swatch-light { background: linear-gradient(135deg, #f3f3f1 50%, #dcdcd9 50%); }
+.swatch-amoled { background: linear-gradient(135deg, #000 50%, #171717 50%); }
+.settings-select { max-width: 260px; margin-top: 12px; display: block; }
+.settings-hint { margin-top: 10px; font-size: 12.5px; color: var(--text-3); }
+.settings-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.settings-stub { display: none; margin-top: 10px; font-size: 12.5px; color: var(--warn); }
+
+/* Language switch (addon) */
+.lang-switch {
+    display: inline-flex; gap: 4px; padding: 4px; margin-top: 12px;
+    border: 1px solid var(--border); border-radius: 999px; background: var(--panel-2);
+}
+.lang-option {
+    padding: 8px 20px; border: none; border-radius: 999px; background: transparent;
+    color: var(--text-2); cursor: pointer; font-family: inherit; font-size: 14px;
+    transition: background .25s ease, color .25s ease;
+}
+.lang-option:hover:not(.active) { color: var(--text); }
+.lang-option.active { background: var(--accent); color: #ffffff; }
+.btn-ico { vertical-align: -3px; margin-right: 6px; }

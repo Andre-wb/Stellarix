@@ -104,6 +104,7 @@ pub struct SessionStats {
 pub struct DashboardTemplate {
     pub logged_in: bool,
     pub username: String,
+    pub avatar_letter: String,
     pub total_messages_sent: i64,
     pub total_messages_received: i64,
     pub success_rate: String,
@@ -124,4 +125,10 @@ pub struct RegisterForm {
 pub struct LoginForm {
     pub username: String,
     pub password: String,
+}
+#[derive(Template)]
+#[template(path = "settings.html")]
+pub struct SettingsTemplate {
+    pub logged_in: bool,
+    pub username: String,
 }

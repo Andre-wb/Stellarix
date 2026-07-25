@@ -218,16 +218,6 @@ async fn bring_up(app: AppHandle, pg_state: Arc<Mutex<Option<PostgreSQL>>>) -> R
         })?;
     }
 
-    let binary_dir = pg.settings().binary_dir();
-    if let Some((data_major, binary_major)) = pgcleanup::datadir_version_conflict(&pg_data, &binary_dir) {
-        let msg = format!(
-            "Каталог данных PostgreSQL создан версией {data_major}, а эта сборка использует PostgreSQL {binary_major}. Удалите каталог {} и перезапустите Stellarix (локальные данные будут пересозданы) или запустите сборку с PostgreSQL {data_major}.",
-            pg_data.display()
-        );
-        error!("{}", msg);
-        return Err(msg);
-    }
-
     info!("Запуск PostgreSQL на порту {}...", PG_PORT);
     pg.start().await.map_err(|e| {
         let log_tail = pgcleanup::start_log_tail(&pg_data, 1500);

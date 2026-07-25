@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{% endblock %}</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <script>(function(){try{var t=localStorage.getItem('stx_theme');if(t&&t!=='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();</script>
+    <script src="/static/js/i18n.js"></script>
     <script src="/static/js/menu.js"></script>
     {% block extra_head %}{% endblock %}
 </head>
@@ -14,7 +16,7 @@
     <a href="/pairing" class="nav-link">Сопряжение</a>
     <a href="/chat" class="nav-link">Чат</a>
     <a href="/dashboard" class="nav-link">Дашборд</a>
-    <a href="/profile" class="nav-link">Профиль</a>
+    <a href="/settings" class="nav-link">Настройки</a>
     <a href="/logout" class="nav-link">Выйти</a>
     {% else %}
     <a href="/login" class="nav-link">Войти</a>
@@ -33,7 +35,7 @@
             <a href="/pairing" class="nav-link">Сопряжение</a>
             <a href="/chat" class="nav-link">Чат</a>
             <a href="/dashboard" class="nav-link">Дашборд</a>
-            <a href="/profile" class="nav-link">Профиль</a>
+            <a href="/settings" class="nav-link">Настройки</a>
             <a href="/logout" class="nav-link">Выйти</a>
             {% else %}
             <a href="/login" class="nav-link">Войти</a>
