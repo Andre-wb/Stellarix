@@ -43,13 +43,6 @@ struct FileEvent {
     data_hex: String,
 }
 
-fn is_image_name(name: &str) -> bool {
-    let lower = name.to_ascii_lowercase();
-    [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"]
-        .iter()
-        .any(|ext| lower.ends_with(ext))
-}
-
 pub struct Listener {
     stop: Arc<AtomicBool>,
 }
@@ -244,7 +237,7 @@ fn handle_envelope(app: &AppHandle, envelope: Vec<u8>) -> Result<(), String> {
                 path = save_file(app, &safe, &content)?;
                 saved = true;
             }
-            let data_hex = if saved && is_image_name(&safe) {
+            let data_hex = if saved {
                 to_hex(&content)
             } else {
                 String::new()

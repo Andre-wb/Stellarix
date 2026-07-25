@@ -119,11 +119,43 @@ document.addEventListener('DOMContentLoaded', () => {
         return /\.(png|jpe?g|webp|gif|bmp)$/i.test(name || '');
     }
 
+    function isTextName(name) {
+        return /\.(txt|md|csv|log|json)$/i.test(name || '');
+    }
+
+    function mimeForName(name) {
+        const ext = ((name || '').split('.').pop() || '').toLowerCase();
+        if (ext === 'json') return 'application/json';
+        if (ext === 'pdf') return 'application/pdf';
+        if (ext === 'txt' || ext === 'md' || ext === 'csv' || ext === 'log') return 'text/plain';
+        return 'application/octet-stream';
+    }
+
+    function bytesToBase64(bytes) {
+        let bin = '';
+        const CHUNK = 0x8000;
+        for (let i = 0; i < bytes.length; i += CHUNK) {
+            bin += String.fromCharCode.apply(null, Array.prototype.slice.call(bytes, i, i + CHUNK));
+        }
+        return btoa(bin);
+    }
+
     function bytesToImageUrl(bytes) {
         if (hasAvatar && typeof Avatar.bytesToDataUrl === 'function') return Avatar.bytesToDataUrl(bytes);
-        let bin = '';
-        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-        return 'data:image/jpeg;base64,' + btoa(bin);
+        return 'data:image/jpeg;base64,' + bytesToBase64(bytes);
+    }
+
+    function fileDataUrl(name, bytes) {
+        return 'data:' + mimeForName(name) + ';base64,' + bytesToBase64(bytes);
+    }
+
+    function fileText(name, bytes) {
+        if (!isTextName(name)) return null;
+        try {
+            return new TextDecoder('utf-8', { fatal: false }).decode(new Uint8Array(bytes));
+        } catch (e) {
+            return null;
+        }
     }
 
     function fillFileCard(bubble, name, meta) {
@@ -147,27 +179,43 @@ document.addEventListener('DOMContentLoaded', () => {
         appendBubble(bubble, kind);
     }
 
-    function addImageMessage(name, dataUrl, kind) {
+    function openFileFromBytes(name, bytes) {
+        window.openFileViewer(name || 'файл', fileDataUrl(name, bytes), fileText(name, bytes));
+    }
+
+    function makeOpenableCard(bubble, name, bytes, kind) {
+        applyBubbleStyle(bubble, kind);
+        fillFileCard(bubble, name || 'файл', formatSize(bytes.length));
+        bubble.style.cursor = 'pointer';
+        bubble.addEventListener('click', () => openFileFromBytes(name, bytes));
+    }
+
+    function addOpenableFile(name, bytes, kind) {
+        const bubble = makeBubble(kind);
+        makeOpenableCard(bubble, name, bytes, kind);
+        appendBubble(bubble, kind);
+    }
+
+    function addImageMessage(name, bytes, kind) {
         const bubble = document.createElement('div');
         bubble.className = 'msg-bubble-media' + (kind === 'sent' ? ' own' : '');
         const img = document.createElement('img');
         img.className = 'chat-image';
         img.alt = name || '';
         img.loading = 'lazy';
-        img.src = dataUrl;
+        img.src = bytesToImageUrl(bytes);
         img.addEventListener('click', () => window.openImageViewer(img.src, name || ''));
         img.addEventListener('error', () => {
             bubble.className = 'chat-bubble';
-            applyBubbleStyle(bubble, kind);
-            fillFileCard(bubble, name || 'файл', '');
+            makeOpenableCard(bubble, name, bytes, kind);
         });
         bubble.appendChild(img);
         appendBubble(bubble, kind);
     }
 
     function addSentFile(name, bytes) {
-        if (isImageName(name)) addImageMessage(name, bytesToImageUrl(bytes), 'sent');
-        else addFileCard(name, formatSize(bytes.length), 'sent');
+        if (isImageName(name)) addImageMessage(name, bytes, 'sent');
+        else addOpenableFile(name, bytes, 'sent');
     }
 
     function formatSize(bytes) {
@@ -410,8 +458,14 @@ document.addEventListener('DOMContentLoaded', () => {
             onFile: (info) => {
                 resetListenUi();
                 if (info.saved && info.data_hex) {
-                    addImageMessage(info.name, bytesToImageUrl(AudioModem.hexToBytes(info.data_hex)), 'received');
-                    setStatus('Изображение получено.');
+                    const bytes = AudioModem.hexToBytes(info.data_hex);
+                    if (isImageName(info.name)) {
+                        addImageMessage(info.name, bytes, 'received');
+                        setStatus('Изображение получено.');
+                    } else {
+                        addOpenableFile(info.name, bytes, 'received');
+                        setStatus('Файл получен.');
+                    }
                 } else if (info.saved) {
                     addFileCard(info.name, formatSize(info.size), 'received');
                     setStatus('Файл получен.');

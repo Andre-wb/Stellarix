@@ -64,6 +64,25 @@
         Скачать
     </a>
 </div>
+
+<div id="file-viewer-overlay" onclick="closeFileViewer()">
+    <button class="iv-close" onclick="closeFileViewer()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+            <path d="m7.76 14.83-2.83 2.83 1.41 1.41 2.83-2.83 2.12-2.12.71-.71.71.71 1.41 1.42 3.54 3.53 1.41-1.41-3.53-3.54-1.42-1.41-.71-.71 5.66-5.66-1.41-1.41L12 10.59 6.34 4.93 4.93 6.34 10.59 12l-.71.71z"></path>
+        </svg>
+    </button>
+    <div class="iv-name" id="file-viewer-name"></div>
+    <div class="fv-content" onclick="event.stopPropagation()">
+        <pre id="file-viewer-body"></pre>
+        <div id="file-viewer-note" class="fv-note" style="display:none;">Предпросмотр для этого типа файла недоступен. Файл можно скачать.</div>
+    </div>
+    <a id="file-viewer-download" class="iv-download" onclick="event.stopPropagation()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 15v4c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-4M17 9l-5 5-5-5M12 12.8V2.5"/>
+        </svg>
+        Скачать
+    </a>
+</div>
 {% endblock %}
 
 {% block extra_scripts %}
@@ -79,6 +98,7 @@
 <script src="/static/js/file-compress.js"></script>
 <script src="/static/js/icons.js"></script>
 <script src="/static/js/image-viewer.js"></script>
+<script src="/static/js/file-viewer.js"></script>
 <script src="/static/js/chat.js"></script>
 <script>
 (function () {
