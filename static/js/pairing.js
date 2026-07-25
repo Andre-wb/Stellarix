@@ -8,11 +8,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const levelEl = document.getElementById('mic-level');
     const bannerEl = document.getElementById('pairing-banner');
     const nativeReady = AudioModem.isAvailable();
+    const IDLE_LEVEL = 'Уровень микрофона: [--------------------]';
     let activeListener = null;
     let retryCount = 0;
     let retryTimer = null;
     let sharing = false;
     let shareGen = 0;
+    let keypairPromise = null;
     const MAX_RETRIES = 3;
 
     function setStatus(text) {
@@ -25,10 +27,28 @@ document.addEventListener('DOMContentLoaded', () => {
         levelEl.textContent = 'Уровень микрофона: [' + '#'.repeat(bars) + '-'.repeat(20 - bars) + ']';
     }
 
+    function legacyPaired() {
+        return E2E.isPaired() && !E2E.hasKeypair();
+    }
+
+    function enableShare() {
+        shareBtn.disabled = !cryptoOk || legacyPaired();
+    }
+
+    function keypairReady() {
+        if (!keypairPromise) {
+            keypairPromise = E2E.ensureKeypair().catch(err => {
+                keypairPromise = null;
+                throw err;
+            });
+        }
+        return keypairPromise;
+    }
+
     function resetListenUi() {
         activeListener = null;
         receiveBtn.disabled = false;
-        shareBtn.disabled = false;
+        enableShare();
         stopBtn.style.display = 'none';
     }
 
@@ -39,20 +59,31 @@ document.addEventListener('DOMContentLoaded', () => {
         retryTimer = setTimeout(() => { retryTimer = null; startFn(); }, 2000);
     }
 
-    function cancelActivity() {
-        shareGen++;
-        sharing = false;
+    function cancelListening() {
         if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
         if (activeListener) activeListener.cancel();
         resetListenUi();
         retryCount = 0;
+    }
+
+    function cancelSharing() {
+        if (!sharing) return;
+        shareGen++;
+        sharing = false;
+        AudioModem.stopPlaying();
+    }
+
+    function cancelActivity() {
+        shareGen++;
+        sharing = false;
+        cancelListening();
         AudioModem.stopPlaying();
     }
 
     function lockAudioUi() {
         bannerEl.style.display = 'block';
         bannerEl.style.background = 'rgba(230, 80, 60, 0.15)';
-        bannerEl.innerHTML = StxIcons.warn + ' ' + AudioModem.unavailableReason;
+        bannerEl.textContent = '⚠️ ' + AudioModem.unavailableReason;
         shareBtn.disabled = true;
         receiveBtn.disabled = true;
         resetBtn.disabled = true;
@@ -65,72 +96,96 @@ document.addEventListener('DOMContentLoaded', () => {
             lockAudioUi();
             return;
         }
-        if (E2E.isPaired()) {
-            bannerEl.style.display = 'block';
+        if (!cryptoOk) {
+            bannerEl.style.display = 'none';
+            return;
+        }
+        bannerEl.style.display = 'block';
+        if (legacyPaired()) {
+            bannerEl.style.background = 'rgba(230, 180, 30, 0.15)';
+            bannerEl.innerHTML =
+                '⚠️ Сеансовый ключ создан прежней версией приложения, и ваш собственный ключ для повторной ' +
+                'передачи не сохранён — поделиться им уже нельзя. Отпечаток: <strong>' + E2E.getFingerprint() + '</strong>. ' +
+                'Если собеседник ещё не принял ваш ключ, нажмите «Начать заново» и выполните обмен с обеих сторон.';
+        } else if (E2E.isPaired()) {
             bannerEl.style.background = 'rgba(40, 180, 99, 0.15)';
             bannerEl.innerHTML =
-                StxIcons.ok + ' Сопряжение выполнено. Отпечаток ключа: <strong>' + E2E.getFingerprint() + '</strong>. ' +
-                'Сверьте его вслух с собеседником — если отпечатки совпадают, можно переходить в ' +
-                '<a href="/chat">чат</a>.';
-        } else if (E2E.hasPendingKey()) {
-            bannerEl.style.display = 'block';
-            bannerEl.style.background = 'rgba(230, 180, 30, 0.15)';
-            bannerEl.textContent = '⏳ Ваш публичный ключ сгенерирован и готов к передаче, но сопряжение ещё не завершено (ключ собеседника не получен).';
+                '✅ Ваша сторона сопряжена. Отпечаток ключа: <strong>' + E2E.getFingerprint() + '</strong>. ' +
+                'Сверьте его вслух с собеседником — отпечатки должны совпасть. Если собеседник ещё не принимал ' +
+                'ваш ключ, нажмите «Поделиться ключом»: без этого он не сможет прочитать ваши сообщения. ' +
+                'Когда отпечатки совпали — переходите в <a href="/chat">чат</a>.';
         } else {
-            bannerEl.style.display = 'none';
+            bannerEl.style.background = 'rgba(90, 140, 230, 0.15)';
+            bannerEl.innerHTML =
+                'Ваш ключ готов. <strong>Шаг 1:</strong> один нажимает «Поделиться ключом», второй в это же ' +
+                'время — «Получить ключ». <strong>Шаг 2:</strong> поменяйтесь ролями и повторите. ' +
+                'Обмен нужен в обе стороны — после одного шага чат ещё не работает.';
         }
     }
 
-    if (!E2E.isSupported()) {
+    const cryptoOk = E2E.isSupported();
+    if (!cryptoOk) {
         setStatus('Встроенный движок приложения не поддерживает нужную криптографию (WebCrypto). Обновите систему или компонент WebView — без него сопряжение невозможно.');
         shareBtn.disabled = true;
         receiveBtn.disabled = true;
     }
 
     refreshBanner();
+    if (cryptoOk && nativeReady && !legacyPaired()) {
+        keypairReady().catch(err => setStatus('Не удалось создать ключ: ' + err.message));
+    }
 
     shareBtn.addEventListener('click', async () => {
-        if (activeListener || sharing || !nativeReady) return;
+        if (sharing || !nativeReady) return;
+        if (legacyPaired()) {
+            setStatus('Ваш ключ не сохранён с прошлой версии — нажмите «Начать заново» и выполните обмен заново.');
+            return;
+        }
+        cancelListening();
         const gen = ++shareGen;
         sharing = true;
-        if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
         shareBtn.disabled = true;
         receiveBtn.disabled = true;
         resultEl.textContent = '';
+        const liveStatus = s => { if (gen === shareGen) setStatus(s); };
         try {
-            setStatus('Генерирую ключ в браузере...');
-            const publicHex = await E2E.ensureKeypair();
+            setStatus('Готовлю ключ...');
+            const publicHex = await keypairReady();
             if (gen !== shareGen) return;
             setStatus('Передаю ключ (1/2)...');
-            await AudioModem.playPublicKeyHex(publicHex, setStatus);
+            await AudioModem.playPublicKeyHex(publicHex, liveStatus);
             if (gen !== shareGen) return;
             await new Promise(r => setTimeout(r, 500));
             if (gen !== shareGen) return;
             setStatus('Передаю ключ (2/2)...');
-            await AudioModem.playPublicKeyHex(publicHex, setStatus);
+            await AudioModem.playPublicKeyHex(publicHex, liveStatus);
             if (gen !== shareGen) return;
+            if (!E2E.isPaired()) {
+                setStatus('Ключ передан. Теперь поменяйтесь ролями: нажмите «Получить ключ», а собеседник — «Поделиться ключом».');
+            }
             refreshBanner();
         } catch (err) {
             if (gen === shareGen) setStatus('Ошибка: ' + err.message);
         } finally {
             if (gen === shareGen) {
                 sharing = false;
-                shareBtn.disabled = false;
+                enableShare();
                 receiveBtn.disabled = false;
             }
         }
     });
 
     receiveBtn.addEventListener('click', () => {
-        if (activeListener || sharing || !nativeReady) return;
+        if (activeListener || !nativeReady) return;
+        cancelSharing();
         if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
         resultEl.textContent = '';
-        if (levelEl) levelEl.textContent = 'Уровень микрофона: [--------------------]';
+        if (levelEl) levelEl.textContent = IDLE_LEVEL;
         retryCount = 0;
 
         function startListeningCycle() {
             receiveBtn.disabled = true;
-            shareBtn.disabled = true;
+            enableShare();
             stopBtn.style.display = 'inline-block';
             activeListener = AudioModem.startListening({
                 onStatus: setStatus,
@@ -144,18 +199,26 @@ document.addEventListener('DOMContentLoaded', () => {
                         return;
                     }
                     resetListenUi();
-                    setStatus('Ключ получен, вычисляю общий сеансовый ключ в браузере...');
+                    if (E2E.isPaired()) {
+                        if (E2E.getPeerHex() === hex.toLowerCase()) {
+                            setStatus('Это тот же ключ собеседника — сопряжение уже выполнено, отпечаток прежний: ' + E2E.getFingerprint());
+                        } else {
+                            setStatus('Принят ключ другого устройства. Текущее сопряжение сохранено — чтобы связаться с новым собеседником, нажмите «Начать заново».');
+                        }
+                        refreshBanner();
+                        return;
+                    }
+                    setStatus('Ключ получен, вычисляю общий сеансовый ключ...');
                     try {
+                        await keypairReady();
                         const fingerprint = await E2E.completePairing(hex);
-                        setStatus('Готово!');
+                        setStatus('Готово! Теперь нажмите «Поделиться ключом», чтобы собеседник тоже завершил сопряжение.');
                         resultEl.textContent =
                             'Сеансовый ключ создан в браузере. Сверьте отпечаток с собеседником вслух: ' + fingerprint;
-                        refreshBanner();
                     } catch (err) {
-                        setStatus('Ошибка: ' + err.message);
-                        refreshBanner();
-                        scheduleRetry(startListeningCycle);
+                        setStatus('Ошибка: ' + err.message + ' Повторный приём это не исправит — нажмите «Начать заново» и выполните обмен снова.');
                     }
+                    refreshBanner();
                 },
                 onError: (msg) => {
                     resetListenUi();
@@ -195,7 +258,14 @@ document.addEventListener('DOMContentLoaded', () => {
         disarmReset();
         cancelActivity();
         E2E.reset();
-        setStatus('Сопряжение сброшено. Можно начинать заново.');
+        keypairPromise = null;
+        if (levelEl) levelEl.textContent = IDLE_LEVEL;
+        keypairReady()
+            .then(() => {
+                setStatus('Сопряжение сброшено, новый ключ готов. Можно начинать заново.');
+                refreshBanner();
+            })
+            .catch(err => setStatus('Не удалось создать ключ: ' + err.message));
         resultEl.textContent = '';
         refreshBanner();
     });
