@@ -10,6 +10,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const nativeReady = AudioModem.isAvailable();
     let activeListener = null;
     let retryCount = 0;
+    let retryTimer = null;
+    let sharing = false;
+    let shareGen = 0;
     const MAX_RETRIES = 3;
 
     function setStatus(text) {
@@ -27,7 +30,23 @@ document.addEventListener('DOMContentLoaded', () => {
         receiveBtn.disabled = false;
         shareBtn.disabled = false;
         stopBtn.style.display = 'none';
+    }
+
+    function scheduleRetry(startFn) {
+        if (!nativeReady || retryCount >= MAX_RETRIES) return;
+        retryCount++;
+        setStatus(`Повторная попытка (${retryCount}/${MAX_RETRIES})...`);
+        retryTimer = setTimeout(() => { retryTimer = null; startFn(); }, 2000);
+    }
+
+    function cancelActivity() {
+        shareGen++;
+        sharing = false;
+        if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+        if (activeListener) activeListener.cancel();
+        resetListenUi();
         retryCount = 0;
+        AudioModem.stopPlaying();
     }
 
     function lockAudioUi() {
@@ -71,37 +90,48 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshBanner();
 
     shareBtn.addEventListener('click', async () => {
-        if (activeListener || !nativeReady) return;
+        if (activeListener || sharing || !nativeReady) return;
+        const gen = ++shareGen;
+        sharing = true;
+        if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
         shareBtn.disabled = true;
         receiveBtn.disabled = true;
         resultEl.textContent = '';
         try {
             setStatus('Генерирую ключ в браузере...');
             const publicHex = await E2E.ensureKeypair();
+            if (gen !== shareGen) return;
             setStatus('Передаю ключ (1/2)...');
             await AudioModem.playPublicKeyHex(publicHex, setStatus);
+            if (gen !== shareGen) return;
             await new Promise(r => setTimeout(r, 500));
+            if (gen !== shareGen) return;
             setStatus('Передаю ключ (2/2)...');
             await AudioModem.playPublicKeyHex(publicHex, setStatus);
+            if (gen !== shareGen) return;
             refreshBanner();
         } catch (err) {
-            setStatus('Ошибка: ' + err.message);
+            if (gen === shareGen) setStatus('Ошибка: ' + err.message);
         } finally {
-            shareBtn.disabled = false;
-            receiveBtn.disabled = false;
+            if (gen === shareGen) {
+                sharing = false;
+                shareBtn.disabled = false;
+                receiveBtn.disabled = false;
+            }
         }
     });
 
     receiveBtn.addEventListener('click', () => {
-        if (activeListener || !nativeReady) return;
-        receiveBtn.disabled = true;
-        shareBtn.disabled = true;
-        stopBtn.style.display = 'inline-block';
+        if (activeListener || sharing || !nativeReady) return;
+        if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
         resultEl.textContent = '';
         if (levelEl) levelEl.textContent = 'Уровень микрофона: [--------------------]';
         retryCount = 0;
 
         function startListeningCycle() {
+            receiveBtn.disabled = true;
+            shareBtn.disabled = true;
+            stopBtn.style.display = 'inline-block';
             activeListener = AudioModem.startListening({
                 onStatus: setStatus,
                 onLevel: setLevel,
@@ -124,21 +154,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     } catch (err) {
                         setStatus('Ошибка: ' + err.message);
                         refreshBanner();
-                        if (nativeReady && retryCount < MAX_RETRIES) {
-                            retryCount++;
-                            setStatus(`Повторная попытка (${retryCount}/${MAX_RETRIES})...`);
-                            setTimeout(startListeningCycle, 2000);
-                        }
+                        scheduleRetry(startListeningCycle);
                     }
                 },
                 onError: (msg) => {
                     resetListenUi();
                     setStatus(msg);
-                    if (nativeReady && retryCount < MAX_RETRIES) {
-                        retryCount++;
-                        setStatus(`Повторная попытка (${retryCount}/${MAX_RETRIES})...`);
-                        setTimeout(startListeningCycle, 2000);
-                    }
+                    scheduleRetry(startListeningCycle);
                 }
             });
         }
@@ -171,6 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         disarmReset();
+        cancelActivity();
         E2E.reset();
         setStatus('Сопряжение сброшено. Можно начинать заново.');
         resultEl.textContent = '';

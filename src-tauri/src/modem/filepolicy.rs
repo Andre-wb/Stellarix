@@ -48,10 +48,6 @@ pub fn allowed_extensions() -> Vec<&'static str> {
     out
 }
 
-pub fn is_allowed_extension(name: &str) -> bool {
-    lookup(&extension_of(name)).is_some()
-}
-
 fn has_dangerous_double_extension(name: &str) -> bool {
     let base = name.rsplit(['/', '\\']).next().unwrap_or("");
     let parts: Vec<&str> = base.split('.').collect();
@@ -210,8 +206,6 @@ mod tests {
 
     #[test]
     fn extension_helpers_work() {
-        assert!(is_allowed_extension("a.PNG"));
-        assert!(!is_allowed_extension("a.exe"));
         assert!(allowed_extensions().contains(&"webp"));
     }
 }
