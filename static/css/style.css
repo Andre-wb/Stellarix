@@ -1173,3 +1173,79 @@ canvas.chart { display: block; width: 100%; height: 180px; }
 .msg-col { display: flex; flex-direction: column; gap: 2px; min-width: 0; align-items: flex-start; }
 .msg-name { font-size: 11px; font-weight: 600; color: var(--text-3); padding-left: 3px; }
 .msg-name:empty { display: none; }
+
+/* Confirm modal (addon) */
+.stx-modal-overlay {
+    position: fixed; inset: 0; z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(8, 8, 8, .5);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    opacity: 0; transition: opacity .22s ease;
+}
+.stx-modal-overlay.open { opacity: 1; }
+.stx-modal {
+    width: min(400px, calc(100vw - 48px));
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 24px;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, .45);
+    transform: translateY(8px) scale(.97); transition: transform .22s ease;
+}
+.stx-modal-overlay.open .stx-modal { transform: none; }
+.stx-modal-title { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+.stx-modal-body { color: var(--text-2); font-size: 14px; line-height: 1.5; }
+.stx-modal-actions { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+.stx-modal-btn {
+    padding: 9px 18px; border-radius: 999px;
+    font-family: inherit; font-size: 14px; cursor: pointer;
+    transition: filter .2s ease, border-color .2s ease;
+}
+.stx-modal-cancel { background: var(--accent); border: 1px solid transparent; color: #ffffff; }
+.stx-modal-cancel:hover { filter: brightness(1.12); }
+.stx-modal-confirm { background: var(--raised); border: 1px solid var(--border); color: var(--text); }
+.stx-modal-confirm:hover { border-color: var(--border-hi); }
+
+/* Settings polish (addon) */
+.lang-option:focus, .theme-option:focus { outline: none; }
+.swatch-auto { background: linear-gradient(135deg, #191919 50%, #f3f3f1 50%); }
+
+/* Auth & polish (addon) */
+.lang-option.active { outline: 1px solid var(--accent-2); outline-offset: 3px; }
+.auth-lang-wrap { text-align: center; margin-top: 18px; }
+.auth-lang-wrap .lang-switch { margin-top: 0; }
+.pw-strength {
+    height: 4px; margin-top: 8px; border-radius: 999px;
+    background: var(--raised); overflow: hidden;
+}
+.pw-strength-bar {
+    height: 100%; width: 0; border-radius: 999px;
+    transition: width .25s ease, background .25s ease;
+}
+
+/* Light theme: dark input text & brand (addon) */
+:root[data-theme="light"] .form-input {
+    color: #191919;
+    background: rgba(0, 0, 0, 0.04);
+}
+:root[data-theme="light"] .form-input:focus { background: rgba(63, 120, 194, 0.08); }
+:root[data-theme="light"] .brand,
+:root[data-theme="light"] .brand span { color: #191919; }
+
+/* Light theme: dark text where white was hardcoded (addon) */
+:root[data-theme="light"] .chat-user { color: #191919; }
+:root[data-theme="light"] .nav-link:hover,
+:root[data-theme="light"] .nav-link.active { color: #191919; }
+:root[data-theme="light"] .btn-outline:hover { color: #191919; }
+:root[data-theme="light"] .chip-btn:hover { color: #191919; }
+:root[data-theme="light"] .attach-btn:hover { color: #191919; }
+:root[data-theme="light"] .help-toggle summary:hover { color: #191919; }
+
+/* GitHub link on auth pages (addon) */
+.auth-github-wrap { text-align: center; margin-top: 14px; }
+.auth-github {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px; border-radius: 50%;
+    border: 1px solid var(--border);
+    color: var(--text-2);
+    transition: color .2s ease, border-color .2s ease, transform .2s ease;
+}
+.auth-github:hover { color: var(--text); border-color: var(--border-hi); transform: translateY(-1px); }

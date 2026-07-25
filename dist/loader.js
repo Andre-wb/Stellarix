@@ -81,7 +81,7 @@
     clearInterval(recoveryTimer);
 
     progressBar.style.width = '100%';
-    statusEl.innerHTML = 'Готово! Приложение запущено';
+    statusEl.innerHTML = 'Готово! Приложение запущено ' + '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px" aria-hidden="true"><g stroke="#8a8a88" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.2l2.6 2.6L16 9.4"/></g></svg>';
     detailsEl.textContent = 'Переход в основной интерфейс...';
     appEl.classList.add('success');
 

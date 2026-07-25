@@ -126,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function lockAudioUi() {
         bannerEl.style.display = 'block';
         bannerEl.style.background = 'rgba(230, 80, 60, 0.15)';
-        bannerEl.textContent = '⚠️ ' + AudioModem.unavailableReason;
+        bannerEl.innerHTML = StxIcons.warn + ' ' + AudioModem.unavailableReason;
         shareBtn.disabled = true;
         receiveBtn.disabled = true;
         resetBtn.disabled = true;
@@ -147,13 +147,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (legacyPaired()) {
             bannerEl.style.background = 'rgba(230, 180, 30, 0.15)';
             bannerEl.innerHTML =
-                '⚠️ Сеансовый ключ создан прежней версией приложения, и ваш собственный ключ для повторной ' +
+                StxIcons.warn + ' Сеансовый ключ создан прежней версией приложения, и ваш собственный ключ для повторной ' +
                 'передачи не сохранён — поделиться им уже нельзя. Отпечаток: <strong>' + E2E.getFingerprint() + '</strong>. ' +
                 'Если собеседник ещё не принял ваш ключ, нажмите «Начать заново» и выполните обмен с обеих сторон.';
         } else if (E2E.isPaired()) {
             bannerEl.style.background = 'rgba(40, 180, 99, 0.15)';
             bannerEl.innerHTML =
-                '✅ Ваша сторона сопряжена. Отпечаток ключа: <strong>' + E2E.getFingerprint() + '</strong>. ' +
+                StxIcons.ok + ' Ваша сторона сопряжена. Отпечаток ключа: <strong>' + E2E.getFingerprint() + '</strong>. ' +
                 'Сверьте его вслух с собеседником — отпечатки должны совпасть. Если собеседник ещё не принимал ' +
                 'ваш ключ, нажмите «Поделиться ключом»: без этого он не сможет прочитать ваши сообщения. ' +
                 'Когда отпечатки совпали — переходите в <a href="/chat">чат</a>.';
