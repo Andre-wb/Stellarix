@@ -5,8 +5,8 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
 
 use audiodsp::ofdm::{
-    advise_gain, encode_one_packet, encode_transmission, pack_payload, scan_packets,
-    unpack_payload, GainAdvice, Modulation, OfdmConfig, RateAdapter,
+    encode_one_packet, encode_transmission, pack_payload, scan_packets, unpack_payload,
+    Modulation, OfdmConfig, RateAdapter,
 };
 
 use super::capture::{start_capture, Capture};
@@ -152,12 +152,8 @@ fn receive_loop(
                         news = true;
                     }
                 }
-                let probe = cap.sample_rate as usize / 2;
-                let (peak, clip_ratio) = cap.peak_clip_range(abs, probe);
-                let advice = advise_gain(pkt.snr_db, clip_ratio, peak);
-                if !ok || recommended != previous || advice != GainAdvice::Hold {
-                    let bytes =
-                        proto::encode_rate(seq as u16, ok, recommended.id(), pkt.snr_db, advice.id());
+                if !ok || recommended != previous {
+                    let bytes = proto::encode_rate(seq as u16, ok, recommended.id(), pkt.snr_db);
                     let wave = build_control_wave(&bytes, &play_cfg);
                     out.play(&wave, cfg.fs, stop)?;
                     mute_until = Instant::now() + ECHO_MUTE;

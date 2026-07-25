@@ -5,7 +5,6 @@ mod constellation;
 mod demodulator;
 mod fec;
 mod framing;
-mod gain;
 mod link;
 mod modulator;
 mod payload;
@@ -15,7 +14,6 @@ mod util;
 
 pub use adapt::RateAdapter;
 pub use channel_est::ChannelEstimate;
-pub use gain::{advise_gain, GainAdvice, GainController};
 pub use config::{ConfigError, Modulation, OfdmConfig, MAX_DATA_SYMBOLS};
 pub use demodulator::{Demodulator, SymbolResult};
 pub use framing::PacketHeader;
