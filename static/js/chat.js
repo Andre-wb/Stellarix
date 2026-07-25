@@ -31,8 +31,9 @@ document.addEventListener('DOMContentLoaded', () => {
         levelEl.textContent = 'Уровень микрофона: [' + '#'.repeat(bars) + '-'.repeat(20 - bars) + ']';
     }
 
-    function makeBubble(kind) {
-        const bubble = document.createElement('div');
+    const hasAvatar = typeof Avatar !== 'undefined';
+
+    function applyBubbleStyle(bubble, kind) {
         bubble.style.padding = '0.5rem 0.75rem';
         bubble.style.borderRadius = '10px';
         bubble.style.maxWidth = '75%';
@@ -50,31 +51,123 @@ document.addEventListener('DOMContentLoaded', () => {
             bubble.style.opacity = '0.7';
             bubble.style.background = 'transparent';
         }
+    }
+
+    function makeBubble(kind) {
+        const bubble = document.createElement('div');
+        bubble.classList.add('chat-bubble');
+        applyBubbleStyle(bubble, kind);
         return bubble;
     }
 
-    function appendBubble(bubble) {
-        messagesEl.appendChild(bubble);
+    function peerName() {
+        return hasAvatar ? Avatar.getPeerName() : '';
+    }
+
+    function makePeerAvatar() {
+        const el = document.createElement('div');
+        el.className = 'avatar-circle';
+        if (hasAvatar) Avatar.render(el, Avatar.getPeer(), Avatar.peerLetter());
+        else el.textContent = '?';
+        return el;
+    }
+
+    function makePeerName() {
+        const el = document.createElement('div');
+        el.className = 'msg-name';
+        el.textContent = peerName();
+        return el;
+    }
+
+    function appendBubble(bubble, kind) {
+        if (kind === 'received') {
+            const row = document.createElement('div');
+            row.className = 'msg-row received';
+            bubble.style.alignSelf = 'auto';
+            row.appendChild(makePeerAvatar());
+            const col = document.createElement('div');
+            col.className = 'msg-col';
+            col.appendChild(makePeerName());
+            col.appendChild(bubble);
+            row.appendChild(col);
+            messagesEl.appendChild(row);
+        } else {
+            messagesEl.appendChild(bubble);
+        }
         messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function refreshPeerAvatars() {
+        if (!hasAvatar) return;
+        const peer = Avatar.getPeer();
+        const name = peerName();
+        messagesEl.querySelectorAll('.msg-row.received .avatar-circle').forEach((el) => {
+            Avatar.render(el, peer, Avatar.peerLetter());
+        });
+        messagesEl.querySelectorAll('.msg-row.received .msg-name').forEach((el) => {
+            el.textContent = name;
+        });
     }
 
     function addMessage(text, kind) {
         const bubble = makeBubble(kind);
         bubble.textContent = text;
-        appendBubble(bubble);
+        appendBubble(bubble, kind);
     }
 
-    function addFileMessage(name, meta, kind) {
-        const bubble = makeBubble(kind);
+    function isImageName(name) {
+        return /\.(png|jpe?g|webp|gif|bmp)$/i.test(name || '');
+    }
+
+    function bytesToImageUrl(bytes) {
+        if (hasAvatar && typeof Avatar.bytesToDataUrl === 'function') return Avatar.bytesToDataUrl(bytes);
+        let bin = '';
+        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+        return 'data:image/jpeg;base64,' + btoa(bin);
+    }
+
+    function fillFileCard(bubble, name, meta) {
+        bubble.textContent = '';
         bubble.classList.add('chat-file');
         const title = document.createElement('div');
-        title.textContent = '📎 ' + name;
-        const metaEl = document.createElement('div');
-        metaEl.className = 'chat-file-meta';
-        metaEl.textContent = meta;
+        title.textContent = ' ' + name;
+        title.insertAdjacentHTML('afterbegin', StxIcons.clip);
         bubble.appendChild(title);
-        bubble.appendChild(metaEl);
-        appendBubble(bubble);
+        if (meta) {
+            const metaEl = document.createElement('div');
+            metaEl.className = 'chat-file-meta';
+            metaEl.textContent = meta;
+            bubble.appendChild(metaEl);
+        }
+    }
+
+    function addFileCard(name, meta, kind) {
+        const bubble = makeBubble(kind);
+        fillFileCard(bubble, name, meta);
+        appendBubble(bubble, kind);
+    }
+
+    function addImageMessage(name, dataUrl, kind) {
+        const bubble = document.createElement('div');
+        bubble.className = 'msg-bubble-media' + (kind === 'sent' ? ' own' : '');
+        const img = document.createElement('img');
+        img.className = 'chat-image';
+        img.alt = name || '';
+        img.loading = 'lazy';
+        img.src = dataUrl;
+        img.addEventListener('click', () => window.openImageViewer(img.src, name || ''));
+        img.addEventListener('error', () => {
+            bubble.className = 'chat-bubble';
+            applyBubbleStyle(bubble, kind);
+            fillFileCard(bubble, name || 'файл', '');
+        });
+        bubble.appendChild(img);
+        appendBubble(bubble, kind);
+    }
+
+    function addSentFile(name, bytes) {
+        if (isImageName(name)) addImageMessage(name, bytesToImageUrl(bytes), 'sent');
+        else addFileCard(name, formatSize(bytes.length), 'sent');
     }
 
     function formatSize(bytes) {
@@ -90,7 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function lockAudioUi() {
         bannerEl.style.display = 'block';
         bannerEl.style.background = 'rgba(230, 80, 60, 0.15)';
-        bannerEl.textContent = '⚠️ ' + AudioModem.unavailableReason;
+        bannerEl.innerHTML = StxIcons.warn + ' ' + AudioModem.unavailableReason;
         sendBtn.disabled = true;
         attachBtn.disabled = true;
         listenBtn.disabled = true;
@@ -108,19 +201,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!E2E.isSupported()) {
             bannerEl.style.display = 'block';
             bannerEl.style.background = 'rgba(230, 80, 60, 0.15)';
-            bannerEl.textContent = '⚠️ Встроенный движок приложения не поддерживает нужную криптографию (WebCrypto). Обновите систему или компонент WebView.';
+            bannerEl.innerHTML = StxIcons.warn + ' Встроенный движок приложения не поддерживает нужную криптографию (WebCrypto). Обновите систему или компонент WebView.';
             sendBtn.disabled = true;
             return;
         }
         if (!E2E.isPaired()) {
             bannerEl.style.display = 'block';
             bannerEl.style.background = 'rgba(230, 80, 60, 0.15)';
-            bannerEl.innerHTML = '⚠️ Сопряжение ещё не выполнено. <a href="/pairing">Выполните сопряжение по звуку</a> перед началом чата.';
+            bannerEl.innerHTML = StxIcons.warn + ' Сопряжение ещё не выполнено. <a href="/pairing">Выполните сопряжение по звуку</a> перед началом чата.';
             sendBtn.disabled = true;
         } else {
             bannerEl.style.display = 'block';
             bannerEl.style.background = 'rgba(40, 180, 99, 0.15)';
-            bannerEl.textContent = '✅ Сопряжено. Отпечаток ключа: ' + E2E.getFingerprint();
+            bannerEl.innerHTML = StxIcons.ok + ' Сопряжено. Отпечаток ключа: ' + E2E.getFingerprint();
             sendBtn.disabled = false;
         }
     }
@@ -140,12 +233,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const payloadHex = await E2E.encrypt(text);
             addMessage(text, 'sent');
             input.value = '';
-            setStatus('Передаю сообщение (1/2)...');
-            await AudioModem.playHexPayload(payloadHex, setStatus);
-            await new Promise(r => setTimeout(r, 300));
-            setStatus('Передаю сообщение (2/2)...');
-            await AudioModem.playHexPayload(payloadHex, setStatus);
-            setStatus('Сообщение передано.');
+            setStatus('Передаю сообщение...');
+            const report = await AudioModem.playHexPayload(payloadHex, setStatus);
+            if (/^Доставлено/.test(report || '')) {
+                setStatus('Сообщение доставлено — собеседник подтвердил получение.');
+            } else if (report && !/остановлена/.test(report)) {
+                setStatus(report + ' Убедитесь, что собеседник нажал «Слушать», и отправьте ещё раз.');
+            }
         } catch (err) {
             setStatus('Ошибка: ' + err.message);
         } finally {
@@ -160,14 +254,20 @@ document.addEventListener('DOMContentLoaded', () => {
         fileInput.click();
     });
 
-    async function runTransmit(name, bytes, metaLabel) {
+    async function runTransmit(name, bytes) {
         stopSendBtn.style.display = 'inline-block';
         const startedAt = Date.now();
         try {
-            addFileMessage(name, metaLabel, 'sent');
+            addSentFile(name, bytes);
             const keyHex = E2E.getSessionKeyHex();
-            const ok = await AudioModem.sendFile(name, AudioModem.bytesToHex(bytes), keyHex, setStatus);
-            recordStats({ kind: 'tx', ok: ok, bytes: bytes.length, ms: Date.now() - startedAt });
+            const report = await AudioModem.sendFile(name, AudioModem.bytesToHex(bytes), keyHex, setStatus);
+            const delivered = /^Доставлено/.test(report || '');
+            if (delivered) {
+                setStatus('Файл доставлен — собеседник подтвердил получение.');
+            } else if (report && !/остановлена|отменена/.test(report)) {
+                setStatus(report + ' Убедитесь, что собеседник нажал «Слушать», и отправьте ещё раз.');
+            }
+            recordStats({ kind: 'tx', ok: delivered, bytes: bytes.length, ms: Date.now() - startedAt });
         } catch (err) {
             setStatus('Ошибка: ' + err.message);
             recordStats({ kind: 'tx', ok: false, bytes: bytes.length, ms: Date.now() - startedAt });
@@ -203,7 +303,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 setStatus('Готовлю сжатое изображение к передаче...');
-                await runTransmit(prepared.name, prepared.bytes, prepared.meta);
+                await runTransmit(prepared.name, prepared.bytes);
                 return;
             }
 
@@ -219,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (file.size <= MAX_FILE_BYTES) {
                 setStatus('Готовлю файл к передаче...');
                 const bytes = new Uint8Array(await file.arrayBuffer());
-                await runTransmit(file.name, bytes, formatSize(file.size) + ' · зашифровано E2E');
+                await runTransmit(file.name, bytes);
                 return;
             }
             if (file.size > MAX_RAW_BYTES) {
@@ -249,9 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setStatus('Файл ' + formatSize(file.size) + ' → ~' + formatSize(est.compressed) +
                 ' после сжатия — отправляю...');
             const bytes = new Uint8Array(await file.arrayBuffer());
-            const meta = formatSize(file.size) + ' → ~' + formatSize(est.compressed) +
-                ' · сжатие · зашифровано E2E';
-            await runTransmit(file.name, bytes, meta);
+            await runTransmit(file.name, bytes);
         } catch (err) {
             setStatus('Ошибка: ' + err.message);
         } finally {
@@ -287,6 +385,14 @@ document.addEventListener('DOMContentLoaded', () => {
             onLevel: setLevel,
             onDecoded: async (hex) => {
                 resetListenUi();
+                if (hasAvatar && Avatar.isUpdateHex(hex)) {
+                    const profile = Avatar.profileFromUpdateHex(hex);
+                    Avatar.setPeerName(profile.name);
+                    Avatar.setPeer(profile.avatar);
+                    refreshPeerAvatars();
+                    setStatus('Собеседник обновил аватар.');
+                    return;
+                }
                 setStatus('Сигнал получен, расшифровываю в браузере...');
                 try {
                     const plaintext = await E2E.decrypt(hex);
@@ -303,13 +409,16 @@ document.addEventListener('DOMContentLoaded', () => {
             },
             onFile: (info) => {
                 resetListenUi();
-                const meta = info.saved
-                    ? formatSize(info.size) + ' · E2E · SHA-256 совпала · ' + info.path
-                    : formatSize(info.size) + ' · ' + (info.reason || 'файл не сохранён');
-                addFileMessage(info.name, meta, 'received');
-                setStatus(info.saved
-                    ? 'Файл получен и сохранён.'
-                    : 'Файл не сохранён: ' + (info.reason || 'ошибка приёма.'));
+                if (info.saved && info.data_hex) {
+                    addImageMessage(info.name, bytesToImageUrl(AudioModem.hexToBytes(info.data_hex)), 'received');
+                    setStatus('Изображение получено.');
+                } else if (info.saved) {
+                    addFileCard(info.name, formatSize(info.size), 'received');
+                    setStatus('Файл получен.');
+                } else {
+                    addFileCard(info.name, info.reason || 'файл не сохранён', 'received');
+                    setStatus('Файл не сохранён: ' + (info.reason || 'ошибка приёма.'));
+                }
                 recordStats({ kind: 'rx', ok: info.saved, bytes: info.size });
             },
             onError: (msg) => {
@@ -320,6 +429,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     setStatus(`Повторная попытка (${retryCount}/${MAX_RETRIES})...`);
                     setTimeout(startListenCycle, 2000);
                 }
+            },
+            onStopped: (msg) => {
+                resetListenUi();
+                setStatus(msg);
             }
         });
     }

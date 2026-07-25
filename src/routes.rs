@@ -10,13 +10,13 @@ use crate::db::{self, verify_password, hash_password, DbPool};
 use crate::stats::UserStats;
 use crate::schemas::{
     LoginTemplate,
-    UserProfileTemplate,
     RegisterForm,
     RegisterTemplate,
     LoginForm,
     PairingTemplate,
     ChatTemplate,
     DashboardTemplate,
+    SettingsTemplate,
 };
 
 const SESSION_USER_ID: &str = "user_id";
@@ -36,7 +36,7 @@ pub async fn session_user_id(session: &Session) -> Option<Uuid> {
 
 pub async fn get_register(session: Session) -> Html<String> {
     if is_logged_in(&session).await {
-        return Html("<script>window.location.href='/profile'</script>".to_string());
+        return Html("<script>window.location.href='/dashboard'</script>".to_string());
     }
 
     Html(RegisterTemplate {
@@ -50,7 +50,7 @@ pub async fn get_register(session: Session) -> Html<String> {
 
 pub async fn get_login(session: Session) -> Html<String> {
     if is_logged_in(&session).await {
-        return Html("<script>window.location.href='/profile'</script>".to_string());
+        return Html("<script>window.location.href='/dashboard'</script>".to_string());
     }
 
     Html(LoginTemplate {
@@ -61,42 +61,13 @@ pub async fn get_login(session: Session) -> Html<String> {
     }.render().unwrap())
 }
 
-pub async fn get_profile(
-    session: Session,
-    State(pool): State<DbPool>,
-) -> Result<Html<String>, Redirect> {
-    let user_id = match session.get::<String>(SESSION_USER_ID).await.ok().flatten() {
-        Some(id) => id,
-        None => return Err(Redirect::to("/login")),
-    };
-
-    let user_id = match Uuid::parse_str(&user_id) {
-        Ok(id) => id,
-        Err(_) => return Err(Redirect::to("/login")),
-    };
-
-    let user = match db::get_user_by_id(&pool, user_id).await {
-        Ok(Some(user)) => user,
-        _ => return Err(Redirect::to("/login")),
-    };
-
-    let avatar_letter = user
-        .username
-        .chars()
-        .next()
-        .map(|c| c.to_uppercase().to_string())
-        .unwrap_or_else(|| "U".to_string());
-
-    Ok(Html(UserProfileTemplate {
-        user,
-        avatar_letter,
-        logged_in: true,
-    }.render().unwrap()))
+pub async fn get_profile() -> Redirect {
+    Redirect::to("/dashboard")
 }
 
 pub async fn logout(session: Session) -> Html<String> {
     session.remove::<String>(SESSION_USER_ID).await.ok();
-    Html("<!doctype html><meta charset=\"utf-8\"><script>try{['e2ee_priv_jwk','e2ee_pub_hex','e2ee_session_hex','e2ee_fingerprint'].forEach(function(k){localStorage.removeItem(k)})}catch(e){}location.replace('/login')</script>".to_string())
+    Html("<!doctype html><meta charset=\"utf-8\"><script>try{['e2ee_priv_jwk','e2ee_pub_hex','e2ee_peer_hex','e2ee_session_hex','e2ee_fingerprint','stx_avatar','stx_peer_avatar'].forEach(function(k){localStorage.removeItem(k)})}catch(e){}location.replace('/login')</script>".to_string())
 }
 
 pub async fn post_register(
@@ -174,7 +145,7 @@ pub async fn post_register(
         tracing::error!("Ошибка авторизации после регистрации: {}", error);
     }
 
-    Ok(Redirect::to("/profile"))
+    Ok(Redirect::to("/dashboard"))
 }
 
 pub async fn post_login(
@@ -239,7 +210,7 @@ pub async fn post_login(
         return Err(Html(error_html));
     }
 
-    Ok(Redirect::to("/profile"))
+    Ok(Redirect::to("/dashboard"))
 }
 
 async fn complete_login(
@@ -330,9 +301,17 @@ pub async fn get_dashboard(
 
     let has_sessions = !stats.sessions.is_empty();
 
+    let avatar_letter = user
+        .username
+        .chars()
+        .next()
+        .map(|c| c.to_uppercase().to_string())
+        .unwrap_or_else(|| "U".to_string());
+
     Ok(Html(DashboardTemplate {
         logged_in: true,
         username: user.username,
+        avatar_letter,
         total_messages_sent: stats.total_sent,
         total_messages_received: stats.total_received,
         success_rate: stats.success_rate,
@@ -351,4 +330,28 @@ pub async fn get_diagnostics(
     Json(json!({
         "is_authenticated": session.get::<String>(SESSION_USER_ID).await.ok().flatten().is_some(),
     }))
+}
+pub async fn get_settings(
+    session: Session,
+    State(pool): State<DbPool>,
+) -> Result<Html<String>, Redirect> {
+    let user_id = match session.get::<String>(SESSION_USER_ID).await.ok().flatten() {
+        Some(id) => id,
+        None => return Err(Redirect::to("/login")),
+    };
+
+    let user_id = match Uuid::parse_str(&user_id) {
+        Ok(id) => id,
+        Err(_) => return Err(Redirect::to("/login")),
+    };
+
+    let user = match db::get_user_by_id(&pool, user_id).await {
+        Ok(Some(user)) => user,
+        _ => return Err(Redirect::to("/login")),
+    };
+
+    Ok(Html(SettingsTemplate {
+        logged_in: true,
+        username: user.username,
+    }.render().unwrap()))
 }

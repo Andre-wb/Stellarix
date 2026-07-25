@@ -10,6 +10,7 @@ const LADDER: [Modulation; 4] = [
 const UP_MARGIN_DB: f32 = 4.0;
 const DOWN_MARGIN_DB: f32 = 2.5;
 const CLIMB_STREAK: u32 = 2;
+const MAX_LEVEL: usize = 2;
 
 fn level_of(m: Modulation) -> usize {
     LADDER.iter().position(|&x| x == m).unwrap_or(0)
@@ -45,7 +46,9 @@ impl RateAdapter {
             return self.current();
         }
         match LADDER.get(self.level + 1) {
-            Some(&next) if snr_db >= next.required_snr_db() + UP_MARGIN_DB => {
+            Some(&next)
+                if self.level + 1 <= MAX_LEVEL && snr_db >= next.required_snr_db() + UP_MARGIN_DB =>
+            {
                 self.good_streak += 1;
                 if self.good_streak >= CLIMB_STREAK {
                     self.level += 1;
@@ -100,6 +103,15 @@ mod tests {
         assert_eq!(a.observe_failure(), Modulation::Qam16);
         assert_eq!(a.current(), Modulation::Qam16);
         let _ = high;
+    }
+
+    #[test]
+    fn never_climbs_above_qam16_even_with_huge_snr() {
+        let mut a = RateAdapter::new(Modulation::Qam16);
+        let huge = 200.0;
+        a.observe_snr(huge);
+        a.observe_snr(huge);
+        assert_eq!(a.observe_snr(huge), Modulation::Qam16);
     }
 
     #[test]

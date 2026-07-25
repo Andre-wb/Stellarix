@@ -24,12 +24,17 @@ const PG_USER: &str = "postgres";
 
 struct PgGuard(Arc<Mutex<Option<PostgreSQL>>>);
 
-fn setup_logging() {
+fn log_file_path() -> PathBuf {
+    std::env::temp_dir().join("stellarix-startup.log")
+}
+
+fn setup_logging() -> Option<tracing_appender::non_blocking::WorkerGuard> {
+    use tracing_subscriber::prelude::*;
+
     let env_filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new("info"));
 
-    fmt()
-        .with_env_filter(env_filter)
+    let stdout_layer = fmt::layer()
         .with_ansi(true)
         .with_target(true)
         .with_thread_ids(true)
@@ -37,10 +42,44 @@ fn setup_logging() {
         .with_file(true)
         .with_line_number(true)
         .with_level(true)
-        .with_timer(fmt::time::ChronoLocal::rfc_3339())
-        .init();
+        .with_timer(fmt::time::ChronoLocal::rfc_3339());
 
-    info!("🚀 Логирование инициализировано для Tauri приложения");
+    let log_path = log_file_path();
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path);
+
+    match file {
+        Ok(file) => {
+            let (writer, guard) = tracing_appender::non_blocking(file);
+            let file_layer = fmt::layer()
+                .with_ansi(false)
+                .with_target(true)
+                .with_thread_ids(true)
+                .with_thread_names(true)
+                .with_file(true)
+                .with_line_number(true)
+                .with_level(true)
+                .with_timer(fmt::time::ChronoLocal::rfc_3339())
+                .with_writer(writer);
+            tracing_subscriber::registry()
+                .with(env_filter)
+                .with(stdout_layer)
+                .with(file_layer)
+                .init();
+            info!("🚀 Логирование инициализировано, лог-файл: {}", log_path.display());
+            Some(guard)
+        }
+        Err(e) => {
+            tracing_subscriber::registry()
+                .with(env_filter)
+                .with(stdout_layer)
+                .init();
+            info!("🚀 Логирование инициализировано (файл {} недоступен: {e})", log_path.display());
+            None
+        }
+    }
 }
 
 fn random_hex(n: usize) -> String {
@@ -120,7 +159,7 @@ async fn init_db_with_c_locale(
     let _ = std::fs::remove_dir_all(data_dir);
     create_private_dir(data_dir)?;
 
-    info!("Запуск initdb вручную (--locale=C --encoding=UTF8)");
+    info!("Запуск initdb вручную: {} (--locale=C --encoding=UTF8)", initdb.display());
     let output = tokio::process::Command::new(&initdb)
         .arg("--pgdata").arg(data_dir)
         .arg("--username").arg(PG_USER)
@@ -131,6 +170,12 @@ async fn init_db_with_c_locale(
         .output()
         .await
         .map_err(|e| format!("Не удалось запустить initdb: {e}"))?;
+
+    info!(
+        "initdb завершился, код: {:?}, stderr: {}",
+        output.status.code(),
+        String::from_utf8_lossy(&output.stderr).trim()
+    );
 
     if !output.status.success() {
         return Err(format!(
@@ -154,8 +199,18 @@ async fn wait_for_port(addr: SocketAddr, timeout: Duration) -> bool {
     false
 }
 
+fn stage(app: &AppHandle, since: std::time::Instant, msg: &str) {
+    info!("[этап +{} мс] {}", since.elapsed().as_millis(), msg);
+    let _ = app.emit("server-progress", msg.to_string());
+}
+
 async fn bring_up(app: AppHandle, pg_state: Arc<Mutex<Option<PostgreSQL>>>) -> Result<String, String> {
-    info!("Запуск приложения Tauri...");
+    let t0 = std::time::Instant::now();
+    info!(
+        "Запуск приложения Tauri... ОС: {} / {}",
+        std::env::consts::OS,
+        std::env::consts::ARCH
+    );
 
     let data_dir = app.path().app_data_dir()
         .map_err(|e| format!("Нет каталога данных приложения: {e}"))?;
@@ -185,6 +240,7 @@ async fn bring_up(app: AppHandle, pg_state: Arc<Mutex<Option<PostgreSQL>>>) -> R
     create_private_dir(&pg_data)?;
     debug!("Каталог PostgreSQL: {}", pg_data.display());
 
+    stage(&app, t0, "Проверка порта PostgreSQL и старых процессов...");
     pgcleanup::free_stale_instance(&pg_data, PG_PORT).await?;
 
     let pg_password = load_or_create_secret(&data_dir, "pg_password")?;
@@ -207,28 +263,20 @@ async fn bring_up(app: AppHandle, pg_state: Arc<Mutex<Option<PostgreSQL>>>) -> R
     settings.temporary = false;
     settings.timeout = Some(std::time::Duration::from_secs(30));
 
-    info!("Настройка PostgreSQL...");
+    stage(&app, t0, "Подготовка PostgreSQL (распаковка бинарников)...");
     let mut pg = PostgreSQL::new(settings.clone());
     if let Err(e) = pg.setup().await {
         error!("Ошибка настройки PostgreSQL: {}, инициализация вручную с локалью C", e);
+        stage(&app, t0, "Инициализация базы вручную (initdb, locale=C)...");
         init_db_with_c_locale(&pg, &pg_data, &settings.password_file, &pg_password).await?;
+        stage(&app, t0, "Повторная подготовка PostgreSQL после initdb...");
         pg.setup().await.map_err(|e| {
             error!("Ошибка настройки PostgreSQL: {}", e);
             format!("Не удалось подготовить PostgreSQL: {e}")
         })?;
     }
 
-    let binary_dir = pg.settings().binary_dir();
-    if let Some((data_major, binary_major)) = pgcleanup::datadir_version_conflict(&pg_data, &binary_dir) {
-        let msg = format!(
-            "Каталог данных PostgreSQL создан версией {data_major}, а эта сборка использует PostgreSQL {binary_major}. Удалите каталог {} и перезапустите Stellarix (локальные данные будут пересозданы) или запустите сборку с PostgreSQL {data_major}.",
-            pg_data.display()
-        );
-        error!("{}", msg);
-        return Err(msg);
-    }
-
-    info!("Запуск PostgreSQL на порту {}...", PG_PORT);
+    stage(&app, t0, "Запуск сервера PostgreSQL...");
     pg.start().await.map_err(|e| {
         let log_tail = pgcleanup::start_log_tail(&pg_data, 1500);
         error!("Ошибка запуска PostgreSQL: {} | лог: {:?}", e, log_tail);
@@ -248,19 +296,20 @@ async fn bring_up(app: AppHandle, pg_state: Arc<Mutex<Option<PostgreSQL>>>) -> R
     std::env::set_var("DATABASE_URL", &database_url);
     debug!("DATABASE_URL установлена");
 
-    info!("Инициализация конфигурации приложения...");
+    stage(&app, t0, "Инициализация конфигурации приложения...");
     stellarix::config::Config::init().map_err(|e| {
         error!("Ошибка конфигурации: {}", e);
         format!("Конфигурация: {e}")
     })?;
 
-    info!("Инициализация пула базы данных...");
+    stage(&app, t0, "Создание пула БД и выполнение миграций...");
     let pool = stellarix::db::init_pool().await.map_err(|e| {
         error!("Ошибка базы данных: {}", e);
         format!("База данных: {e}")
     })?;
     info!("✅ Пул базы данных создан");
 
+    stage(&app, t0, "Занимаю порт приложения...");
     let addr = SocketAddr::from(([127, 0, 0, 1], APP_PORT));
     let listener = tokio::net::TcpListener::bind(addr).await
         .map_err(|e| {
@@ -281,7 +330,7 @@ async fn bring_up(app: AppHandle, pg_state: Arc<Mutex<Option<PostgreSQL>>>) -> R
     });
 
     // Ждём, пока сервер начнёт слушать порт
-    info!("Ожидание готовности сервера...");
+    stage(&app, t0, "Ожидание готовности веб-сервера...");
     if wait_for_port(addr, Duration::from_secs(5)).await {
         info!("✅ Сервер готов и принимает соединения");
     } else {
@@ -291,6 +340,7 @@ async fn bring_up(app: AppHandle, pg_state: Arc<Mutex<Option<PostgreSQL>>>) -> R
     }
 
     // Отправляем событие фронтенду
+    stage(&app, t0, "Сервер готов, отправляю server-ready...");
     app.emit("server-ready", url.clone()).map_err(|e| {
         error!("Ошибка отправки события server-ready: {}", e);
         format!("emit: {e}")
@@ -318,13 +368,15 @@ fn stop_pg(app: &AppHandle) {
 }
 
 fn main() {
-    setup_logging();
+    let _log_guard = setup_logging();
     info!("=== 🚀 Запуск Tauri приложения ===");
+    info!("Лог старта пишется в файл: {}", log_file_path().display());
 
     let pg_state: Arc<Mutex<Option<PostgreSQL>>> = Arc::new(Mutex::new(None));
     let setup_state = pg_state.clone();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
         .manage(PgGuard(pg_state))
         .manage(commands::ListenerState::default())
         .manage(commands::PlaybackState::default())

@@ -4,6 +4,13 @@
 
 {% block main %}
 <div class="dash">
+    <div class="profile-hero">
+        <div class="profile-avatar" id="profile-avatar" data-letter="{{ avatar_letter }}">{{ avatar_letter }}</div>
+        <div class="profile-info">
+            <h1 class="profile-name">{{ username }}</h1>
+        </div>
+    </div>
+
     <div class="dash-head">
         <div>
             <h1>Дашборд</h1>
@@ -105,6 +112,15 @@
 <!-- Для объединения localstorage обновления в реальном времени и подачи с бэкенда -->
 <script>
     window.dashboardSessions = {{ sessions_json|safe }};
+</script>
+<script src="/static/js/avatar.js"></script>
+<script>
+    (function () {
+        var el = document.getElementById('profile-avatar');
+        if (!el || typeof Avatar === 'undefined') return;
+        var own = Avatar.getOwn();
+        if (own) Avatar.render(el, own, el.getAttribute('data-letter') || '');
+    })();
 </script>
 <script src="/static/js/stats.js"></script>
 <script src="/static/js/dashboard.js"></script>

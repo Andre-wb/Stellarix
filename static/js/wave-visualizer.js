@@ -20,6 +20,15 @@ const SoundWave = (() => {
         listen: 'rgba(255, 255, 255, 0.95)',
         transmit: 'rgba(94, 159, 232, 0.95)',
     };
+    const COLORS_LIGHT = {
+        idle: 'rgba(25, 25, 25, 0.55)',
+        listen: 'rgba(25, 25, 25, 0.8)',
+        transmit: 'rgba(63, 120, 194, 0.95)',
+    };
+    function waveColor(mode) {
+        const pal = document.documentElement.getAttribute('data-theme') === 'light' ? COLORS_LIGHT : COLORS;
+        return pal[mode] || pal.idle;
+    }
 
     function resize() {
         if (!canvas || !ctx) return;
@@ -81,7 +90,7 @@ const SoundWave = (() => {
         }
 
         ctx.clearRect(0, 0, W, H);
-        ctx.fillStyle = COLORS[mode] || COLORS.idle;
+        ctx.fillStyle = waveColor(mode);
 
         const total = n * BAR_W + (n - 1) * GAP;
         const startX = (W - total) / 2;

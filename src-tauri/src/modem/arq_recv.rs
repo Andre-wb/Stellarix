@@ -40,6 +40,14 @@ struct FileEvent {
     hash_ok: bool,
     saved: bool,
     reason: String,
+    data_hex: String,
+}
+
+fn is_image_name(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    [".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"]
+        .iter()
+        .any(|ext| lower.ends_with(ext))
 }
 
 pub struct Listener {
@@ -100,7 +108,14 @@ fn receive_loop(
         std::thread::sleep(POLL_INTERVAL);
         let _ = app.emit("modem-level", cap.level());
         if stop.load(Ordering::SeqCst) {
-            let _ = app.emit("modem-stopped", "Приём остановлен.".to_string());
+            let msg = match reasm.total() {
+                Some(t) => format!(
+                    "Приём остановлен: разобрано {} из {t} пакетов — этого не хватило, начните приём заново.",
+                    reasm.have()
+                ),
+                None => "Приём остановлен: ни одного пакета распознать не удалось.".to_string(),
+            };
+            let _ = app.emit("modem-stopped", msg);
             return Ok(());
         }
         if Instant::now() >= deadline {
@@ -172,13 +187,13 @@ fn receive_loop(
                 );
                 return Ok(());
             };
-            handle_envelope(app, envelope)?;
             let _ = app.emit("modem-status", "Отправляю подтверждение приёма...".to_string());
             let t = reasm.total().unwrap_or(0);
             let wave = encode_transmission(&proto::encode_ack(t as u16), &play_cfg);
-            out.play(&wave, cfg.fs, stop)?;
+            let _ = out.play(&wave, cfg.fs, stop);
             std::thread::sleep(Duration::from_millis(200));
-            out.play(&wave, cfg.fs, stop)?;
+            let _ = out.play(&wave, cfg.fs, stop);
+            handle_envelope(app, envelope)?;
             return Ok(());
         }
 
@@ -229,6 +244,11 @@ fn handle_envelope(app: &AppHandle, envelope: Vec<u8>) -> Result<(), String> {
                 path = save_file(app, &safe, &content)?;
                 saved = true;
             }
+            let data_hex = if saved && is_image_name(&safe) {
+                to_hex(&content)
+            } else {
+                String::new()
+            };
             let _ = app.emit(
                 "modem-file",
                 FileEvent {
@@ -238,6 +258,7 @@ fn handle_envelope(app: &AppHandle, envelope: Vec<u8>) -> Result<(), String> {
                     hash_ok,
                     saved,
                     reason,
+                    data_hex,
                 },
             );
         }

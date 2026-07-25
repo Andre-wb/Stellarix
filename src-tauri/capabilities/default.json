@@ -10,6 +10,7 @@
   "permissions": [
     "core:default",
     "core:event:default",
+    "opener:default",
     "allow-play-payload",
     "allow-send-file",
     "allow-stop-playing",
