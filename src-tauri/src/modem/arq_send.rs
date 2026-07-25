@@ -8,7 +8,7 @@ use tauri::{AppHandle, Emitter};
 
 use audiodsp::ofdm::{
     chirp, encode_packets_sized, find_chirp, max_packet_payload, pack_payload, packed_chunk_count,
-    Modulation, OfdmConfig, CHIRP_THRESHOLD,
+    GainController, Modulation, OfdmConfig, CHIRP_THRESHOLD,
 };
 
 use super::capture::{start_capture, Capture};
@@ -127,6 +127,7 @@ pub fn run_send(
     let mut missing: Vec<u16> = Vec::new();
 
     let mut modulation = Modulation::Bpsk;
+    let mut gain = GainController::new(cfg.headroom);
     for seq in 0..total {
         if stop.load(Ordering::SeqCst) {
             return Ok("Передача остановлена.".to_string());
@@ -135,6 +136,7 @@ pub fn run_send(
         loop {
             let mut pkt_cfg = cfg.clone();
             pkt_cfg.modulation = modulation;
+            pkt_cfg.headroom = gain.current();
             let _ = app.emit(
                 "modem-status",
                 format!("Передаю пакет {}/{total} ({modulation:?})...", seq + 1),
@@ -150,11 +152,13 @@ pub fn run_send(
                     ok,
                     modulation: m,
                     snr_db,
+                    gain: adv,
                 }) if s as usize == seq => {
                     modulation = m;
+                    let g = gain.apply(adv);
                     let _ = app.emit(
                         "modem-status",
-                        format!("Приёмник: SNR {snr_db:.1} дБ, модуляция {m:?}"),
+                        format!("Приёмник: SNR {snr_db:.1} дБ, модуляция {m:?}, громкость {:.0}%", g * 100.0),
                     );
                     Some(ok)
                 }
@@ -179,6 +183,7 @@ pub fn run_send(
         if let Some(t) = ack.targets() {
             let mut safe_cfg = cfg.clone();
             safe_cfg.modulation = Modulation::Bpsk;
+            safe_cfg.headroom = gain.current();
             let seqs: Vec<usize> = t.iter().map(|&s| s as usize).collect();
             let _ = app.emit(
                 "modem-status",
