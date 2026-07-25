@@ -1,4 +1,5 @@
 # 🎧 Stellarix — техническая документация
+# Видео с демострацией - https://github.com/Andre-wb/-.-
 
 <p align="left">
   <img alt="platform" src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-3f78c2?style=flat-square">
