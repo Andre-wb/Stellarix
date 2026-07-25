@@ -9,6 +9,20 @@
             <h1 class="form-title">Присоединяйтесь</h1>
         </div>
 
+        <div class="avatar-picker">
+            <button type="button" class="avatar-drop" id="avatar-drop" aria-label="Выбрать аватар">
+                <span class="avatar-drop-empty" id="avatar-empty">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h1.2a1 1 0 0 0 .84-.46l.92-1.42A1 1 0 0 1 9.3 4.7h5.4a1 1 0 0 1 .84.42l.92 1.42a1 1 0 0 0 .84.46h1.2A1.5 1.5 0 0 1 20 8.5v8A1.5 1.5 0 0 1 18.5 18h-13A1.5 1.5 0 0 1 4 16.5v-8Z" stroke="currentColor" stroke-width="1.6"/>
+                        <circle cx="12" cy="12" r="3.2" stroke="currentColor" stroke-width="1.6"/>
+                    </svg>
+                </span>
+            </button>
+            <input type="file" id="avatar-input" accept="image/*" hidden>
+            <div class="avatar-picker-hint" id="avatar-hint">Перетащите фото сюда или нажмите — по желанию. Иначе будет буква вашего имени.</div>
+            <button type="button" class="avatar-remove" id="avatar-remove" hidden>Убрать фото</button>
+        </div>
+
         {% if let Some(message) = flash_message %}
         <div class="flash-message flash-error">
             <span><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" style="fill: var(--accent);"><path d="M12.884 2.532c-.346-.654-1.422-.654-1.768 0l-9 17A.999.999 0 0 0 3 21h18a.998.998 0 0 0 .883-1.467L12.884 2.532zM13 18h-2v-2h2v2zm-2-4V9h2l.001 5H11z"></path></svg>️</span>
@@ -67,4 +81,9 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/avatar.js"></script>
+<script src="/static/js/register.js"></script>
 {% endblock %}

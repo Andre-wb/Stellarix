@@ -12,6 +12,20 @@
     </div>
 
     <div class="chart-card settings-card">
+        <div class="chart-title">Аватар</div>
+        <div class="avatar-settings" id="avatar-settings" data-username="{{ username }}">
+            <div class="avatar-circle avatar-preview" id="avatar-preview" title="Сменить аватар"></div>
+            <div class="avatar-settings-actions">
+                <button type="button" class="chip-btn" id="avatar-change-btn">Сменить фото</button>
+                <button type="button" class="avatar-remove" id="avatar-remove-btn" hidden>Убрать фото</button>
+            </div>
+        </div>
+        <input type="file" id="avatar-file" accept="image/*" hidden>
+        <div class="settings-hint">Перетащите фото на круг или нажмите «Сменить». Если вы сопряжены и собеседник сейчас слушает в чате, новый аватар уйдёт ему по звуку.</div>
+        <div class="avatar-settings-status" id="avatar-status"></div>
+    </div>
+
+    <div class="chart-card settings-card">
         <div class="chart-title" data-i18n="settings.theme">Тема</div>
         <div class="theme-grid">
             <button type="button" class="theme-option" data-theme-value="dark">
@@ -57,5 +71,8 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<script src="/static/js/native-modem.js"></script>
+<script src="/static/js/e2e-crypto.js"></script>
+<script src="/static/js/avatar.js"></script>
 <script src="/static/js/settings.js"></script>
 {% endblock %}
