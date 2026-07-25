@@ -143,9 +143,9 @@ document.addEventListener('DOMContentLoaded', () => {
             input.value = '';
             setStatus('Передаю сообщение...');
             const report = await AudioModem.playHexPayload(payloadHex, setStatus);
-            if (AudioModem.wasDelivered(report)) {
+            if (/^Доставлено/.test(report || '')) {
                 setStatus('Сообщение доставлено — собеседник подтвердил получение.');
-            } else if (report && !AudioModem.wasStopped(report)) {
+            } else if (report && !/остановлена/.test(report)) {
                 setStatus(report + ' Убедитесь, что собеседник нажал «Слушать», и отправьте ещё раз.');
             }
         } catch (err) {

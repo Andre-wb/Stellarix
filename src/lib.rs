@@ -10,7 +10,9 @@ pub use db::DbPool;
 pub use routes::*;
 pub use schemas::*;
 
+use axum::http::{header, HeaderValue};
 use tower_http::services::ServeDir;
+use tower_http::set_header::SetResponseHeaderLayer;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
@@ -36,7 +38,15 @@ pub async fn create_router(pool: DbPool, static_dir: PathBuf) -> axum::Router {
         .route("/settings", get(get_settings))
         .route("/api/stats", post(stats::record_transfer))
         .route("/diagnostics", get(get_diagnostics))
-        .nest_service("/static", ServeDir::new(static_dir))
+        .nest_service(
+            "/static",
+            Router::new()
+                .fallback_service(ServeDir::new(static_dir))
+                .layer(SetResponseHeaderLayer::overriding(
+                    header::CACHE_CONTROL,
+                    HeaderValue::from_static("no-cache"),
+                )),
+        )
         .with_state(pool)
 }
 
