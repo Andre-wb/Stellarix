@@ -7,10 +7,12 @@ mod pgpaths;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use postgresql_embedded::{PostgreSQL, Settings};
 use tauri::{async_runtime, AppHandle, Emitter, Manager};
 use tokio::sync::Mutex;
+use tokio::net::TcpStream;
 use tracing::{info, error, debug};
 use tracing_subscriber::{fmt, EnvFilter};
 
@@ -21,23 +23,20 @@ const PG_USER: &str = "postgres";
 
 struct PgGuard(Arc<Mutex<Option<PostgreSQL>>>);
 
-// Начало логирования аналогично main.rs в основном крейте.
-// Все цвета и выделения частей логов регулируются здесь же
 fn setup_logging() {
     let env_filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new("info"));
 
-    // Простой форматтер с цветами
     fmt()
         .with_env_filter(env_filter)
-        .with_ansi(true) // Включаем ANSI цвета
+        .with_ansi(true)
         .with_target(true)
         .with_thread_ids(true)
         .with_thread_names(true)
         .with_file(true)
         .with_line_number(true)
         .with_level(true)
-        .with_timer(fmt::time::ChronoLocal::rfc_3339()) // Используем ChronoLocal вместо UtcTime
+        .with_timer(fmt::time::ChronoLocal::rfc_3339())
         .init();
 
     info!("🚀 Логирование инициализировано для Tauri приложения");
@@ -102,6 +101,19 @@ fn load_or_create_secret(dir: &PathBuf, name: &str) -> Result<String, String> {
     Ok(value)
 }
 
+async fn wait_for_port(addr: SocketAddr, timeout: Duration) -> bool {
+    let start = std::time::Instant::now();
+    while start.elapsed() < timeout {
+        match TcpStream::connect(addr).await {
+            Ok(_) => return true,
+            Err(_) => {
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }
+        }
+    }
+    false
+}
+
 async fn bring_up(app: AppHandle, pg_state: Arc<Mutex<Option<PostgreSQL>>>) -> Result<String, String> {
     info!("Запуск приложения Tauri...");
 
@@ -154,9 +166,6 @@ async fn bring_up(app: AppHandle, pg_state: Arc<Mutex<Option<PostgreSQL>>>) -> R
     let pg_password = load_or_create_secret(&data_dir, "pg_password")?;
     debug!("Пароль PostgreSQL загружен");
 
-    // На системах с нелатинской локалью (например, Russian_Russia.1251) initdb
-    // может упасть с "неверная последовательность байт для кодировки UTF8".
-    // Форсируем локаль C, чтобы избежать конфликта локали/кодировки при инициализации.
     std::env::set_var("LC_ALL", "C");
     std::env::set_var("LANG", "C");
     std::env::set_var("LC_CTYPE", "C");
@@ -225,20 +234,32 @@ async fn bring_up(app: AppHandle, pg_state: Arc<Mutex<Option<PostgreSQL>>>) -> R
     info!("Слушатель создан на порту {}", APP_PORT);
 
     let url = format!("http://127.0.0.1:{APP_PORT}/");
-    app.emit("server-ready", url.clone()).map_err(|e| {
-        error!("Ошибка отправки события server-ready: {}", e);
-        format!("emit: {e}")
-    })?;
-    info!("📡 Событие server-ready отправлено");
 
-    // Сервер запускается в отдельном потоке
-    tokio::spawn(async move {
+    // Запускаем сервер
+    let server_handle = tokio::spawn(async move {
         info!("Запуск сервера в фоновом потоке...");
         if let Err(e) = stellarix::serve_on(listener, pool, static_dir, false).await {
             error!("Ошибка сервера: {}", e);
         }
         info!("Сервер остановлен");
     });
+
+    // Ждём, пока сервер начнёт слушать порт
+    info!("Ожидание готовности сервера...");
+    if wait_for_port(addr, Duration::from_secs(5)).await {
+        info!("✅ Сервер готов и принимает соединения");
+    } else {
+        error!("❌ Сервер не запустился в течение 5 секунд");
+        server_handle.abort();
+        return Err("Сервер не запустился".to_string());
+    }
+
+    // Отправляем событие фронтенду
+    app.emit("server-ready", url.clone()).map_err(|e| {
+        error!("Ошибка отправки события server-ready: {}", e);
+        format!("emit: {e}")
+    })?;
+    info!("📡 Событие server-ready отправлено");
 
     info!("✅ Сервер запущен в фоновом режиме");
     Ok(url)
@@ -261,9 +282,7 @@ fn stop_pg(app: &AppHandle) {
 }
 
 fn main() {
-    // Настройка логирования должна быть первой
     setup_logging();
-
     info!("=== 🚀 Запуск Tauri приложения ===");
 
     let pg_state: Arc<Mutex<Option<PostgreSQL>>> = Arc::new(Mutex::new(None));
