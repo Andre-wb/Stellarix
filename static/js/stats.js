@@ -18,12 +18,31 @@ const StxStats = (() => {
         try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) { /* нет места — молча пропускаем */ }
     }
 
+    function report(session) {
+        if (typeof fetch !== 'function') return;
+        try {
+            fetch('/api/stats', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                keepalive: true,
+                body: JSON.stringify({
+                    kind: session.kind,
+                    ok: !!session.ok,
+                    bytes: typeof session.bytes === 'number' ? session.bytes : null,
+                    ms: typeof session.ms === 'number' ? session.ms : null,
+                }),
+            }).catch(() => {});
+        } catch (e) {}
+    }
+
     return {
         record(session) {
             const data = load();
             data.sessions.push(Object.assign({ at: Date.now() }, session));
             if (data.sessions.length > LIMIT) data.sessions = data.sessions.slice(-LIMIT);
             save(data);
+            report(session);
         },
         all() {
             return load().sessions;

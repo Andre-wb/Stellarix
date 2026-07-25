@@ -92,6 +92,11 @@ pub struct SessionStats {
     pub duration: String,
     pub speed: String,
     pub status: String,
+    pub ok: bool,
+    pub at: i64,
+    pub kind: String,
+    pub bytes: Option<i64>,
+    pub ms: Option<i64>,
 }
 
 #[derive(Template)]
@@ -103,11 +108,8 @@ pub struct DashboardTemplate {
     pub total_messages_received: i64,
     pub success_rate: String,
     pub average_speed: String,
-    pub speed_chart_data: String,
-    pub result_chart_data: String,
-    pub duration_chart_data: String,
-    pub bytes_chart_data: String,
     pub sessions: Vec<SessionStats>,
+    pub sessions_json: String,
     pub has_sessions: bool,
 }
 

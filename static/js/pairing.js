@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function resetListenUi() {
         activeListener = null;
         receiveBtn.disabled = false;
+        shareBtn.disabled = false;
         stopBtn.style.display = 'none';
         retryCount = 0;
     }
@@ -70,8 +71,9 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshBanner();
 
     shareBtn.addEventListener('click', async () => {
-        if (!nativeReady) return;
+        if (activeListener || !nativeReady) return;
         shareBtn.disabled = true;
+        receiveBtn.disabled = true;
         resultEl.textContent = '';
         try {
             setStatus('Генерирую ключ в браузере...');
@@ -86,12 +88,14 @@ document.addEventListener('DOMContentLoaded', () => {
             setStatus('Ошибка: ' + err.message);
         } finally {
             shareBtn.disabled = false;
+            receiveBtn.disabled = false;
         }
     });
 
     receiveBtn.addEventListener('click', () => {
         if (activeListener || !nativeReady) return;
         receiveBtn.disabled = true;
+        shareBtn.disabled = true;
         stopBtn.style.display = 'inline-block';
         resultEl.textContent = '';
         if (levelEl) levelEl.textContent = 'Уровень микрофона: [--------------------]';
@@ -102,6 +106,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 onStatus: setStatus,
                 onLevel: setLevel,
                 onDecoded: async (hex) => {
+                    const own = E2E.getPublicHex();
+                    if (own && hex.toLowerCase() === own.toLowerCase()) {
+                        activeListener = null;
+                        setStatus('Пойман собственный ключ (эхо своего динамика) — продолжаю слушать собеседника...');
+                        startListeningCycle();
+                        return;
+                    }
                     resetListenUi();
                     setStatus('Ключ получен, вычисляю общий сеансовый ключ в браузере...');
                     try {

@@ -4807,6 +4807,7 @@ dependencies = [
  "audiodsp",
  "chrono",
  "cpal",
+ "libc",
  "postgresql_embedded",
  "rand 0.8.7",
  "serde",
