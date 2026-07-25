@@ -156,16 +156,16 @@ fn mixed_modulation_stream_decodes_with_a_fixed_bpsk_sized_chunk() {
 }
 
 #[test]
-fn adapter_climbs_and_falls_back_across_a_full_sweep() {
+fn adapter_climbs_to_the_capped_ceiling_and_falls_back_across_a_full_sweep() {
     let mut adapter = RateAdapter::new(Modulation::Bpsk);
-    let mut seen_qam64 = false;
     for _ in 0..10 {
         adapter.observe_snr(35.0);
     }
-    if adapter.current() == Modulation::Qam64 {
-        seen_qam64 = true;
-    }
-    assert!(seen_qam64, "adapter should reach Qam64 on a very clean channel");
+    assert_eq!(
+        adapter.current(),
+        Modulation::Qam16,
+        "adapter should climb to the Qam16 reliability cap on a very clean channel"
+    );
 
     for _ in 0..4 {
         adapter.observe_snr(2.0);

@@ -1,20 +1,21 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
+use rand::Rng;
 use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Emitter};
 
 use audiodsp::ofdm::{
-    encode_packets_sized, max_packet_payload, pack_payload, packed_chunk_count, Modulation,
-    OfdmConfig,
+    chirp, encode_packets_sized, find_chirp, max_packet_payload, pack_payload, packed_chunk_count,
+    Modulation, OfdmConfig, CHIRP_THRESHOLD,
 };
 
-use super::capture::start_capture;
+use super::capture::{start_capture, Capture};
 use super::player::OutputPlayer;
 use super::proto;
 use super::sendplan::{self, AckStep, CtrlOutcome, RetryStep};
-use super::session::{listen_once, wait_ctrl_on, CtrlWait};
+use super::session::{listen_once, tail_at, wait_ctrl_on, CtrlWait};
 
 const LISTEN_WINDOW: Duration = Duration::from_millis(900);
 const LISTEN_TAIL_SECONDS: f32 = 2.5;
@@ -22,6 +23,55 @@ const MAX_PACKET_RETRIES: usize = 3;
 const MAX_ROUNDS: usize = 6;
 const MAX_FULL_REPLAYS: usize = 1;
 const ACK_WAIT: Duration = Duration::from_secs(12);
+
+const SENSE_POLL: Duration = Duration::from_millis(700);
+const SENSE_TAIL_SECONDS: f32 = 3.0;
+const SENSE_MAX_WAIT: Duration = Duration::from_secs(60);
+const BACKOFF_BASE_MS: u64 = 500;
+const BACKOFF_SPREAD_MS: u64 = 700;
+const GUARD_SPREAD_MS: u64 = 300;
+
+fn channel_busy(cap: &Capture, cfg: &OfdmConfig) -> bool {
+    let max_raw = (cap.sample_rate as f32 * SENSE_TAIL_SECONDS) as usize;
+    let (snap, _) = tail_at(cap, cfg.fs, max_raw);
+    let template = chirp(cfg);
+    find_chirp(&snap, &template, CHIRP_THRESHOLD).is_some()
+}
+
+fn wait_for_clear_channel(app: &AppHandle, stop: &Arc<AtomicBool>, cfg: &OfdmConfig, cap: &Capture) {
+    let started = Instant::now();
+    let deadline = started + SENSE_MAX_WAIT;
+    let min_listen = Duration::from_secs_f32(SENSE_TAIL_SECONDS);
+    let mut attempt: u64 = 0;
+    let _ = app.emit("modem-status", "Слушаю эфир перед передачей...".to_string());
+    loop {
+        if stop.load(Ordering::SeqCst) {
+            return;
+        }
+        std::thread::sleep(SENSE_POLL);
+        let _ = app.emit("modem-level", cap.level());
+        if channel_busy(cap, cfg) {
+            if Instant::now() >= deadline {
+                return;
+            }
+            attempt += 1;
+            let _ = app.emit(
+                "modem-status",
+                format!("Канал занят другой парой — уступаю дорогу (попытка {attempt})..."),
+            );
+            let spread = BACKOFF_SPREAD_MS.saturating_mul(attempt.min(5));
+            let backoff = BACKOFF_BASE_MS + rand::thread_rng().gen_range(0..=spread);
+            std::thread::sleep(Duration::from_millis(backoff));
+        } else if started.elapsed() >= min_listen || Instant::now() >= deadline {
+            let guard = rand::thread_rng().gen_range(0..=GUARD_SPREAD_MS);
+            std::thread::sleep(Duration::from_millis(guard));
+            if !channel_busy(cap, cfg) {
+                let _ = app.emit("modem-status", "Канал свободен — начинаю передачу.".to_string());
+                return;
+            }
+        }
+    }
+}
 
 pub fn run_send_file(
     app: &AppHandle,
@@ -68,6 +118,12 @@ pub fn run_send(
 
     let out = OutputPlayer::open()?;
     let cap = start_capture()?;
+
+    wait_for_clear_channel(app, &stop, &cfg, &cap);
+    if stop.load(Ordering::SeqCst) {
+        return Ok("Передача остановлена.".to_string());
+    }
+
     let mut missing: Vec<u16> = Vec::new();
 
     let mut modulation = Modulation::Bpsk;
