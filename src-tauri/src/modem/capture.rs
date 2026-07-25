@@ -26,6 +26,30 @@ impl Capture {
         let start = buf.len().saturating_sub(max_len);
         (buf[start..].to_vec(), start)
     }
+
+    pub fn peak_clip_range(&self, abs_start: usize, len: usize) -> (f32, f32) {
+        let buf = self.samples.lock().unwrap();
+        if abs_start >= buf.len() || len == 0 {
+            return (0.0, 0.0);
+        }
+        let end = (abs_start + len).min(buf.len());
+        let slice = &buf[abs_start..end];
+        if slice.is_empty() {
+            return (0.0, 0.0);
+        }
+        let mut peak = 0f32;
+        let mut clipped = 0usize;
+        for &v in slice {
+            let a = v.abs();
+            if a > peak {
+                peak = a;
+            }
+            if a >= 0.98 {
+                clipped += 1;
+            }
+        }
+        (peak, clipped as f32 / slice.len() as f32)
+    }
 }
 
 impl Drop for Capture {

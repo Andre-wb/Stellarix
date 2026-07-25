@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 
 use tauri::{AppHandle, Emitter};
 
-use audiodsp::ofdm::{Modulation, OfdmConfig};
+use audiodsp::ofdm::{GainAdvice, Modulation, OfdmConfig};
 
 use super::capture::Capture;
 use super::proto::{self, Frame};
@@ -17,6 +17,7 @@ pub enum CtrlWait {
         ok: bool,
         modulation: Modulation,
         snr_db: f32,
+        gain: GainAdvice,
     },
     Timeout,
     Stopped,
@@ -67,11 +68,13 @@ fn parse_ctrl(payload: &[u8]) -> Option<CtrlWait> {
             ok,
             modulation,
             snr_db_x10,
+            gain,
         } => Some(CtrlWait::Rate {
             seq,
             ok,
             modulation: Modulation::from_id(modulation)?,
             snr_db: snr_db_x10 as f32 / 10.0,
+            gain: GainAdvice::from_id(gain),
         }),
         _ => None,
     }
@@ -140,17 +143,25 @@ mod tests {
 
     #[test]
     fn parses_rate_and_dequantizes_snr() {
-        match parse_ctrl(&proto::encode_rate(4, true, Modulation::Qam16.id(), 12.3)) {
+        match parse_ctrl(&proto::encode_rate(
+            4,
+            true,
+            Modulation::Qam16.id(),
+            12.3,
+            GainAdvice::Lower.id(),
+        )) {
             Some(CtrlWait::Rate {
                 seq,
                 ok,
                 modulation,
                 snr_db,
+                gain,
             }) => {
                 assert_eq!(seq, 4);
                 assert!(ok);
                 assert_eq!(modulation, Modulation::Qam16);
                 assert!((snr_db - 12.3).abs() < 1e-3);
+                assert_eq!(gain, GainAdvice::Lower);
             }
             _ => panic!("expected Rate"),
         }
@@ -158,7 +169,7 @@ mod tests {
 
     #[test]
     fn rejects_rate_with_unknown_modulation_id() {
-        assert!(parse_ctrl(&proto::encode_rate(0, true, 7, 5.0)).is_none());
+        assert!(parse_ctrl(&proto::encode_rate(0, true, 7, 5.0, 0)).is_none());
     }
 
     #[test]
@@ -239,7 +250,7 @@ mod tests {
 
     #[test]
     fn ack_wins_over_earlier_rate_frame() {
-        let mut wave = wave_of(&proto::encode_rate(0, false, Modulation::Bpsk.id(), 3.0));
+        let mut wave = wave_of(&proto::encode_rate(0, false, Modulation::Bpsk.id(), 3.0, 0));
         wave.extend(std::iter::repeat_n(0f32, 4800));
         wave.extend(wave_of(&proto::encode_ack(2)));
         match scan_ctrl(&wave, &OfdmConfig::default_48k()) {

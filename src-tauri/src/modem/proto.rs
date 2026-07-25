@@ -25,6 +25,7 @@ pub enum Frame {
         ok: bool,
         modulation: u8,
         snr_db_x10: i16,
+        gain: u8,
     },
 }
 
@@ -60,13 +61,14 @@ pub fn encode_ack(total: u16) -> Vec<u8> {
     out
 }
 
-pub fn encode_rate(seq: u16, ok: bool, modulation: u8, snr_db: f32) -> Vec<u8> {
+pub fn encode_rate(seq: u16, ok: bool, modulation: u8, snr_db: f32, gain: u8) -> Vec<u8> {
     let mut out = vec![MAGIC0, MAGIC1, T_RATE];
     out.extend_from_slice(&seq.to_be_bytes());
     out.push(if ok { 1 } else { 0 });
     out.push(modulation);
     let snr_db_x10 = (snr_db * 10.0).round().clamp(i16::MIN as f32, i16::MAX as f32) as i16;
     out.extend_from_slice(&snr_db_x10.to_be_bytes());
+    out.push(gain);
     out
 }
 
@@ -127,6 +129,7 @@ pub fn parse(data: &[u8]) -> Option<Frame> {
                 ok: body[2] != 0,
                 modulation: body[3],
                 snr_db_x10: i16::from_be_bytes([body[4], body[5]]),
+                gain: body.get(6).copied().unwrap_or(0),
             })
         }
         _ => None,
@@ -223,17 +226,19 @@ mod tests {
 
     #[test]
     fn rate_roundtrips_and_quantizes_snr() {
-        match parse(&encode_rate(9, true, 2, 13.37)) {
+        match parse(&encode_rate(9, true, 2, 13.37, 2)) {
             Some(Frame::Rate {
                 seq,
                 ok,
                 modulation,
                 snr_db_x10,
+                gain,
             }) => {
                 assert_eq!(seq, 9);
                 assert!(ok);
                 assert_eq!(modulation, 2);
                 assert_eq!(snr_db_x10, 134);
+                assert_eq!(gain, 2);
             }
             _ => panic!("expected Rate"),
         }
@@ -241,7 +246,7 @@ mod tests {
 
     #[test]
     fn rate_carries_negative_snr_and_not_ok() {
-        match parse(&encode_rate(1, false, 0, -6.25)) {
+        match parse(&encode_rate(1, false, 0, -6.25, 0)) {
             Some(Frame::Rate {
                 ok, snr_db_x10, ..
             }) => {
@@ -253,12 +258,25 @@ mod tests {
     }
 
     #[test]
+    fn rate_without_gain_byte_parses_as_hold() {
+        let mut frame = encode_rate(3, true, 1, 5.0, 2);
+        frame.pop();
+        match parse(&frame) {
+            Some(Frame::Rate { seq, gain, .. }) => {
+                assert_eq!(seq, 3);
+                assert_eq!(gain, 0);
+            }
+            _ => panic!("a legacy 6-byte Rate must still parse, defaulting gain to hold"),
+        }
+    }
+
+    #[test]
     fn rate_clamps_extreme_snr() {
-        match parse(&encode_rate(0, true, 0, 100000.0)) {
+        match parse(&encode_rate(0, true, 0, 100000.0, 0)) {
             Some(Frame::Rate { snr_db_x10, .. }) => assert_eq!(snr_db_x10, i16::MAX),
             _ => panic!("expected Rate"),
         }
-        match parse(&encode_rate(0, true, 0, -100000.0)) {
+        match parse(&encode_rate(0, true, 0, -100000.0, 0)) {
             Some(Frame::Rate { snr_db_x10, .. }) => assert_eq!(snr_db_x10, i16::MIN),
             _ => panic!("expected Rate"),
         }
