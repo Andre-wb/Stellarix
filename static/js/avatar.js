@@ -1,6 +1,8 @@
 const Avatar = (() => {
     const OWN_KEY = 'stx_avatar';
     const PEER_KEY = 'stx_peer_avatar';
+    const PEER_NAME_KEY = 'stx_peer_name';
+    const NAME_MAX_CHARS = 64;
     const MAGIC_HEX = '53545841563100';
     const TARGET_BYTES = 2200;
     const SIZES = [96, 80, 64, 48];
@@ -22,12 +24,17 @@ const Avatar = (() => {
     function getPeer() { return read(PEER_KEY); }
     function setPeer(dataUrl) { write(PEER_KEY, dataUrl); }
     function clearPeer() { write(PEER_KEY, ''); }
+    function getPeerName() { return read(PEER_NAME_KEY); }
+    function setPeerName(name) { write(PEER_NAME_KEY, (name || '').trim()); }
+    function clearPeerName() { write(PEER_NAME_KEY, ''); }
 
     function letter(name) {
         const s = (name || '').trim();
         if (!s) return '?';
         return s.charAt(0).toUpperCase();
     }
+
+    function peerLetter() { return letter(getPeerName()); }
 
     function render(el, dataUrl, fallbackLetter) {
         if (!el) return;
@@ -141,25 +148,45 @@ const Avatar = (() => {
         }
     }
 
-    function ownHex() {
-        const own = getOwn();
-        if (!own) return '';
-        return bytesToHex(dataUrlToBytes(own));
+    function nameToBytes(name) {
+        const s = (name || '').trim().slice(0, NAME_MAX_CHARS);
+        return new TextEncoder().encode(s);
+    }
+    function bytesToName(bytes) {
+        try { return new TextDecoder().decode(bytes); } catch (e) { return ''; }
     }
 
-    function updateMsgHex() {
+    function profileHex(name) {
+        const nameBytes = nameToBytes(name);
         const own = getOwn();
-        return MAGIC_HEX + (own ? bytesToHex(dataUrlToBytes(own)) : '');
+        const avatarBytes = own ? dataUrlToBytes(own) : new Uint8Array(0);
+        const out = new Uint8Array(1 + nameBytes.length + avatarBytes.length);
+        out[0] = nameBytes.length;
+        out.set(nameBytes, 1);
+        out.set(avatarBytes, 1 + nameBytes.length);
+        return bytesToHex(out);
+    }
+
+    function parseProfileHex(hex) {
+        if (!hex) return { name: '', avatar: '' };
+        const bytes = hexToBytes(hex);
+        if (!bytes.length) return { name: '', avatar: '' };
+        const nameLen = bytes[0];
+        const name = bytesToName(bytes.slice(1, 1 + nameLen));
+        const avatarBytes = bytes.slice(1 + nameLen);
+        return { name, avatar: avatarBytes.length ? bytesToDataUrl(avatarBytes) : '' };
+    }
+
+    function updateMsgHex(name) {
+        return MAGIC_HEX + profileHex(name);
     }
 
     function isUpdateHex(hex) {
         return typeof hex === 'string' && hex.toLowerCase().startsWith(MAGIC_HEX);
     }
 
-    function avatarFromUpdateHex(hex) {
-        const body = hex.slice(MAGIC_HEX.length);
-        if (!body) return '';
-        return bytesToDataUrl(hexToBytes(body));
+    function profileFromUpdateHex(hex) {
+        return parseProfileHex(hex.slice(MAGIC_HEX.length));
     }
 
     function isImageFile(file) {
@@ -174,10 +201,11 @@ const Avatar = (() => {
         MAGIC_HEX,
         getOwn, setOwn, clearOwn,
         getPeer, setPeer, clearPeer,
-        letter, render,
+        getPeerName, setPeerName, clearPeerName,
+        letter, peerLetter, render,
         bytesToHex, hexToBytes, bytesToDataUrl, dataUrlToBytes,
         compressFile, isImageFile,
-        ownHex, updateMsgHex, isUpdateHex, avatarFromUpdateHex,
+        profileHex, parseProfileHex, updateMsgHex, isUpdateHex, profileFromUpdateHex,
     };
 })();
 

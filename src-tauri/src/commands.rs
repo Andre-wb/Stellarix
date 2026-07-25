@@ -60,7 +60,7 @@ pub async fn send_file(
     name: String,
     hex: String,
     key: String,
-) -> Result<bool, String> {
+) -> Result<String, String> {
     let content = hex_to_bytes(&hex)?;
     if content.is_empty() {
         return Err("файл пуст".to_string());
@@ -73,11 +73,11 @@ pub async fn send_file(
     }
     modem::check_file_policy(&name, &content)?;
     let key = parse_key(&key)?;
-    let (completed, _) = run_playback(state, move |stop| {
+    let (_, report) = run_playback(state, move |stop| {
         modem::run_send_file(&app, stop, &name, &content, key)
     })
     .await?;
-    Ok(completed)
+    Ok(report)
 }
 
 #[tauri::command]

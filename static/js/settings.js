@@ -71,7 +71,7 @@
             if (syncing) return Promise.resolve();
             syncing = true;
             setAvatarStatus('Отправляю аватар собеседнику по звуку — он должен слушать в чате...');
-            return AudioModem.playHexPayload(Avatar.updateMsgHex(), setAvatarStatus)
+            return AudioModem.playHexPayload(Avatar.updateMsgHex(username), setAvatarStatus)
                 .then(function (report) {
                     if (/^Доставлено/.test(report || '')) setAvatarStatus('Аватар доставлен — собеседник подтвердил.');
                     else if (report && !/остановлена/.test(report)) setAvatarStatus('Похоже, собеседник не слушал. Откройте у него чат, нажмите «Слушать» и повторите.');

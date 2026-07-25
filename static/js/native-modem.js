@@ -51,9 +51,9 @@ const AudioModem = (() => {
             if (events && onStatus) {
                 unlisten = await events.listen('modem-status', e => onStatus(e.payload));
             }
-            const completed = await core.invoke('send_file', { name: name, hex: hexContent, key: keyHex || '' });
-            onStatus && onStatus(completed === false ? 'Передача отменена.' : 'Файл передан.');
-            return completed !== false;
+            const report = await core.invoke('send_file', { name: name, hex: hexContent, key: keyHex || '' });
+            onStatus && onStatus(report || 'Файл передан.');
+            return report || '';
         } catch (e) {
             onStatus && onStatus('Ошибка передачи: ' + e);
             return false;
