@@ -87,3 +87,62 @@ pub fn listen_once(cap: &Capture, cfg: &OfdmConfig, window: Duration, tail_secon
     let res = audiodsp::ofdm::decode_transmission_report(&snap, cfg, None);
     res.payload.and_then(|p| parse_ctrl(&p))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_ack() {
+        match parse_ctrl(&proto::encode_ack(7)) {
+            Some(CtrlWait::Ack(t)) => assert_eq!(t, 7),
+            _ => panic!("expected Ack"),
+        }
+    }
+
+    #[test]
+    fn parses_nak_with_missing() {
+        match parse_ctrl(&proto::encode_nak(9, &[2, 3])) {
+            Some(CtrlWait::Nak(t, m)) => {
+                assert_eq!(t, 9);
+                assert_eq!(m, vec![2, 3]);
+            }
+            _ => panic!("expected Nak"),
+        }
+    }
+
+    #[test]
+    fn parses_rate_and_dequantizes_snr() {
+        match parse_ctrl(&proto::encode_rate(4, true, Modulation::Qam16.id(), 12.3)) {
+            Some(CtrlWait::Rate {
+                seq,
+                ok,
+                modulation,
+                snr_db,
+            }) => {
+                assert_eq!(seq, 4);
+                assert!(ok);
+                assert_eq!(modulation, Modulation::Qam16);
+                assert!((snr_db - 12.3).abs() < 1e-3);
+            }
+            _ => panic!("expected Rate"),
+        }
+    }
+
+    #[test]
+    fn rejects_rate_with_unknown_modulation_id() {
+        assert!(parse_ctrl(&proto::encode_rate(0, true, 7, 5.0)).is_none());
+    }
+
+    #[test]
+    fn data_frames_are_not_control() {
+        assert!(parse_ctrl(&proto::encode_msg(b"hi")).is_none());
+        assert!(parse_ctrl(&proto::encode_file("f", &[0u8; 32], b"x")).is_none());
+    }
+
+    #[test]
+    fn garbage_is_not_control() {
+        assert!(parse_ctrl(&[0, 1, 2, 3]).is_none());
+        assert!(parse_ctrl(&[]).is_none());
+    }
+}

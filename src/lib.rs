@@ -3,7 +3,6 @@ pub mod db;
 pub mod routes;
 pub mod schemas;
 pub mod middleware;
-pub mod setup;
 
 pub use config::Config;
 pub use db::DbPool;

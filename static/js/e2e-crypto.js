@@ -164,6 +164,10 @@ const E2E = (() => {
         return decryptWithKeyHex(keyHex, payloadHex);
     }
 
+    function getSessionKeyHex() {
+        return localStorage.getItem(SESSION_HEX) || '';
+    }
+
     return {
         MAX_PLAINTEXT_BYTES,
         isSupported,
@@ -180,6 +184,7 @@ const E2E = (() => {
         reset,
         encrypt,
         decrypt,
+        getSessionKeyHex,
         bytesToHex,
         hexToBytes,
     };

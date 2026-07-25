@@ -2,6 +2,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Emitter};
 
 use audiodsp::ofdm::{
@@ -11,6 +12,8 @@ use audiodsp::ofdm::{
 
 use super::capture::start_capture;
 use super::player::OutputPlayer;
+use super::proto;
+use super::sendplan::{self, AckStep, CtrlOutcome, RetryStep};
 use super::session::{listen_once, wait_ctrl_on, CtrlWait};
 
 const LISTEN_WINDOW: Duration = Duration::from_millis(900);
@@ -20,7 +23,36 @@ const MAX_ROUNDS: usize = 6;
 const MAX_FULL_REPLAYS: usize = 1;
 const ACK_WAIT: Duration = Duration::from_secs(12);
 
-pub fn run_send(app: &AppHandle, stop: Arc<AtomicBool>, envelope: &[u8]) -> Result<String, String> {
+pub fn run_send_file(
+    app: &AppHandle,
+    stop: Arc<AtomicBool>,
+    name: &str,
+    content: &[u8],
+    key: [u8; 32],
+) -> Result<String, String> {
+    let safe = proto::sanitize_filename(name);
+    let mut hasher = Sha256::new();
+    hasher.update(content);
+    let digest: [u8; 32] = hasher.finalize().into();
+    let _ = app.emit(
+        "modem-status",
+        format!("Шифрую и готовлю файл «{safe}» к передаче..."),
+    );
+    let envelope = proto::encode_file(&safe, &digest, content);
+    run_send(app, stop, &envelope, Some(&key))
+}
+
+pub fn run_send_msg(app: &AppHandle, stop: Arc<AtomicBool>, body: &[u8]) -> Result<String, String> {
+    let envelope = proto::encode_msg(body);
+    run_send(app, stop, &envelope, None)
+}
+
+pub fn run_send(
+    app: &AppHandle,
+    stop: Arc<AtomicBool>,
+    envelope: &[u8],
+    key: Option<&[u8; 32]>,
+) -> Result<String, String> {
     let mut cfg = OfdmConfig::default_48k();
     cfg.headroom = audiodsp::PLAYBACK_GAIN.clamp(0.05, 1.0);
 
@@ -28,9 +60,9 @@ pub fn run_send(app: &AppHandle, stop: Arc<AtomicBool>, envelope: &[u8]) -> Resu
     sizing_cfg.modulation = Modulation::Bpsk;
     let chunk_max = max_packet_payload(&sizing_cfg).max(1);
 
-    let packed = pack_payload(envelope, None);
+    let packed = pack_payload(envelope, key);
     let total = packed_chunk_count(packed.len(), &sizing_cfg);
-    if total > 4095 {
+    if !sendplan::within_limit(total) {
         return Err("Данные слишком велики для передачи звуком.".to_string());
     }
 
@@ -43,7 +75,7 @@ pub fn run_send(app: &AppHandle, stop: Arc<AtomicBool>, envelope: &[u8]) -> Resu
         if stop.load(Ordering::SeqCst) {
             return Ok("Передача остановлена.".to_string());
         }
-        let mut retries = 0usize;
+        let mut retry = sendplan::PacketRetry::new(MAX_PACKET_RETRIES);
         loop {
             let mut pkt_cfg = cfg.clone();
             pkt_cfg.modulation = modulation;
@@ -56,7 +88,7 @@ pub fn run_send(app: &AppHandle, stop: Arc<AtomicBool>, envelope: &[u8]) -> Resu
             if stop.load(Ordering::SeqCst) {
                 return Ok("Передача остановлена.".to_string());
             }
-            match listen_once(&cap, &cfg, LISTEN_WINDOW, LISTEN_TAIL_SECONDS) {
+            let rate_ok = match listen_once(&cap, &cfg, LISTEN_WINDOW, LISTEN_TAIL_SECONDS) {
                 Some(CtrlWait::Rate {
                     seq: s,
                     ok,
@@ -68,31 +100,27 @@ pub fn run_send(app: &AppHandle, stop: Arc<AtomicBool>, envelope: &[u8]) -> Resu
                         "modem-status",
                         format!("Приёмник: SNR {snr_db:.1} дБ, модуляция {m:?}"),
                     );
-                    if ok {
-                        break;
-                    }
-                    retries += 1;
-                    if retries >= MAX_PACKET_RETRIES {
-                        missing.push(seq as u16);
-                        break;
-                    }
+                    Some(ok)
                 }
-                _ => break,
+                _ => None,
+            };
+            match retry.step(rate_ok) {
+                RetryStep::Done | RetryStep::NoResponse => break,
+                RetryStep::Retry => continue,
+                RetryStep::GiveUp => {
+                    missing.push(seq as u16);
+                    break;
+                }
             }
         }
     }
 
-    let mut targets: Option<Vec<u16>> = if missing.is_empty() {
-        None
-    } else {
-        Some(missing)
-    };
-    let mut full_replays = 0usize;
+    let mut ack = sendplan::AckLoop::new(total, MAX_FULL_REPLAYS, missing);
     for _round in 1..=MAX_ROUNDS {
         if stop.load(Ordering::SeqCst) {
             return Ok("Передача остановлена.".to_string());
         }
-        if let Some(t) = &targets {
+        if let Some(t) = ack.targets() {
             let mut safe_cfg = cfg.clone();
             safe_cfg.modulation = Modulation::Bpsk;
             let seqs: Vec<usize> = t.iter().map(|&s| s as usize).collect();
@@ -104,33 +132,31 @@ pub fn run_send(app: &AppHandle, stop: Arc<AtomicBool>, envelope: &[u8]) -> Resu
             out.play(&wave, cfg.fs, &stop)?;
         }
         let _ = app.emit("modem-status", "Жду подтверждение приёма...".to_string());
-        match wait_ctrl_on(app, &stop, &cfg, &cap, ACK_WAIT) {
-            CtrlWait::Ack(t) if t as usize == total => {
+        let outcome = match wait_ctrl_on(app, &stop, &cfg, &cap, ACK_WAIT) {
+            CtrlWait::Ack(t) => CtrlOutcome::Ack(t as usize),
+            CtrlWait::Nak(t, miss) => CtrlOutcome::Nak(t as usize, miss),
+            CtrlWait::Rate { .. } => CtrlOutcome::Rate,
+            CtrlWait::Timeout => CtrlOutcome::Timeout,
+            CtrlWait::Stopped => CtrlOutcome::Stopped,
+        };
+        let was_timeout = matches!(outcome, CtrlOutcome::Timeout);
+        let had_targets = ack.targets().is_some();
+        match ack.react(outcome) {
+            AckStep::Delivered => {
                 return Ok("Доставлено: приёмник подтвердил получение.".to_string());
             }
-            CtrlWait::Nak(t, miss) if t as usize == total => {
-                let miss: Vec<u16> = miss.into_iter().filter(|&s| (s as usize) < total).collect();
-                if miss.is_empty() {
-                    return Ok("Доставлено: приёмник подтвердил получение.".to_string());
-                }
-                targets = Some(miss);
+            AckStep::GiveUp => {
+                return Ok("Передано, но подтверждение не получено.".to_string());
             }
-            CtrlWait::Ack(_) | CtrlWait::Nak(_, _) | CtrlWait::Rate { .. } => {}
-            CtrlWait::Timeout => {
-                if targets.is_none() {
-                    if full_replays < MAX_FULL_REPLAYS {
-                        full_replays += 1;
-                        targets = Some((0..total as u16).collect());
-                        let _ = app.emit(
-                            "modem-status",
-                            "Ответа нет — повторяю передачу полностью...".to_string(),
-                        );
-                    } else {
-                        return Ok("Передано, но подтверждение не получено.".to_string());
-                    }
+            AckStep::Stopped => return Ok("Передача остановлена.".to_string()),
+            AckStep::Retransmit => {
+                if was_timeout && !had_targets && ack.targets().is_some() {
+                    let _ = app.emit(
+                        "modem-status",
+                        "Ответа нет — повторяю передачу полностью...".to_string(),
+                    );
                 }
             }
-            CtrlWait::Stopped => return Ok("Передача остановлена.".to_string()),
         }
     }
     Ok("Передано, подтверждение после повторов не получено.".to_string())

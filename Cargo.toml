@@ -3,10 +3,6 @@ name = "stellarix"
 version = "0.1.0"
 edition = "2021"
 
-[[bin]]
-name = "stellarix"
-path = "src/main.rs"
-
 [dependencies]
 axum = "0.7"
 tokio = { version = "1", features = ["full"] }
@@ -27,7 +23,6 @@ askama = "0.12"
 argon2 = "0.5"
 
 dotenvy = "0.15"
-percent-encoding = "2"
 
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

@@ -321,12 +321,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const resetBtn = $('stats-reset');
     if (resetBtn) {
+        let resetArmed = false;
+        let resetTimer = null;
+
+        function disarmReset() {
+            resetArmed = false;
+            if (resetTimer) { clearTimeout(resetTimer); resetTimer = null; }
+            resetBtn.textContent = 'Сбросить';
+        }
+
         resetBtn.addEventListener('click', () => {
-            if (typeof StxStats === 'undefined' || !StxStats.reset) {
-                alert('Сброс статистики доступен только при использовании localStorage');
+            if (typeof StxStats === 'undefined' || !StxStats.reset) return;
+            if (!resetArmed) {
+                resetArmed = true;
+                resetBtn.textContent = 'Нажмите ещё раз';
+                resetTimer = setTimeout(disarmReset, 4000);
                 return;
             }
-            if (!confirm('Сбросить собранную статистику?')) return;
+            disarmReset();
             StxStats.reset();
             render(true);
         });
