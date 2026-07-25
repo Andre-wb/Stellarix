@@ -18,7 +18,7 @@ pub struct PlaybackState(pub Mutex<Option<Arc<AtomicBool>>>);
 
 const MAX_FILE_BYTES: usize = 64 * 1024;
 
-async fn run_playback<F>(state: State<'_, PlaybackState>, send: F) -> Result<bool, String>
+async fn run_playback<F>(state: State<'_, PlaybackState>, send: F) -> Result<(bool, String), String>
 where
     F: FnOnce(Arc<AtomicBool>) -> Result<String, String> + Send + 'static,
 {
@@ -31,7 +31,7 @@ where
     }
     let flag = stop.clone();
     let joined = tauri::async_runtime::spawn_blocking(move || {
-        send(flag.clone()).map(|_| !flag.load(Ordering::SeqCst))
+        send(flag.clone()).map(|report| (!flag.load(Ordering::SeqCst), report))
     })
     .await;
     if let Ok(mut guard) = state.0.lock() {
@@ -47,9 +47,10 @@ pub async fn play_payload(
     app: AppHandle,
     state: State<'_, PlaybackState>,
     hex: String,
-) -> Result<bool, String> {
+) -> Result<String, String> {
     let payload = hex_to_bytes(&hex)?;
-    run_playback(state, move |stop| modem::run_send_msg(&app, stop, &payload)).await
+    let (_, report) = run_playback(state, move |stop| modem::run_send_msg(&app, stop, &payload)).await?;
+    Ok(report)
 }
 
 #[tauri::command]
@@ -72,10 +73,11 @@ pub async fn send_file(
     }
     modem::check_file_policy(&name, &content)?;
     let key = parse_key(&key)?;
-    run_playback(state, move |stop| {
+    let (completed, _) = run_playback(state, move |stop| {
         modem::run_send_file(&app, stop, &name, &content, key)
     })
-    .await
+    .await?;
+    Ok(completed)
 }
 
 #[tauri::command]

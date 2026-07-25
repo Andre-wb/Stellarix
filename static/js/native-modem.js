@@ -22,6 +22,14 @@ const AudioModem = (() => {
         return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
+    function wasDelivered(report) {
+        return /^Доставлено/.test(report || '');
+    }
+
+    function wasStopped(report) {
+        return /остановлена/.test(report || '');
+    }
+
     async function playHexPayload(hexString, onStatus) {
         requireNative();
         onStatus && onStatus('Передаю звуком...');
@@ -30,10 +38,12 @@ const AudioModem = (() => {
             if (events && onStatus) {
                 unlisten = await events.listen('modem-status', e => onStatus(e.payload));
             }
-            const completed = await core.invoke('play_payload', { hex: hexString });
-            onStatus && onStatus(completed === false ? 'Передача отменена.' : 'Передача завершена.');
+            const report = await core.invoke('play_payload', { hex: hexString });
+            onStatus && onStatus(report || 'Передача завершена.');
+            return report || '';
         } catch (e) {
             onStatus && onStatus('Ошибка передачи: ' + e);
+            return '';
         } finally {
             if (unlisten) {
                 try { unlisten(); } catch (e) {}
@@ -66,7 +76,7 @@ const AudioModem = (() => {
         if (core) core.invoke('stop_playing').catch(() => {});
     }
 
-    function startListening({ key, onStatus, onDecoded, onFile, onError, onLevel } = {}) {
+    function startListening({ key, onStatus, onDecoded, onFile, onError, onLevel, onStopped } = {}) {
         let finished = false;
         const unlisten = [];
         function cleanup() {
@@ -101,6 +111,13 @@ const AudioModem = (() => {
                     cleanup();
                     onError && onError(e.payload);
                 }));
+                unlisten.push(await events.listen('modem-stopped', e => {
+                    if (finished) return;
+                    finished = true;
+                    cleanup();
+                    if (onStopped) onStopped(e.payload);
+                    else onError && onError(e.payload);
+                }));
                 await core.invoke('start_listening', { key: key || '' });
                 onStatus && onStatus('Слушаю через микрофон...');
             } catch (e) {
@@ -127,6 +144,8 @@ const AudioModem = (() => {
         unavailableReason: UNAVAILABLE,
         playPublicKeyHex: playHexPayload,
         playHexPayload,
+        wasDelivered,
+        wasStopped,
         sendFile,
         stopPlaying,
         startListening,

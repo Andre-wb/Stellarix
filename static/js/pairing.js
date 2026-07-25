@@ -152,16 +152,15 @@ document.addEventListener('DOMContentLoaded', () => {
             setStatus('Готовлю ключ...');
             const publicHex = await keypairReady();
             if (gen !== shareGen) return;
-            setStatus('Передаю ключ (1/2)...');
-            await AudioModem.playPublicKeyHex(publicHex, liveStatus);
+            setStatus('Передаю ключ...');
+            const report = await AudioModem.playPublicKeyHex(publicHex, liveStatus);
             if (gen !== shareGen) return;
-            await new Promise(r => setTimeout(r, 500));
-            if (gen !== shareGen) return;
-            setStatus('Передаю ключ (2/2)...');
-            await AudioModem.playPublicKeyHex(publicHex, liveStatus);
-            if (gen !== shareGen) return;
-            if (!E2E.isPaired()) {
-                setStatus('Ключ передан. Теперь поменяйтесь ролями: нажмите «Получить ключ», а собеседник — «Поделиться ключом».');
+            if (AudioModem.wasDelivered(report)) {
+                setStatus(E2E.isPaired()
+                    ? 'Ключ доставлен — собеседник подтвердил получение. Сопряжение завершено с обеих сторон.'
+                    : 'Ключ доставлен — собеседник подтвердил получение. Теперь поменяйтесь ролями: нажмите «Получить ключ», а собеседник — «Поделиться ключом».');
+            } else if (report && !AudioModem.wasStopped(report)) {
+                setStatus(report + ' Собеседник должен нажать «Получить ключ» до того, как вы начнёте передачу — дождитесь у него надписи «Слушаю через микрофон...» и нажмите «Поделиться ключом» ещё раз.');
             }
             refreshBanner();
         } catch (err) {
@@ -224,6 +223,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     resetListenUi();
                     setStatus(msg);
                     scheduleRetry(startListeningCycle);
+                },
+                onStopped: (msg) => {
+                    if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+                    retryCount = 0;
+                    resetListenUi();
+                    setStatus(msg);
                 }
             });
         }
@@ -233,7 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     stopBtn.addEventListener('click', () => {
         if (!activeListener) return;
-        setStatus('Останавливаю запись и анализирую...');
+        setStatus('Останавливаю приём...');
         activeListener.stop();
     });
 
