@@ -31,8 +31,11 @@ document.addEventListener('DOMContentLoaded', () => {
         levelEl.textContent = 'Уровень микрофона: [' + '#'.repeat(bars) + '-'.repeat(20 - bars) + ']';
     }
 
+    const hasAvatar = typeof Avatar !== 'undefined';
+
     function makeBubble(kind) {
         const bubble = document.createElement('div');
+        bubble.classList.add('chat-bubble');
         bubble.style.padding = '0.5rem 0.75rem';
         bubble.style.borderRadius = '10px';
         bubble.style.maxWidth = '75%';
@@ -53,15 +56,40 @@ document.addEventListener('DOMContentLoaded', () => {
         return bubble;
     }
 
-    function appendBubble(bubble) {
-        messagesEl.appendChild(bubble);
+    function makePeerAvatar() {
+        const el = document.createElement('div');
+        el.className = 'avatar-circle';
+        if (hasAvatar) Avatar.render(el, Avatar.getPeer(), '?');
+        else el.textContent = '?';
+        return el;
+    }
+
+    function appendBubble(bubble, kind) {
+        if (kind === 'received') {
+            const row = document.createElement('div');
+            row.className = 'msg-row received';
+            bubble.style.alignSelf = 'auto';
+            row.appendChild(makePeerAvatar());
+            row.appendChild(bubble);
+            messagesEl.appendChild(row);
+        } else {
+            messagesEl.appendChild(bubble);
+        }
         messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function refreshPeerAvatars() {
+        if (!hasAvatar) return;
+        const peer = Avatar.getPeer();
+        messagesEl.querySelectorAll('.msg-row.received .avatar-circle').forEach((el) => {
+            Avatar.render(el, peer, '?');
+        });
     }
 
     function addMessage(text, kind) {
         const bubble = makeBubble(kind);
         bubble.textContent = text;
-        appendBubble(bubble);
+        appendBubble(bubble, kind);
     }
 
     function addFileMessage(name, meta, kind) {
@@ -75,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
         metaEl.textContent = meta;
         bubble.appendChild(title);
         bubble.appendChild(metaEl);
-        appendBubble(bubble);
+        appendBubble(bubble, kind);
     }
 
     function formatSize(bytes) {
@@ -289,6 +317,12 @@ document.addEventListener('DOMContentLoaded', () => {
             onLevel: setLevel,
             onDecoded: async (hex) => {
                 resetListenUi();
+                if (hasAvatar && Avatar.isUpdateHex(hex)) {
+                    Avatar.setPeer(Avatar.avatarFromUpdateHex(hex));
+                    refreshPeerAvatars();
+                    setStatus('Собеседник обновил аватар.');
+                    return;
+                }
                 setStatus('Сигнал получен, расшифровываю в браузере...');
                 try {
                     const plaintext = await E2E.decrypt(hex);

@@ -67,7 +67,7 @@ pub async fn get_profile() -> Redirect {
 
 pub async fn logout(session: Session) -> Html<String> {
     session.remove::<String>(SESSION_USER_ID).await.ok();
-    Html("<!doctype html><meta charset=\"utf-8\"><script>try{['e2ee_priv_jwk','e2ee_pub_hex','e2ee_session_hex','e2ee_fingerprint'].forEach(function(k){localStorage.removeItem(k)})}catch(e){}location.replace('/login')</script>".to_string())
+    Html("<!doctype html><meta charset=\"utf-8\"><script>try{['e2ee_priv_jwk','e2ee_pub_hex','e2ee_peer_hex','e2ee_session_hex','e2ee_fingerprint','stx_avatar','stx_peer_avatar'].forEach(function(k){localStorage.removeItem(k)})}catch(e){}location.replace('/login')</script>".to_string())
 }
 
 pub async fn post_register(

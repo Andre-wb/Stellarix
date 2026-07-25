@@ -17,6 +17,7 @@
         <p class="pairing-note">
             Ключи генерируются и остаются <strong>только в вашем браузере</strong> — сервер их не видит.
             Устройства должны находиться рядом, в тихом помещении, звук включён на разумной громкости.
+            Вместе с ключом передаётся ваша аватарка, поэтому передача занимает немного больше времени.
         </p>
 
         <details class="help-toggle">
@@ -58,6 +59,11 @@
         <div id="mic-level" class="pairing-status"></div>
         <div id="pairing-status" class="pairing-status">Ожидание действия…</div>
         <div id="pairing-result" class="pairing-result"></div>
+
+        <div id="pairing-peer" class="pairing-peer">
+            <div class="avatar-circle" id="pairing-peer-avatar"></div>
+            <div class="pairing-peer-label" id="pairing-peer-label"></div>
+        </div>
     </section>
 </div>
 {% endblock %}
@@ -65,6 +71,7 @@
 {% block extra_scripts %}
 <script src="/static/js/native-modem.js"></script>
 <script src="/static/js/e2e-crypto.js"></script>
+<script src="/static/js/avatar.js"></script>
 <script src="/static/js/wave-visualizer.js"></script>
 <script src="/static/js/stats.js"></script>
 <script src="/static/js/icons.js"></script>

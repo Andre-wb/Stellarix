@@ -376,6 +376,7 @@ fn main() {
     let setup_state = pg_state.clone();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
         .manage(PgGuard(pg_state))
         .manage(commands::ListenerState::default())
         .manage(commands::PlaybackState::default())

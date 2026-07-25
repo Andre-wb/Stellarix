@@ -7,6 +7,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultEl = document.getElementById('pairing-result');
     const levelEl = document.getElementById('mic-level');
     const bannerEl = document.getElementById('pairing-banner');
+    const peerBox = document.getElementById('pairing-peer');
+    const peerAvatarEl = document.getElementById('pairing-peer-avatar');
+    const peerLabelEl = document.getElementById('pairing-peer-label');
     const nativeReady = AudioModem.isAvailable();
     const IDLE_LEVEL = 'Уровень микрофона: [--------------------]';
     let activeListener = null;
@@ -19,6 +22,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setStatus(text) {
         statusEl.textContent = text;
+    }
+
+    const hasAvatar = typeof Avatar !== 'undefined';
+
+    function showPeerAvatar(dataUrl) {
+        if (!peerBox || !hasAvatar) return;
+        Avatar.render(peerAvatarEl, dataUrl, '?');
+        peerLabelEl.textContent = dataUrl
+            ? 'Аватар собеседника получен — он будет слева в чате.'
+            : 'Собеседник без аватара — покажем букву по умолчанию.';
+        peerBox.classList.add('show');
+    }
+
+    function hidePeerAvatar() {
+        if (peerBox) peerBox.classList.remove('show');
+    }
+
+    function applyPeerFromHex(avatarHex) {
+        if (!hasAvatar) return;
+        const dataUrl = avatarHex ? Avatar.bytesToDataUrl(Avatar.hexToBytes(avatarHex)) : '';
+        Avatar.setPeer(dataUrl);
+        showPeerAvatar(dataUrl);
+    }
+
+    if (hasAvatar && E2E.isPaired() && Avatar.getPeer()) {
+        showPeerAvatar(Avatar.getPeer());
     }
 
     function setLevel(rms) {
@@ -160,8 +189,9 @@ document.addEventListener('DOMContentLoaded', () => {
             setStatus('Готовлю ключ...');
             const publicHex = await keypairReady();
             if (gen !== shareGen) return;
-            setStatus('Передаю ключ...');
-            const report = await AudioModem.playPublicKeyHex(publicHex, liveStatus);
+            const avatarHex = hasAvatar ? Avatar.ownHex() : '';
+            setStatus(avatarHex ? 'Передаю ключ и аватар...' : 'Передаю ключ...');
+            const report = await AudioModem.playPublicKeyHex(publicHex + avatarHex, liveStatus);
             if (gen !== shareGen) return;
             if (wasDelivered(report)) {
                 setStatus(E2E.isPaired()
@@ -198,8 +228,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 onStatus: setStatus,
                 onLevel: setLevel,
                 onDecoded: async (hex) => {
+                    const peerHex = hex.slice(0, 64);
+                    const avatarHex = hex.slice(64);
                     const own = E2E.getPublicHex();
-                    if (own && hex.toLowerCase() === own.toLowerCase()) {
+                    if (own && peerHex.toLowerCase() === own.toLowerCase()) {
                         activeListener = null;
                         setStatus('Пойман собственный ключ (эхо своего динамика) — продолжаю слушать собеседника...');
                         startListeningCycle();
@@ -207,7 +239,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     resetListenUi();
                     if (E2E.isPaired()) {
-                        if (E2E.getPeerHex() === hex.toLowerCase()) {
+                        if (E2E.getPeerHex() === peerHex.toLowerCase()) {
+                            if (avatarHex) applyPeerFromHex(avatarHex);
                             setStatus('Это тот же ключ собеседника — сопряжение уже выполнено, отпечаток прежний: ' + E2E.getFingerprint());
                         } else {
                             setStatus('Принят ключ другого устройства. Текущее сопряжение сохранено — чтобы связаться с новым собеседником, нажмите «Начать заново».');
@@ -218,7 +251,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     setStatus('Ключ получен, вычисляю общий сеансовый ключ...');
                     try {
                         await keypairReady();
-                        const fingerprint = await E2E.completePairing(hex);
+                        const fingerprint = await E2E.completePairing(peerHex);
+                        applyPeerFromHex(avatarHex);
                         setStatus('Готово! Теперь нажмите «Поделиться ключом», чтобы собеседник тоже завершил сопряжение.');
                         resultEl.textContent =
                             'Сеансовый ключ создан в браузере. Сверьте отпечаток с собеседником вслух: ' + fingerprint;
@@ -271,6 +305,8 @@ document.addEventListener('DOMContentLoaded', () => {
         disarmReset();
         cancelActivity();
         E2E.reset();
+        if (hasAvatar) Avatar.clearPeer();
+        hidePeerAvatar();
         keypairPromise = null;
         if (levelEl) levelEl.textContent = IDLE_LEVEL;
         keypairReady()
