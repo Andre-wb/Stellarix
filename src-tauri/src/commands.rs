@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, State};
 
 use crate::modem;
 
@@ -33,12 +33,7 @@ pub async fn play_payload(
     let handle = app.clone();
     let flag = stop.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
-        modem::play(&payload, audiodsp::PLAYBACK_GAIN, &flag, |seq, total| {
-            let _ = handle.emit(
-                "modem-status",
-                format!("Передаю пакет {}/{}...", seq + 1, total),
-            );
-        })
+        modem::run_send(&handle, flag.clone(), &payload).map(|_| !flag.load(Ordering::SeqCst))
     })
     .await
     .map_err(|e| format!("сбой потока воспроизведения: {e}"))?;

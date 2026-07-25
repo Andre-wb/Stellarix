@@ -21,8 +21,10 @@ impl Capture {
         self.samples.lock().unwrap().len()
     }
 
-    pub fn snapshot(&self) -> Vec<f32> {
-        self.samples.lock().unwrap().clone()
+    pub fn tail(&self, max_len: usize) -> (Vec<f32>, usize) {
+        let buf = self.samples.lock().unwrap();
+        let start = buf.len().saturating_sub(max_len);
+        (buf[start..].to_vec(), start)
     }
 }
 

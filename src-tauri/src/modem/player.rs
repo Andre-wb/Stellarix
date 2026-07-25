@@ -5,73 +5,48 @@ use std::time::Duration;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SampleFormat, SizedSample};
 
-use audiodsp::ofdm::{
-    encode_one_packet, pack_payload, packed_chunk_count, transmission_gap, transmission_lead,
-    OfdmConfig, MAX_PACKETS,
-};
+pub struct OutputPlayer {
+    device: cpal::Device,
+    config: cpal::StreamConfig,
+    format: SampleFormat,
+    channels: usize,
+    sample_rate: u32,
+}
 
-pub fn play(
-    payload: &[u8],
-    gain: f32,
-    stop: &Arc<AtomicBool>,
-    mut progress: impl FnMut(usize, usize),
-) -> Result<bool, String> {
-    let host = cpal::default_host();
-    let device = host
-        .default_output_device()
-        .ok_or_else(|| "Нет устройства вывода звука".to_string())?;
-    let supported = device
-        .default_output_config()
-        .map_err(|e| format!("Конфиг вывода: {e}"))?;
-    let sample_rate = supported.sample_rate();
-    let channels = supported.channels() as usize;
-    let format = supported.sample_format();
-    let config = supported.config();
-
-    let cfg = {
-        let mut c = OfdmConfig::default_48k();
-        c.headroom = gain.clamp(0.05, 1.0);
-        c
-    };
-
-    let packed = pack_payload(payload, None);
-    let total = packed_chunk_count(packed.len(), &cfg);
-    if total > MAX_PACKETS {
-        return Err(format!(
-            "Файл слишком велик для передачи звуком: {total} пакетов, максимум {MAX_PACKETS}."
-        ));
-    }
-    let lead = transmission_lead(&cfg);
-    let inter = transmission_gap(&cfg);
-
-    for seq in 0..total {
-        if stop.load(Ordering::SeqCst) {
-            return Ok(false);
-        }
-        progress(seq, total);
-        let packet = encode_one_packet(&packed, seq, &cfg)
-            .ok_or_else(|| format!("Не удалось собрать пакет {seq}"))?;
-        let mut wave = Vec::with_capacity(2 * lead + packet.len() + inter);
-        if seq == 0 {
-            wave.resize(lead, 0.0);
-        }
-        wave.extend(packet);
-        wave.extend(std::iter::repeat(0f32).take(inter));
-        if seq + 1 == total {
-            wave.extend(std::iter::repeat(0f32).take(lead));
-        }
-        play_chunk(
-            &device,
-            &config,
+impl OutputPlayer {
+    pub fn open() -> Result<Self, String> {
+        let host = cpal::default_host();
+        let device = host
+            .default_output_device()
+            .ok_or_else(|| "Нет устройства вывода звука".to_string())?;
+        let supported = device
+            .default_output_config()
+            .map_err(|e| format!("Конфиг вывода: {e}"))?;
+        let sample_rate = supported.sample_rate();
+        let channels = supported.channels() as usize;
+        let format = supported.sample_format();
+        let config = supported.config();
+        Ok(OutputPlayer {
+            device,
+            config,
             format,
             channels,
-            &wave,
-            cfg.fs,
             sample_rate,
-            stop,
-        )?;
+        })
     }
-    Ok(!stop.load(Ordering::SeqCst))
+
+    pub fn play(&self, wave: &[f32], src_fs: u32, stop: &Arc<AtomicBool>) -> Result<(), String> {
+        play_chunk(
+            &self.device,
+            &self.config,
+            self.format,
+            self.channels,
+            wave,
+            src_fs,
+            self.sample_rate,
+            stop,
+        )
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

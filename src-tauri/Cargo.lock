@@ -4811,6 +4811,7 @@ dependencies = [
  "postgresql_embedded",
  "rand 0.8.7",
  "serde",
+ "sha2 0.10.9",
  "stellarix",
  "tauri",
  "tauri-build",
