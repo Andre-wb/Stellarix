@@ -11,11 +11,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusEl = document.getElementById('chat-status');
     const levelEl = document.getElementById('mic-level');
     const bannerEl = document.getElementById('chat-banner');
+    const nativeReady = AudioModem.isAvailable();
     let activeListener = null;
     let retryCount = 0;
     let sending = false;
     const MAX_RETRIES = 3;
     const MAX_FILE_BYTES = 64 * 1024;
+    const MAX_RAW_BYTES = 8 * 1024 * 1024;
 
     if (fileInput && typeof FilePolicy !== 'undefined') fileInput.accept = FilePolicy.accept();
 
@@ -85,11 +87,28 @@ document.addEventListener('DOMContentLoaded', () => {
         if (typeof StxStats !== 'undefined') StxStats.record(session);
     }
 
+    function lockAudioUi() {
+        bannerEl.style.display = 'block';
+        bannerEl.style.background = 'rgba(230, 80, 60, 0.15)';
+        bannerEl.textContent = '⚠️ ' + AudioModem.unavailableReason;
+        sendBtn.disabled = true;
+        attachBtn.disabled = true;
+        listenBtn.disabled = true;
+        input.disabled = true;
+        stopListenBtn.style.display = 'none';
+        stopSendBtn.style.display = 'none';
+        setStatus('Аудиоканал недоступен в браузере.');
+    }
+
     function checkPairing() {
+        if (!nativeReady) {
+            lockAudioUi();
+            return;
+        }
         if (!E2E.isSupported()) {
             bannerEl.style.display = 'block';
             bannerEl.style.background = 'rgba(230, 80, 60, 0.15)';
-            bannerEl.textContent = '⚠️ Этот браузер не поддерживает нужную криптографию (WebCrypto).';
+            bannerEl.textContent = '⚠️ Встроенный движок приложения не поддерживает нужную криптографию (WebCrypto). Обновите систему или компонент WebView.';
             sendBtn.disabled = true;
             return;
         }
@@ -111,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const text = input.value;
-        if (!text || sending) return;
+        if (!text || sending || !nativeReady) return;
 
         sending = true;
         sendBtn.disabled = true;
@@ -137,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     attachBtn.addEventListener('click', () => {
-        if (sending) return;
+        if (sending || !nativeReady) return;
         fileInput.click();
     });
 
@@ -146,7 +165,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const startedAt = Date.now();
         try {
             addFileMessage(name, metaLabel, 'sent');
-            const ok = await AudioModem.sendFile(name, AudioModem.bytesToHex(bytes), setStatus);
+            const keyHex = E2E.getSessionKeyHex();
+            const ok = await AudioModem.sendFile(name, AudioModem.bytesToHex(bytes), keyHex, setStatus);
             recordStats({ kind: 'tx', ok: ok, bytes: bytes.length, ms: Date.now() - startedAt });
         } catch (err) {
             setStatus('Ошибка: ' + err.message);
@@ -159,9 +179,13 @@ document.addEventListener('DOMContentLoaded', () => {
     fileInput.addEventListener('change', async () => {
         const file = fileInput.files && fileInput.files[0];
         fileInput.value = '';
-        if (!file || sending) return;
+        if (!file || sending || !nativeReady) return;
         if (file.size === 0) {
             setStatus('Файл пуст — нечего передавать.');
+            return;
+        }
+        if (!E2E.isPaired()) {
+            setStatus('Сначала выполните сопряжение по звуку — без него файл не зашифровать.');
             return;
         }
 
@@ -192,14 +216,42 @@ document.addEventListener('DOMContentLoaded', () => {
                     'Разрешены: ' + FilePolicy.list() + '.');
                 return;
             }
-            if (file.size > MAX_FILE_BYTES) {
+            if (file.size <= MAX_FILE_BYTES) {
+                setStatus('Готовлю файл к передаче...');
+                const bytes = new Uint8Array(await file.arrayBuffer());
+                await runTransmit(file.name, bytes, formatSize(file.size) + ' · зашифровано E2E');
+                return;
+            }
+            if (file.size > MAX_RAW_BYTES) {
+                setStatus('Файл слишком большой: ' + formatSize(file.size) +
+                    ' — даже со сжатием не поместится (потолок ' + formatSize(MAX_RAW_BYTES) + ').');
+                return;
+            }
+            if (typeof FileCompress === 'undefined' || !FileCompress.supported()) {
                 setStatus('Файл слишком большой: максимум ' + formatSize(MAX_FILE_BYTES) +
                     ', у вас ' + formatSize(file.size) + '.');
                 return;
             }
-            setStatus('Готовлю файл к передаче...');
+            setStatus('Оцениваю сжатие (' + formatSize(file.size) + ')...');
+            let est;
+            try {
+                est = await FileCompress.estimate(file);
+            } catch (e) {
+                setStatus('Файл слишком большой: максимум ' + formatSize(MAX_FILE_BYTES) +
+                    ', у вас ' + formatSize(file.size) + '.');
+                return;
+            }
+            if (est.compressed > MAX_FILE_BYTES) {
+                setStatus('Не поместится даже после сжатия: ' + formatSize(file.size) +
+                    ' → ~' + formatSize(est.compressed) + ' (лимит ' + formatSize(MAX_FILE_BYTES) + ').');
+                return;
+            }
+            setStatus('Файл ' + formatSize(file.size) + ' → ~' + formatSize(est.compressed) +
+                ' после сжатия — отправляю...');
             const bytes = new Uint8Array(await file.arrayBuffer());
-            await runTransmit(file.name, bytes, formatSize(file.size) + ' · без шифрования');
+            const meta = formatSize(file.size) + ' → ~' + formatSize(est.compressed) +
+                ' · сжатие · зашифровано E2E';
+            await runTransmit(file.name, bytes, meta);
         } catch (err) {
             setStatus('Ошибка: ' + err.message);
         } finally {
@@ -223,13 +275,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function startListenCycle() {
-        if (activeListener) return;
+        if (activeListener || !nativeReady) return;
         listenBtn.disabled = true;
         stopListenBtn.style.display = 'inline-block';
         if (levelEl) levelEl.textContent = 'Уровень микрофона: [--------------------]';
         retryCount = 0;
 
         activeListener = AudioModem.startListening({
+            key: E2E.getSessionKeyHex(),
             onStatus: setStatus,
             onLevel: setLevel,
             onDecoded: async (hex) => {
@@ -241,7 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     setStatus('Сообщение получено.');
                 } catch (err) {
                     setStatus('Ошибка расшифровки: ' + err.message);
-                    if (retryCount < MAX_RETRIES) {
+                    if (nativeReady && retryCount < MAX_RETRIES) {
                         retryCount++;
                         setStatus(`Повторная попытка (${retryCount}/${MAX_RETRIES})...`);
                         setTimeout(startListenCycle, 2000);
@@ -251,7 +304,7 @@ document.addEventListener('DOMContentLoaded', () => {
             onFile: (info) => {
                 resetListenUi();
                 const meta = info.saved
-                    ? formatSize(info.size) + ' · SHA-256 совпала · ' + info.path
+                    ? formatSize(info.size) + ' · E2E · SHA-256 совпала · ' + info.path
                     : formatSize(info.size) + ' · ' + (info.reason || 'файл не сохранён');
                 addFileMessage(info.name, meta, 'received');
                 setStatus(info.saved
@@ -262,7 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
             onError: (msg) => {
                 resetListenUi();
                 setStatus(msg);
-                if (retryCount < MAX_RETRIES) {
+                if (nativeReady && retryCount < MAX_RETRIES) {
                     retryCount++;
                     setStatus(`Повторная попытка (${retryCount}/${MAX_RETRIES})...`);
                     setTimeout(startListenCycle, 2000);

@@ -28,6 +28,7 @@ pub fn run_send_file(
     stop: Arc<AtomicBool>,
     name: &str,
     content: &[u8],
+    key: [u8; 32],
 ) -> Result<String, String> {
     let safe = proto::sanitize_filename(name);
     let mut hasher = Sha256::new();
@@ -35,18 +36,23 @@ pub fn run_send_file(
     let digest: [u8; 32] = hasher.finalize().into();
     let _ = app.emit(
         "modem-status",
-        format!("Готовлю файл «{safe}» к передаче..."),
+        format!("Шифрую и готовлю файл «{safe}» к передаче..."),
     );
     let envelope = proto::encode_file(&safe, &digest, content);
-    run_send(app, stop, &envelope)
+    run_send(app, stop, &envelope, Some(&key))
 }
 
 pub fn run_send_msg(app: &AppHandle, stop: Arc<AtomicBool>, body: &[u8]) -> Result<String, String> {
     let envelope = proto::encode_msg(body);
-    run_send(app, stop, &envelope)
+    run_send(app, stop, &envelope, None)
 }
 
-pub fn run_send(app: &AppHandle, stop: Arc<AtomicBool>, envelope: &[u8]) -> Result<String, String> {
+pub fn run_send(
+    app: &AppHandle,
+    stop: Arc<AtomicBool>,
+    envelope: &[u8],
+    key: Option<&[u8; 32]>,
+) -> Result<String, String> {
     let mut cfg = OfdmConfig::default_48k();
     cfg.headroom = audiodsp::PLAYBACK_GAIN.clamp(0.05, 1.0);
 
@@ -54,7 +60,7 @@ pub fn run_send(app: &AppHandle, stop: Arc<AtomicBool>, envelope: &[u8]) -> Resu
     sizing_cfg.modulation = Modulation::Bpsk;
     let chunk_max = max_packet_payload(&sizing_cfg).max(1);
 
-    let packed = pack_payload(envelope, None);
+    let packed = pack_payload(envelope, key);
     let total = packed_chunk_count(packed.len(), &sizing_cfg);
     if !sendplan::within_limit(total) {
         return Err("Данные слишком велики для передачи звуком.".to_string());

@@ -246,9 +246,9 @@ const AttachImage = (() => {
                 const buf = new Uint8Array(await current.blob.arrayBuffer());
                 const name = current.original ? file.name : (stemOf(file.name) + '.' + current.ext);
                 const meta = current.original
-                    ? fmtSize(file.size) + ' · ' + current.width + '×' + current.height + ' · оригинал · без шифрования'
+                    ? fmtSize(file.size) + ' · ' + current.width + '×' + current.height + ' · оригинал · зашифровано E2E'
                     : fmtSize(file.size) + ' → ' + fmtSize(current.bytes) + ' · ' +
-                        current.width + '×' + current.height + ' · ' + fmtType(current.type) + ' · без шифрования';
+                        current.width + '×' + current.height + ' · ' + fmtType(current.type) + ' · зашифровано E2E';
                 finish({ name, bytes: buf, meta });
             });
 

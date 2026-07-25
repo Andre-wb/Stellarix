@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultEl = document.getElementById('pairing-result');
     const levelEl = document.getElementById('mic-level');
     const bannerEl = document.getElementById('pairing-banner');
+    const nativeReady = AudioModem.isAvailable();
     let activeListener = null;
     let retryCount = 0;
     const MAX_RETRIES = 3;
@@ -28,7 +29,22 @@ document.addEventListener('DOMContentLoaded', () => {
         retryCount = 0;
     }
 
+    function lockAudioUi() {
+        bannerEl.style.display = 'block';
+        bannerEl.style.background = 'rgba(230, 80, 60, 0.15)';
+        bannerEl.textContent = '⚠️ ' + AudioModem.unavailableReason;
+        shareBtn.disabled = true;
+        receiveBtn.disabled = true;
+        resetBtn.disabled = true;
+        stopBtn.style.display = 'none';
+        setStatus('Аудиоканал недоступен в браузере.');
+    }
+
     function refreshBanner() {
+        if (!nativeReady) {
+            lockAudioUi();
+            return;
+        }
         if (E2E.isPaired()) {
             bannerEl.style.display = 'block';
             bannerEl.style.background = 'rgba(40, 180, 99, 0.15)';
@@ -46,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (!E2E.isSupported()) {
-        setStatus('Этот браузер не поддерживает нужную криптографию (WebCrypto). Откройте сайт по адресу http://127.0.0.1:8000 в современном браузере.');
+        setStatus('Встроенный движок приложения не поддерживает нужную криптографию (WebCrypto). Обновите систему или компонент WebView — без него сопряжение невозможно.');
         shareBtn.disabled = true;
         receiveBtn.disabled = true;
     }
@@ -54,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshBanner();
 
     shareBtn.addEventListener('click', async () => {
+        if (!nativeReady) return;
         shareBtn.disabled = true;
         resultEl.textContent = '';
         try {
@@ -73,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     receiveBtn.addEventListener('click', () => {
-        if (activeListener) return;
+        if (activeListener || !nativeReady) return;
         receiveBtn.disabled = true;
         stopBtn.style.display = 'inline-block';
         resultEl.textContent = '';
@@ -96,7 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     } catch (err) {
                         setStatus('Ошибка: ' + err.message);
                         refreshBanner();
-                        if (retryCount < MAX_RETRIES) {
+                        if (nativeReady && retryCount < MAX_RETRIES) {
                             retryCount++;
                             setStatus(`Повторная попытка (${retryCount}/${MAX_RETRIES})...`);
                             setTimeout(startListeningCycle, 2000);
@@ -106,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 onError: (msg) => {
                     resetListenUi();
                     setStatus(msg);
-                    if (retryCount < MAX_RETRIES) {
+                    if (nativeReady && retryCount < MAX_RETRIES) {
                         retryCount++;
                         setStatus(`Повторная попытка (${retryCount}/${MAX_RETRIES})...`);
                         setTimeout(startListeningCycle, 2000);
@@ -124,8 +141,25 @@ document.addEventListener('DOMContentLoaded', () => {
         activeListener.stop();
     });
 
+    let resetArmed = false;
+    let resetTimer = null;
+
+    function disarmReset() {
+        resetArmed = false;
+        if (resetTimer) { clearTimeout(resetTimer); resetTimer = null; }
+        resetBtn.textContent = 'Начать заново';
+    }
+
     resetBtn.addEventListener('click', () => {
-        if (!confirm('Точно начать сопряжение заново? Текущий сеансовый ключ (если есть) будет забыт.')) return;
+        if (!nativeReady) return;
+        if (!resetArmed) {
+            resetArmed = true;
+            resetBtn.textContent = 'Нажмите ещё раз, чтобы сбросить';
+            setStatus('Точно начать заново? Текущий сеансовый ключ (если есть) будет забыт. Нажмите «Начать заново» ещё раз.');
+            resetTimer = setTimeout(disarmReset, 4000);
+            return;
+        }
+        disarmReset();
         E2E.reset();
         setStatus('Сопряжение сброшено. Можно начинать заново.');
         resultEl.textContent = '';

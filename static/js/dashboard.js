@@ -249,9 +249,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const resetBtn = $('stats-reset');
     if (resetBtn) {
+        let resetArmed = false;
+        let resetTimer = null;
+
+        function disarmReset() {
+            resetArmed = false;
+            if (resetTimer) { clearTimeout(resetTimer); resetTimer = null; }
+            resetBtn.textContent = 'Сбросить';
+        }
+
         resetBtn.addEventListener('click', () => {
             if (typeof StxStats === 'undefined') return;
-            if (!confirm('Сбросить собранную статистику?')) return;
+            if (!resetArmed) {
+                resetArmed = true;
+                resetBtn.textContent = 'Нажмите ещё раз';
+                resetTimer = setTimeout(disarmReset, 4000);
+                return;
+            }
+            disarmReset();
             StxStats.reset();
             render(true);
         });

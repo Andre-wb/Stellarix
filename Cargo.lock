@@ -1883,7 +1883,6 @@ dependencies = [
  "axum",
  "chrono",
  "dotenvy",
- "percent-encoding",
  "serde",
  "serde_json",
  "sqlx",

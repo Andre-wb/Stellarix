@@ -52,13 +52,13 @@ impl Listener {
     }
 }
 
-pub fn start(app: AppHandle) -> Result<Listener, String> {
+pub fn start(app: AppHandle, key: Option<[u8; 32]>) -> Result<Listener, String> {
     let cap = start_capture()?;
     let out = OutputPlayer::open()?;
     let stop = Arc::new(AtomicBool::new(false));
     let flag = stop.clone();
     std::thread::spawn(move || {
-        if let Err(e) = receive_loop(&app, &flag, cap, out) {
+        if let Err(e) = receive_loop(&app, &flag, cap, out, key) {
             let _ = app.emit("modem-error", e);
         }
     });
@@ -82,6 +82,7 @@ fn receive_loop(
     stop: &Arc<AtomicBool>,
     cap: Capture,
     out: OutputPlayer,
+    key: Option<[u8; 32]>,
 ) -> Result<(), String> {
     let cfg = OfdmConfig::default_48k();
     let mut play_cfg = cfg.clone();
@@ -160,7 +161,11 @@ fn receive_loop(
 
         if reasm.is_complete() {
             let packed = reasm.assemble();
-            let Some(envelope) = unpack_payload(&packed, None) else {
+            let decoded = key
+                .as_ref()
+                .and_then(|k| unpack_payload(&packed, Some(k)))
+                .or_else(|| unpack_payload(&packed, None));
+            let Some(envelope) = decoded else {
                 let _ = app.emit(
                     "modem-error",
                     "Данные приняты, но распаковать их не удалось.".to_string(),

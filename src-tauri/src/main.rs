@@ -102,6 +102,45 @@ fn load_or_create_secret(dir: &PathBuf, name: &str) -> Result<String, String> {
     Ok(value)
 }
 
+async fn init_db_with_c_locale(
+    pg: &PostgreSQL,
+    data_dir: &std::path::Path,
+    password_file: &std::path::Path,
+    password: &str,
+) -> Result<(), String> {
+    let initdb = pg
+        .settings()
+        .binary_dir()
+        .join(if cfg!(windows) { "initdb.exe" } else { "initdb" });
+    if !initdb.exists() {
+        return Err(format!("initdb не найден: {}", initdb.display()));
+    }
+
+    write_private(password_file, password)?;
+    let _ = std::fs::remove_dir_all(data_dir);
+    create_private_dir(data_dir)?;
+
+    info!("Запуск initdb вручную (--locale=C --encoding=UTF8)");
+    let output = tokio::process::Command::new(&initdb)
+        .arg("--pgdata").arg(data_dir)
+        .arg("--username").arg(PG_USER)
+        .arg("--auth").arg("password")
+        .arg("--pwfile").arg(password_file)
+        .arg("--encoding").arg("UTF8")
+        .arg("--locale").arg("C")
+        .output()
+        .await
+        .map_err(|e| format!("Не удалось запустить initdb: {e}"))?;
+
+    if !output.status.success() {
+        return Err(format!(
+            "initdb завершился с ошибкой: {}",
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
+    Ok(())
+}
+
 async fn bring_up(app: AppHandle, pg_state: Arc<Mutex<Option<PostgreSQL>>>) -> Result<String, String> {
     info!("Запуск приложения Tauri...");
 
@@ -154,15 +193,6 @@ async fn bring_up(app: AppHandle, pg_state: Arc<Mutex<Option<PostgreSQL>>>) -> R
     let pg_password = load_or_create_secret(&data_dir, "pg_password")?;
     debug!("Пароль PostgreSQL загружен");
 
-    // На системах с нелатинской локалью (например, Russian_Russia.1251) initdb
-    // может упасть с "неверная последовательность байт для кодировки UTF8".
-    // Форсируем локаль C, чтобы избежать конфликта локали/кодировки при инициализации.
-    std::env::set_var("LC_ALL", "C");
-    std::env::set_var("LANG", "C");
-    std::env::set_var("LC_CTYPE", "C");
-    std::env::set_var("LC_COLLATE", "C");
-    std::env::set_var("LC_MESSAGES", "C");
-
     let mut settings = Settings::default();
     settings.data_dir = pg_data.clone();
     settings.installation_dir = pg_install;
@@ -177,10 +207,8 @@ async fn bring_up(app: AppHandle, pg_state: Arc<Mutex<Option<PostgreSQL>>>) -> R
     info!("Настройка PostgreSQL...");
     let mut pg = PostgreSQL::new(settings.clone());
     if let Err(e) = pg.setup().await {
-        error!("Ошибка настройки PostgreSQL: {}, повторная попытка после очистки каталога данных", e);
-        let _ = std::fs::remove_dir_all(&pg_data);
-        create_private_dir(&pg_data)?;
-        pg = PostgreSQL::new(settings);
+        error!("Ошибка настройки PostgreSQL: {}, инициализация вручную с локалью C", e);
+        init_db_with_c_locale(&pg, &pg_data, &settings.password_file, &pg_password).await?;
         pg.setup().await.map_err(|e| {
             error!("Ошибка настройки PostgreSQL: {}", e);
             format!("Не удалось подготовить PostgreSQL: {e}")

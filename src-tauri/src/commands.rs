@@ -58,6 +58,7 @@ pub async fn send_file(
     state: State<'_, PlaybackState>,
     name: String,
     hex: String,
+    key: String,
 ) -> Result<bool, String> {
     let content = hex_to_bytes(&hex)?;
     if content.is_empty() {
@@ -70,8 +71,9 @@ pub async fn send_file(
         ));
     }
     modem::check_file_policy(&name, &content)?;
+    let key = parse_key(&key)?;
     run_playback(state, move |stop| {
-        modem::run_send_file(&app, stop, &name, &content)
+        modem::run_send_file(&app, stop, &name, &content, key)
     })
     .await
 }
@@ -86,12 +88,17 @@ pub fn stop_playing(state: State<PlaybackState>) {
 }
 
 #[tauri::command]
-pub fn start_listening(app: AppHandle, state: State<ListenerState>) -> Result<(), String> {
+pub fn start_listening(
+    app: AppHandle,
+    state: State<ListenerState>,
+    key: String,
+) -> Result<(), String> {
+    let key = parse_optional_key(&key)?;
     let mut guard = state.0.lock().map_err(|_| "состояние занято".to_string())?;
     if let Some(old) = guard.take() {
         old.signal_stop();
     }
-    let listener = modem::start(app)?;
+    let listener = modem::start(app, key)?;
     *guard = Some(listener);
     Ok(())
 }
@@ -113,6 +120,24 @@ fn hex_to_bytes(hex: &str) -> Result<Vec<u8>, String> {
         .step_by(2)
         .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).map_err(|_| "некорректный hex".to_string()))
         .collect()
+}
+
+fn parse_key(hex: &str) -> Result<[u8; 32], String> {
+    let bytes = hex_to_bytes(hex)?;
+    if bytes.len() != 32 {
+        return Err("нет ключа шифрования — выполните сопряжение по звуку".to_string());
+    }
+    let mut key = [0u8; 32];
+    key.copy_from_slice(&bytes);
+    Ok(key)
+}
+
+fn parse_optional_key(hex: &str) -> Result<Option<[u8; 32]>, String> {
+    if hex.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(parse_key(hex)?))
+    }
 }
 
 #[cfg(test)]
