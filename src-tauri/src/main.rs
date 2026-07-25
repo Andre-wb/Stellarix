@@ -275,6 +275,7 @@ fn main() {
         .manage(commands::PlaybackState::default())
         .invoke_handler(tauri::generate_handler![
             commands::play_payload,
+            commands::send_file,
             commands::stop_playing,
             commands::start_listening,
             commands::stop_listening

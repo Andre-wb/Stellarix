@@ -8,7 +8,7 @@ const AudioModem = (() => {
         return bytes;
     }
     function bytesToHex(bytes) {
-        return bytes.map(b => b.toString(16).padStart(2, '0')).join('');
+        return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
     async function playHexPayload(hexString, onStatus) {
@@ -33,11 +33,35 @@ const AudioModem = (() => {
         }
     }
 
+    async function sendFile(name, hexContent, onStatus) {
+        if (!core) {
+            onStatus && onStatus('Нативный звук доступен только в приложении.');
+            return false;
+        }
+        onStatus && onStatus('Передаю файл звуком...');
+        let unlisten = null;
+        try {
+            if (events && onStatus) {
+                unlisten = await events.listen('modem-status', e => onStatus(e.payload));
+            }
+            const completed = await core.invoke('send_file', { name: name, hex: hexContent });
+            onStatus && onStatus(completed === false ? 'Передача отменена.' : 'Файл передан.');
+            return completed !== false;
+        } catch (e) {
+            onStatus && onStatus('Ошибка передачи: ' + e);
+            return false;
+        } finally {
+            if (unlisten) {
+                try { unlisten(); } catch (e) {}
+            }
+        }
+    }
+
     function stopPlaying() {
         if (core) core.invoke('stop_playing').catch(() => {});
     }
 
-    function startListening({ onStatus, onDecoded, onError, onLevel } = {}) {
+    function startListening({ onStatus, onDecoded, onFile, onError, onLevel } = {}) {
         let finished = false;
         const unlisten = [];
         function cleanup() {
@@ -58,6 +82,13 @@ const AudioModem = (() => {
                     finished = true;
                     cleanup();
                     onDecoded && onDecoded(e.payload);
+                }));
+                unlisten.push(await events.listen('modem-file', e => {
+                    if (finished) return;
+                    finished = true;
+                    cleanup();
+                    if (onFile) onFile(e.payload);
+                    else onError && onError('Принят файл, но эта страница его не принимает. Откройте чат.');
                 }));
                 unlisten.push(await events.listen('modem-error', e => {
                     if (finished) return;
@@ -89,6 +120,7 @@ const AudioModem = (() => {
     return {
         playPublicKeyHex: playHexPayload,
         playHexPayload,
+        sendFile,
         stopPlaying,
         startListening,
         hexToBytes,

@@ -12,6 +12,7 @@
             <div class="chat-top-actions">
                 <button id="listen-btn" class="chip-btn" type="button">Слушать</button>
                 <button id="stop-listen-btn" class="chip-btn" type="button" style="display:none;">Стоп и распознать</button>
+                <button id="stop-send-btn" class="chip-btn" type="button" style="display:none;">Отменить передачу</button>
             </div>
         </div>
 
@@ -23,6 +24,13 @@
         <div id="chat-status" class="chat-meta-line">Готово к работе.</div>
 
         <form id="chat-form" class="chat-form" autocomplete="off">
+            <input type="file" id="file-input" style="display:none;">
+            <button type="button" id="attach-btn" class="attach-btn" title="Отправить файл звуком · изображения сжимаются автоматически" aria-label="Отправить файл">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M20 11.5 11.6 20a5 5 0 0 1-7-7l8.4-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.4 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"
+                          stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
             <input
                     type="text"
                     id="chat-input"
@@ -45,6 +53,9 @@
 <script src="/static/js/e2e-crypto.js"></script>
 <script src="/static/js/wave-visualizer.js"></script>
 <script src="/static/js/stats.js"></script>
+<script src="/static/js/file-policy.js"></script>
+<script src="/static/js/image-compress.js"></script>
+<script src="/static/js/attach-image.js"></script>
 <script src="/static/js/chat.js"></script>
 <script>
 (function () {

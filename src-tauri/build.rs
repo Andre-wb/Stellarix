@@ -4,6 +4,7 @@ fn main() {
             tauri_build::AppManifest::new()
                 .commands(&[
                     "play_payload",
+                    "send_file",
                     "stop_playing",
                     "start_listening",
                     "stop_listening",
