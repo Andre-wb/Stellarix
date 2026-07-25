@@ -68,4 +68,84 @@
             if (stub) stub.style.display = 'block';
         });
     });
+
+    var settingsBox = document.getElementById('avatar-settings');
+    var preview = document.getElementById('avatar-preview');
+    var fileInput = document.getElementById('avatar-file');
+    var changeBtn = document.getElementById('avatar-change-btn');
+    var removeBtn = document.getElementById('avatar-remove-btn');
+    var avatarStatus = document.getElementById('avatar-status');
+
+    if (settingsBox && preview && typeof Avatar !== 'undefined') {
+        var username = settingsBox.getAttribute('data-username') || '';
+        var syncing = false;
+
+        function setAvatarStatus(text) { if (avatarStatus) avatarStatus.textContent = text; }
+
+        function refreshAvatar() {
+            var own = Avatar.getOwn();
+            Avatar.render(preview, own, Avatar.letter(username));
+            if (removeBtn) removeBtn.hidden = !own;
+        }
+
+        function syncToPeer() {
+            if (typeof E2E === 'undefined' || typeof AudioModem === 'undefined') return Promise.resolve();
+            if (!AudioModem.isAvailable()) { setAvatarStatus('Сохранено на этом устройстве.'); return Promise.resolve(); }
+            if (!E2E.isPaired()) { setAvatarStatus('Сохранено на устройстве. Сопряжения нет — отправить собеседнику нельзя.'); return Promise.resolve(); }
+            if (syncing) return Promise.resolve();
+            syncing = true;
+            setAvatarStatus('Отправляю аватар собеседнику по звуку — он должен слушать в чате...');
+            return AudioModem.playHexPayload(Avatar.updateMsgHex(), setAvatarStatus)
+                .then(function (report) {
+                    if (/^Доставлено/.test(report || '')) setAvatarStatus('Аватар доставлен — собеседник подтвердил.');
+                    else if (report && !/остановлена/.test(report)) setAvatarStatus('Похоже, собеседник не слушал. Откройте у него чат, нажмите «Слушать» и повторите.');
+                })
+                .catch(function (e) { setAvatarStatus('Ошибка отправки: ' + e.message); })
+                .then(function () { syncing = false; });
+        }
+
+        function acceptAvatar(file) {
+            if (!file) return;
+            if (!Avatar.isImageFile(file)) { setAvatarStatus('Это не изображение — выберите png, jpg или webp.'); return; }
+            setAvatarStatus('Обрабатываю фото...');
+            Avatar.compressFile(file)
+                .then(function (dataUrl) {
+                    Avatar.setOwn(dataUrl);
+                    refreshAvatar();
+                    return syncToPeer();
+                })
+                .catch(function (e) { setAvatarStatus('Не удалось обработать фото: ' + e.message); });
+        }
+
+        refreshAvatar();
+
+        if (changeBtn) changeBtn.addEventListener('click', function () { fileInput.click(); });
+        preview.addEventListener('click', function () { fileInput.click(); });
+        fileInput.addEventListener('change', function () {
+            var f = fileInput.files && fileInput.files[0];
+            fileInput.value = '';
+            acceptAvatar(f);
+        });
+
+        ['dragenter', 'dragover'].forEach(function (ev) {
+            settingsBox.addEventListener(ev, function (e) { e.preventDefault(); settingsBox.classList.add('dragover'); });
+        });
+        ['dragleave', 'dragend'].forEach(function (ev) {
+            settingsBox.addEventListener(ev, function () { settingsBox.classList.remove('dragover'); });
+        });
+        settingsBox.addEventListener('drop', function (e) {
+            e.preventDefault();
+            settingsBox.classList.remove('dragover');
+            var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+            acceptAvatar(f);
+        });
+
+        if (removeBtn) {
+            removeBtn.addEventListener('click', function () {
+                Avatar.clearOwn();
+                refreshAvatar();
+                syncToPeer();
+            });
+        }
+    }
 })();

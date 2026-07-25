@@ -31,8 +31,11 @@ document.addEventListener('DOMContentLoaded', () => {
         levelEl.textContent = 'Уровень микрофона: [' + '#'.repeat(bars) + '-'.repeat(20 - bars) + ']';
     }
 
+    const hasAvatar = typeof Avatar !== 'undefined';
+
     function makeBubble(kind) {
         const bubble = document.createElement('div');
+        bubble.classList.add('chat-bubble');
         bubble.style.padding = '0.5rem 0.75rem';
         bubble.style.borderRadius = '10px';
         bubble.style.maxWidth = '75%';
@@ -53,15 +56,40 @@ document.addEventListener('DOMContentLoaded', () => {
         return bubble;
     }
 
-    function appendBubble(bubble) {
-        messagesEl.appendChild(bubble);
+    function makePeerAvatar() {
+        const el = document.createElement('div');
+        el.className = 'avatar-circle';
+        if (hasAvatar) Avatar.render(el, Avatar.getPeer(), '?');
+        else el.textContent = '?';
+        return el;
+    }
+
+    function appendBubble(bubble, kind) {
+        if (kind === 'received') {
+            const row = document.createElement('div');
+            row.className = 'msg-row received';
+            bubble.style.alignSelf = 'auto';
+            row.appendChild(makePeerAvatar());
+            row.appendChild(bubble);
+            messagesEl.appendChild(row);
+        } else {
+            messagesEl.appendChild(bubble);
+        }
         messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function refreshPeerAvatars() {
+        if (!hasAvatar) return;
+        const peer = Avatar.getPeer();
+        messagesEl.querySelectorAll('.msg-row.received .avatar-circle').forEach((el) => {
+            Avatar.render(el, peer, '?');
+        });
     }
 
     function addMessage(text, kind) {
         const bubble = makeBubble(kind);
         bubble.textContent = text;
-        appendBubble(bubble);
+        appendBubble(bubble, kind);
     }
 
     function addFileMessage(name, meta, kind) {
@@ -75,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
         metaEl.textContent = meta;
         bubble.appendChild(title);
         bubble.appendChild(metaEl);
-        appendBubble(bubble);
+        appendBubble(bubble, kind);
     }
 
     function formatSize(bytes) {
@@ -141,12 +169,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const payloadHex = await E2E.encrypt(text);
             addMessage(text, 'sent');
             input.value = '';
-            setStatus('Передаю сообщение (1/2)...');
-            await AudioModem.playHexPayload(payloadHex, setStatus);
-            await new Promise(r => setTimeout(r, 300));
-            setStatus('Передаю сообщение (2/2)...');
-            await AudioModem.playHexPayload(payloadHex, setStatus);
-            setStatus('Сообщение передано.');
+            setStatus('Передаю сообщение...');
+            const report = await AudioModem.playHexPayload(payloadHex, setStatus);
+            if (/^Доставлено/.test(report || '')) {
+                setStatus('Сообщение доставлено — собеседник подтвердил получение.');
+            } else if (report && !/остановлена/.test(report)) {
+                setStatus(report + ' Убедитесь, что собеседник нажал «Слушать», и отправьте ещё раз.');
+            }
         } catch (err) {
             setStatus('Ошибка: ' + err.message);
         } finally {
@@ -288,6 +317,12 @@ document.addEventListener('DOMContentLoaded', () => {
             onLevel: setLevel,
             onDecoded: async (hex) => {
                 resetListenUi();
+                if (hasAvatar && Avatar.isUpdateHex(hex)) {
+                    Avatar.setPeer(Avatar.avatarFromUpdateHex(hex));
+                    refreshPeerAvatars();
+                    setStatus('Собеседник обновил аватар.');
+                    return;
+                }
                 setStatus('Сигнал получен, расшифровываю в браузере...');
                 try {
                     const plaintext = await E2E.decrypt(hex);
@@ -321,6 +356,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     setStatus(`Повторная попытка (${retryCount}/${MAX_RETRIES})...`);
                     setTimeout(startListenCycle, 2000);
                 }
+            },
+            onStopped: (msg) => {
+                resetListenUi();
+                setStatus(msg);
             }
         });
     }

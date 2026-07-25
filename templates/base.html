@@ -6,12 +6,40 @@
     <title>{% block title %}{% endblock %}</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <script>(function(){try{var m=window.matchMedia?window.matchMedia('(prefers-color-scheme: light)'):null;function a(){var t=localStorage.getItem('stx_theme');if(t==='auto'){t=(m&&m.matches)?'light':'dark';}if(t&&t!=='dark'){document.documentElement.setAttribute('data-theme',t);}else{document.documentElement.removeAttribute('data-theme');}}a();if(m){if(m.addEventListener){m.addEventListener('change',a);}else if(m.addListener){m.addListener(a);}}}catch(e){}})();</script>
+    <link rel="stylesheet" href="/static/css/lang-picker.css">
+    <script>(function(){try{var t=localStorage.getItem('stx_theme');if(t&&t!=='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();</script>
     <script src="/static/js/i18n.js"></script>
     <script src="/static/js/confirm-modal.js"></script>
     <script src="/static/js/menu.js"></script>
     {% block extra_head %}{% endblock %}
 </head>
 <body>
+<div id="lang-picker-screen" style="display:none;">
+    <div class="lp-bg">
+        <div class="lp-orb lp-orb-1"></div>
+        <div class="lp-orb lp-orb-2"></div>
+        <div class="lp-orb lp-orb-3"></div>
+    </div>
+
+    <div class="lp-content">
+        <div class="lp-logo">
+            <div class="lp-logo-icon">
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.6 6.9L21.5 11l-6.9 2.1L12 20l-2.6-6.9L2.5 11l6.9-2.1z"/></svg>
+            </div>
+            <div class="lp-logo-text">Stellarix</div>
+        </div>
+
+        <h2 class="lp-title" id="lp-title"></h2>
+        <p class="lp-subtitle" id="lp-subtitle">Можно изменить позже в настройках</p>
+
+        <div class="lp-list" id="lp-list"></div>
+
+        <button class="lp-continue-btn" id="lp-continue" onclick="window._lpConfirm()" disabled>
+            <span id="lp-continue-text">Продолжить</span>
+            <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/></svg>
+        </button>
+    </div>
+</div>
 <div class="nav-links-mobile" id="nav-links-mobile">
     {% if logged_in %}
     <a href="/pairing" class="nav-link">Сопряжение</a>
@@ -26,7 +54,7 @@
 </div>
 <header>
     <nav>
-        <a href="https://github.com/ВАШ-НИК/stellarix" target="_blank" rel="noopener" class="brand">
+        <a href="https://github.com/Andre-wb/Stellarix" target="_blank" rel="noopener" class="brand">
             <span>Stellarix</span>
         </a>
 
@@ -105,6 +133,19 @@
         }
     });
 })();
+
+(function () {
+    var brand = document.querySelector('a.brand');
+    if (!brand) return;
+    brand.addEventListener('click', function (e) {
+        var opener = window.__TAURI__ && window.__TAURI__.opener;
+        if (opener && typeof opener.openUrl === 'function') {
+            e.preventDefault();
+            opener.openUrl(brand.href);
+        }
+    });
+})();
 </script>
+<script src="/static/js/lang-picker.js"></script>
 </body>
 </html>
