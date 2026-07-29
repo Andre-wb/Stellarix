@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 description = "Десктоп-оболочка Stellarix на Tauri со встроенным PostgreSQL"
 
+[lib]
+crate-type = ["cdylib", "staticlib"]  
+
 [build-dependencies]
 tauri-build = { version = "2.6", features = [] }
 

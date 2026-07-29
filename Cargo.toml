@@ -8,10 +8,10 @@ axum = "0.7"
 tokio = { version = "1", features = ["full"] }
 tower-http = { version = "0.5", features = ["fs", "set-header"] }
 tower-sessions = "0.12"
-tower-sessions-sqlx-store = { version = "0.12", features = ["postgres"] }
 time = "0.3"
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "uuid", "chrono", "migrate"] }
+sqlx-sqlite = "0.7"
 
-sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "migrate"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 
@@ -27,3 +27,4 @@ dotenvy = "0.15"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 hex = "0.4.3"
+rusqlite = { version = "0.31", features = ["bundled"] }

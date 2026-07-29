@@ -1,4 +1,4 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![cfg_attr(target_os = "android", allow(dead_code))]
 
 mod commands;
 mod modem;
@@ -367,9 +367,49 @@ fn stop_pg(app: &AppHandle) {
     }
 }
 
-fn main() {
+// ============ Android Entry Point ============
+#[cfg(target_os = "android")]
+#[no_mangle]
+pub extern "C" fn start_app() {
+    // На Android мы не можем запускать полноценный Tauri так же, как на десктопе
+    // Здесь будет логика запуска для Android
+    std::thread::spawn(|| {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.block_on(async {
+            // Запускаем сервер без Tauri UI
+            if let Err(e) = run_android_server().await {
+                eprintln!("Android server error: {}", e);
+            }
+        });
+    });
+}
+
+#[cfg(target_os = "android")]
+async fn run_android_server() -> Result<(), String> {
+    // Для Android мы запускаем только веб-сервер без Tauri оболочки
+    use std::net::SocketAddr;
+    use std::path::PathBuf;
+
+    // Инициализация конфигурации и базы данных
+    // ...
+
+    let addr = SocketAddr::from(([127, 0, 0, 1], APP_PORT));
+    // ... остальная логика запуска
+
+    Ok(())
+}
+
+// ============ Desktop Entry Point ============
+#[cfg(not(target_os = "android"))]
+#[tauri::command]
+fn greet(name: &str) -> String {
+    format!("Hello, {}! You've been greeted from Rust!", name)
+}
+
+#[cfg(not(target_os = "android"))]
+pub fn run_desktop() {
     let _log_guard = setup_logging();
-    info!("=== 🚀 Запуск Tauri приложения ===");
+    info!("=== 🚀 Запуск Tauri приложения (Desktop) ===");
     info!("Лог старта пишется в файл: {}", log_file_path().display());
 
     let pg_state: Arc<Mutex<Option<PostgreSQL>>> = Arc::new(Mutex::new(None));
@@ -385,7 +425,7 @@ fn main() {
             commands::send_file,
             commands::stop_playing,
             commands::start_listening,
-            commands::stop_listening
+            commands::stop_listening,
         ])
         .setup(move |app| {
             info!("Настройка приложения...");
@@ -408,4 +448,9 @@ fn main() {
                 info!("✅ Приложение завершено");
             }
         });
+}
+
+#[cfg(not(target_os = "android"))]
+fn main() {
+    run_desktop();
 }
