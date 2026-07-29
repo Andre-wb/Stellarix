@@ -1,2 +1,0 @@
-ALTER TABLE users DROP COLUMN IF EXISTS public_key;
-ALTER TABLE users DROP COLUMN IF EXISTS private_key;

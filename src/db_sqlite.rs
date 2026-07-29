@@ -1,71 +1,54 @@
-use argon2::{
-    password_hash::{
-        rand_core::OsRng,
-        PasswordHash,
-        SaltString,
-        PasswordVerifier,
-        PasswordHasher,
-    },
-    Argon2,
-};
-use sqlx::{PgPool, Postgres, migrate::{Migrator, MigrateDatabase}};
-use crate::schemas::{RegisterForm, User};
+use sqlx::{SqlitePool, sqlite::SqliteConnectOptions, Executor};
+use sqlx::migrate::Migrator;
+use std::path::PathBuf;
 use uuid::Uuid;
+use crate::schemas::{User, RegisterForm};
 
-pub type DbPool = PgPool;
-pub static MIGRATOR: Migrator = sqlx::migrate!();
+pub type DbPool = SqlitePool;
+pub static MIGRATOR: Migrator = sqlx::migrate!("./migrations/sqlite");
 
-pub async fn init_pool() -> Result<DbPool, String> {
-    let database_url = crate::config::database_url();
-    println!("Подключение к базе данных: {}", database_url);
+pub async fn init_pool(db_path: PathBuf) -> Result<DbPool, String> {
+    let db_url = format!("sqlite:{}?mode=rwc", db_path.display());
 
-    if !Postgres::database_exists(database_url).await.unwrap_or(false) {
-        Postgres::create_database(database_url)
-            .await
-            .map_err(|error| format!("Не удалось создать базу данных: {error}"))?;
-    }
+    let options = SqliteConnectOptions::new()
+        .filename(&db_path)
+        .create_if_missing(true);
 
-    let pool = PgPool::connect(database_url)
+    let pool = SqlitePool::connect_with(options)
         .await
-        .map_err(|error| format!("Не удалось создать пул подключений к базе данных: {error}"))?;
-    println!("Запуск миграций базы данных");
+        .map_err(|e| format!("Не удалось создать пул SQLite: {e}"))?;
 
+    println!("Запуск миграций SQLite");
     MIGRATOR.run(&pool)
         .await
-        .map_err(|error| format!("Не удалось выполнить миграции базы данных: {error}"))?;
+        .map_err(|e| format!("Не удалось выполнить миграции SQLite: {e}"))?;
 
-    println!("База данных готова к работе");
+    println!("База данных SQLite готова");
     Ok(pool)
 }
 
-/// Проверка уникальности имени пользователя
-pub async fn user_exists(
-    pool: &DbPool,
-    username: &str,
-) -> Result<bool, sqlx::Error> {
+pub async fn user_exists(pool: &DbPool, username: &str) -> Result<bool, sqlx::Error> {
     let query = "SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)";
-
-    let (exists,): (bool,) = sqlx::query_as(query)
+    let result: (bool,) = sqlx::query_as(query)
         .bind(username)
         .fetch_one(pool)
         .await?;
-
-    Ok(exists)
+    Ok(result.0)
 }
 
-/// Добавление пользователя в базу данных
 pub async fn create_user(
     pool: &DbPool,
     username: &str,
     password_hash: &str,
 ) -> Result<User, sqlx::Error> {
     let query = "
-        INSERT INTO users (username, password_hash, created_at)
-        VALUES ($1, $2, NOW())
+        INSERT INTO users (id, username, password_hash, created_at, last_login_at)
+        VALUES ($1, $2, $3, CURRENT_TIMESTAMP, NULL)
         RETURNING id, username, password_hash, created_at, last_login_at
     ";
 
     let user = sqlx::query_as::<_, User>(query)
+        .bind(Uuid::now_v7())
         .bind(username)
         .bind(password_hash)
         .fetch_one(pool)
@@ -74,7 +57,6 @@ pub async fn create_user(
     Ok(user)
 }
 
-/// Поиск пользователя по имени
 pub async fn get_user_by_username(
     pool: &DbPool,
     username: &str,
@@ -94,8 +76,31 @@ pub async fn get_user_by_username(
     Ok(user)
 }
 
-/// Валидация логина и надежности пароля (без email-проверок)
+pub async fn get_user_by_id(pool: &DbPool, user_id: Uuid) -> Result<Option<User>, sqlx::Error> {
+    let query = "
+        SELECT id, username, password_hash, created_at, last_login_at
+        FROM users
+        WHERE id = $1
+    ";
+
+    let user = sqlx::query_as::<_, User>(query)
+        .bind(user_id)
+        .fetch_optional(pool)
+        .await?;
+
+    Ok(user)
+}
+
+pub async fn update_last_login(pool: &DbPool, user_id: Uuid) -> Result<(), sqlx::Error> {
+    sqlx::query("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1")
+        .bind(user_id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
 pub fn validate_registration(form: &RegisterForm) -> Result<(), String> {
+    // Та же логика, что и в db.rs
     if form.username.len() < 3 {
         return Err("Имя пользователя должно быть не менее 3 символов".to_string());
     }
@@ -126,41 +131,28 @@ pub fn validate_registration(form: &RegisterForm) -> Result<(), String> {
     Ok(())
 }
 
+// Функции хеширования пароля (те же)
 pub fn hash_password(password: &str) -> Result<String, String> {
+    use argon2::{
+        password_hash::{rand_core::OsRng, SaltString, PasswordHasher},
+        Argon2,
+    };
     let salt = SaltString::generate(&mut OsRng);
     let argon2 = Argon2::default();
-    let password_hash = argon2
+    argon2
         .hash_password(password.as_bytes(), &salt)
-        .map_err(|error| format!("Ошибка хеширования пароля: {error}"))?
-        .to_string();
-
-    Ok(password_hash)
+        .map_err(|e| format!("Ошибка хеширования: {e}"))
+        .map(|hash| hash.to_string())
 }
 
 pub fn verify_password(password: &str, hash: &str) -> Result<bool, String> {
+    use argon2::{
+        password_hash::{PasswordHash, PasswordVerifier},
+        Argon2,
+    };
     let parsed_hash = PasswordHash::new(hash)
-        .map_err(|error| format!("Некорректный формат хеша: {error}"))?;
+        .map_err(|e| format!("Некорректный хеш: {e}"))?;
     Ok(Argon2::default()
         .verify_password(password.as_bytes(), &parsed_hash)
-        .is_ok()
-    )
-}
-
-pub async fn get_user_by_id(pool: &DbPool, user_id: Uuid) -> Result<Option<User>, sqlx::Error> {
-    let user = sqlx::query_as::<_, User>(
-        "SELECT id, username, password_hash, created_at, last_login_at FROM users WHERE id = $1"
-    )
-        .bind(user_id)
-        .fetch_optional(pool)
-        .await?;
-
-    Ok(user)
-}
-
-pub async fn update_last_login(pool: &DbPool, user_id: Uuid) -> Result<(), sqlx::Error> {
-    sqlx::query("UPDATE users SET last_login_at = NOW() WHERE id = $1")
-        .bind(user_id)
-        .execute(pool)
-        .await?;
-    Ok(())
+        .is_ok())
 }

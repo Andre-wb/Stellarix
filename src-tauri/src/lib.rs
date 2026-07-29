@@ -2,15 +2,12 @@
 
 mod commands;
 mod modem;
-mod pgcleanup;
-mod pgpaths;
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use postgresql_embedded::{PostgreSQL, Settings};
 use tauri::{async_runtime, AppHandle, Emitter, Manager};
 use tokio::sync::Mutex;
 use tokio::net::TcpStream;
@@ -18,11 +15,6 @@ use tracing::{info, error, debug};
 use tracing_subscriber::{fmt, EnvFilter};
 
 const APP_PORT: u16 = 8000;
-const PG_PORT: u16 = 15432;
-const DB_NAME: &str = "stellarix";
-const PG_USER: &str = "postgres";
-
-struct PgGuard(Arc<Mutex<Option<PostgreSQL>>>);
 
 fn log_file_path() -> PathBuf {
     std::env::temp_dir().join("stellarix-startup.log")
@@ -82,13 +74,6 @@ fn setup_logging() -> Option<tracing_appender::non_blocking::WorkerGuard> {
     }
 }
 
-fn random_hex(n: usize) -> String {
-    use rand::RngCore;
-    let mut buf = vec![0u8; n];
-    rand::rngs::OsRng.fill_bytes(&mut buf);
-    buf.iter().map(|b| format!("{:02x}", b)).collect()
-}
-
 fn create_private_dir(path: &std::path::Path) -> Result<(), String> {
     #[cfg(unix)]
     {
@@ -104,86 +89,6 @@ fn create_private_dir(path: &std::path::Path) -> Result<(), String> {
         std::fs::create_dir_all(path)
             .map_err(|e| format!("Не удалось создать каталог {}: {e}", path.display()))
     }
-}
-
-fn write_private(path: &std::path::Path, value: &str) -> Result<(), String> {
-    #[cfg(unix)]
-    {
-        use std::io::Write;
-        use std::os::unix::fs::OpenOptionsExt;
-        let mut file = std::fs::OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .mode(0o600)
-            .open(path)
-            .map_err(|e| format!("Не удалось создать {}: {e}", path.display()))?;
-        file.write_all(value.as_bytes())
-            .map_err(|e| format!("Не удалось записать {}: {e}", path.display()))
-    }
-    #[cfg(not(unix))]
-    {
-        std::fs::write(path, value)
-            .map_err(|e| format!("Не удалось записать {}: {e}", path.display()))
-    }
-}
-
-fn load_or_create_secret(dir: &PathBuf, name: &str) -> Result<String, String> {
-    let path = dir.join(name);
-    if let Ok(existing) = std::fs::read_to_string(&path) {
-        let trimmed = existing.trim().to_string();
-        if !trimmed.is_empty() {
-            return Ok(trimmed);
-        }
-    }
-    let value = random_hex(32);
-    write_private(&path, &value)?;
-    Ok(value)
-}
-
-async fn init_db_with_c_locale(
-    pg: &PostgreSQL,
-    data_dir: &std::path::Path,
-    password_file: &std::path::Path,
-    password: &str,
-) -> Result<(), String> {
-    let initdb = pg
-        .settings()
-        .binary_dir()
-        .join(if cfg!(windows) { "initdb.exe" } else { "initdb" });
-    if !initdb.exists() {
-        return Err(format!("initdb не найден: {}", initdb.display()));
-    }
-
-    write_private(password_file, password)?;
-    let _ = std::fs::remove_dir_all(data_dir);
-    create_private_dir(data_dir)?;
-
-    info!("Запуск initdb вручную: {} (--locale=C --encoding=UTF8)", initdb.display());
-    let output = tokio::process::Command::new(&initdb)
-        .arg("--pgdata").arg(data_dir)
-        .arg("--username").arg(PG_USER)
-        .arg("--auth").arg("password")
-        .arg("--pwfile").arg(password_file)
-        .arg("--encoding").arg("UTF8")
-        .arg("--locale").arg("C")
-        .output()
-        .await
-        .map_err(|e| format!("Не удалось запустить initdb: {e}"))?;
-
-    info!(
-        "initdb завершился, код: {:?}, stderr: {}",
-        output.status.code(),
-        String::from_utf8_lossy(&output.stderr).trim()
-    );
-
-    if !output.status.success() {
-        return Err(format!(
-            "initdb завершился с ошибкой: {}",
-            String::from_utf8_lossy(&output.stderr)
-        ));
-    }
-    Ok(())
 }
 
 async fn wait_for_port(addr: SocketAddr, timeout: Duration) -> bool {
@@ -204,7 +109,7 @@ fn stage(app: &AppHandle, since: std::time::Instant, msg: &str) {
     let _ = app.emit("server-progress", msg.to_string());
 }
 
-async fn bring_up(app: AppHandle, pg_state: Arc<Mutex<Option<PostgreSQL>>>) -> Result<String, String> {
+async fn bring_up(app: AppHandle) -> Result<String, String> {
     let t0 = std::time::Instant::now();
     info!(
         "Запуск приложения Tauri... ОС: {} / {}",
@@ -225,89 +130,28 @@ async fn bring_up(app: AppHandle, pg_state: Arc<Mutex<Option<PostgreSQL>>>) -> R
     };
     debug!("static_dir: {}", static_dir.display());
 
-    info!("Загрузка секретов...");
-    std::env::set_var("USERNAME_SECRET", load_or_create_secret(&data_dir, "username_secret")?);
-    std::env::set_var("SESSION_SECRET", load_or_create_secret(&data_dir, "session_secret")?);
+    // Настраиваем переменные окружения
     std::env::set_var("APP_ENVIRONMENT", "development");
     std::env::set_var("LOG_LEVEL", "info");
 
-    let pg_base = pgpaths::pg_base_dir(&data_dir, &app.config().identifier);
-    if pg_base != data_dir {
-        create_private_dir(&pg_base)?;
-    }
-    let pg_data = pg_base.join("pgdata");
-    let pg_install = pg_base.join("pg-install");
-    create_private_dir(&pg_data)?;
-    debug!("Каталог PostgreSQL: {}", pg_data.display());
-
-    stage(&app, t0, "Проверка порта PostgreSQL и старых процессов...");
-    pgcleanup::free_stale_instance(&pg_data, PG_PORT).await?;
-
-    let pg_password = load_or_create_secret(&data_dir, "pg_password")?;
-    debug!("Пароль PostgreSQL загружен");
-
-    std::env::set_var("LC_ALL", "C");
-    std::env::set_var("LANG", "C");
-    std::env::set_var("LC_CTYPE", "C");
-    std::env::set_var("LC_COLLATE", "C");
-    std::env::set_var("LC_MESSAGES", "C");
-
-    let mut settings = Settings::default();
-    settings.data_dir = pg_data.clone();
-    settings.installation_dir = pg_install;
-    settings.host = "127.0.0.1".to_string();
-    settings.port = PG_PORT;
-    settings.username = PG_USER.to_string();
-    settings.password = pg_password.clone();
-    settings.password_file = pg_base.join(".pgpass");
-    settings.temporary = false;
-    settings.timeout = Some(std::time::Duration::from_secs(30));
-
-    stage(&app, t0, "Подготовка PostgreSQL (распаковка бинарников)...");
-    let mut pg = PostgreSQL::new(settings.clone());
-    if let Err(e) = pg.setup().await {
-        error!("Ошибка настройки PostgreSQL: {}, инициализация вручную с локалью C", e);
-        stage(&app, t0, "Инициализация базы вручную (initdb, locale=C)...");
-        init_db_with_c_locale(&pg, &pg_data, &settings.password_file, &pg_password).await?;
-        stage(&app, t0, "Повторная подготовка PostgreSQL после initdb...");
-        pg.setup().await.map_err(|e| {
-            error!("Ошибка настройки PostgreSQL: {}", e);
-            format!("Не удалось подготовить PostgreSQL: {e}")
-        })?;
-    }
-
-    stage(&app, t0, "Запуск сервера PostgreSQL...");
-    pg.start().await.map_err(|e| {
-        let log_tail = pgcleanup::start_log_tail(&pg_data, 1500);
-        error!("Ошибка запуска PostgreSQL: {} | лог: {:?}", e, log_tail);
-        match log_tail {
-            Some(tail) => format!("Не удалось запустить PostgreSQL: {e}\n\nЖурнал PostgreSQL:\n{tail}"),
-            None => format!("Не удалось запустить PostgreSQL: {e}"),
-        }
+    stage(&app, t0, "Инициализация SQLite...");
+    let db_path = data_dir.join("stellarix.db");
+    let pool = stellarix::db_sqlite::init_pool(db_path).await.map_err(|e| {
+        error!("Ошибка базы данных: {}", e);
+        format!("База данных: {e}")
     })?;
-    info!("✅ PostgreSQL успешно запущен");
-
-    {
-        let mut guard = pg_state.lock().await;
-        *guard = Some(pg);
-    }
-
-    let database_url = format!("postgres://{PG_USER}:{pg_password}@127.0.0.1:{PG_PORT}/{DB_NAME}");
-    std::env::set_var("DATABASE_URL", &database_url);
-    debug!("DATABASE_URL установлена");
+    info!("✅ SQLite база данных создана");
 
     stage(&app, t0, "Инициализация конфигурации приложения...");
+    // Устанавливаем DATABASE_URL для SQLite (не используется, но требуется для Config)
+    std::env::set_var("DATABASE_URL", &format!("sqlite:{}", data_dir.join("stellarix.db").display()));
+    std::env::set_var("USERNAME_SECRET", "dev_secret_32_bytes_here_xxxxxx");
+    std::env::set_var("SESSION_SECRET", "dev_session_secret_32_bytes_here");
+
     stellarix::config::Config::init().map_err(|e| {
         error!("Ошибка конфигурации: {}", e);
         format!("Конфигурация: {e}")
     })?;
-
-    stage(&app, t0, "Создание пула БД и выполнение миграций...");
-    let pool = stellarix::db::init_pool().await.map_err(|e| {
-        error!("Ошибка базы данных: {}", e);
-        format!("База данных: {e}")
-    })?;
-    info!("✅ Пул базы данных создан");
 
     stage(&app, t0, "Занимаю порт приложения...");
     let addr = SocketAddr::from(([127, 0, 0, 1], APP_PORT));
@@ -351,54 +195,6 @@ async fn bring_up(app: AppHandle, pg_state: Arc<Mutex<Option<PostgreSQL>>>) -> R
     Ok(url)
 }
 
-fn stop_pg(app: &AppHandle) {
-    info!("Остановка PostgreSQL...");
-    if let Some(guard) = app.try_state::<PgGuard>() {
-        let state = guard.0.clone();
-        async_runtime::block_on(async move {
-            if let Some(pg) = state.lock().await.take() {
-                if let Err(e) = pg.stop().await {
-                    error!("Ошибка остановки PostgreSQL: {}", e);
-                } else {
-                    info!("✅ PostgreSQL остановлен");
-                }
-            }
-        });
-    }
-}
-
-// ============ Android Entry Point ============
-#[cfg(target_os = "android")]
-#[no_mangle]
-pub extern "C" fn start_app() {
-    // На Android мы не можем запускать полноценный Tauri так же, как на десктопе
-    // Здесь будет логика запуска для Android
-    std::thread::spawn(|| {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async {
-            // Запускаем сервер без Tauri UI
-            if let Err(e) = run_android_server().await {
-                eprintln!("Android server error: {}", e);
-            }
-        });
-    });
-}
-
-#[cfg(target_os = "android")]
-async fn run_android_server() -> Result<(), String> {
-    // Для Android мы запускаем только веб-сервер без Tauri оболочки
-    use std::net::SocketAddr;
-    use std::path::PathBuf;
-
-    // Инициализация конфигурации и базы данных
-    // ...
-
-    let addr = SocketAddr::from(([127, 0, 0, 1], APP_PORT));
-    // ... остальная логика запуска
-
-    Ok(())
-}
-
 // ============ Desktop Entry Point ============
 #[cfg(not(target_os = "android"))]
 #[tauri::command]
@@ -412,12 +208,8 @@ pub fn run_desktop() {
     info!("=== 🚀 Запуск Tauri приложения (Desktop) ===");
     info!("Лог старта пишется в файл: {}", log_file_path().display());
 
-    let pg_state: Arc<Mutex<Option<PostgreSQL>>> = Arc::new(Mutex::new(None));
-    let setup_state = pg_state.clone();
-
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .manage(PgGuard(pg_state))
         .manage(commands::ListenerState::default())
         .manage(commands::PlaybackState::default())
         .invoke_handler(tauri::generate_handler![
@@ -430,9 +222,8 @@ pub fn run_desktop() {
         .setup(move |app| {
             info!("Настройка приложения...");
             let handle = app.handle().clone();
-            let state = setup_state.clone();
             async_runtime::spawn(async move {
-                if let Err(e) = bring_up(handle.clone(), state).await {
+                if let Err(e) = bring_up(handle.clone()).await {
                     error!("❌ Ошибка запуска: {}", e);
                     let _ = handle.emit("server-error", &e);
                 }
@@ -444,7 +235,6 @@ pub fn run_desktop() {
         .run(|app_handle, event| {
             if let tauri::RunEvent::ExitRequested { .. } = event {
                 info!("Получен запрос на выход");
-                stop_pg(app_handle);
                 info!("✅ Приложение завершено");
             }
         });

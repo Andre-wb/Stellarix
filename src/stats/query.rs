@@ -1,7 +1,7 @@
 use chrono::Local;
 use uuid::Uuid;
 
-use crate::db::DbPool;
+use crate::db_sqlite::DbPool;
 use crate::schemas::SessionStats;
 
 use super::model::{kind_label, TransferRow, UserStats, KIND_RX, KIND_TX, NO_VALUE};

@@ -1,7 +1,7 @@
 use axum::{extract::State, http::StatusCode, Json};
 use tower_sessions::Session;
 
-use crate::db::DbPool;
+use crate::db_sqlite::DbPool;
 use crate::routes::session_user_id;
 
 use super::model::{is_valid_kind, RecordTransferRequest};

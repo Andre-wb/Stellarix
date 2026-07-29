@@ -1,12 +1,13 @@
 pub mod config;
-pub mod db;
+pub mod db_sqlite;
 pub mod routes;
 pub mod schemas;
 pub mod middleware;
 pub mod stats;
+mod chats;
 
 pub use config::Config;
-pub use db::DbPool;
+pub use db_sqlite::DbPool;
 pub use routes::*;
 pub use schemas::*;
 
