@@ -11,6 +11,7 @@ tower-sessions = "0.12"
 time = "0.3"
 sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "uuid", "chrono", "migrate"] }
 sqlx-sqlite = "0.7"
+tower-sessions-memory-store = "0.12"
 
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
@@ -27,3 +28,6 @@ dotenvy = "0.15"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 hex = "0.4.3"
+include_dir = "0.7"
+mime_guess = "2"
+ndk-context = "0.1"

@@ -15,6 +15,12 @@ pub struct OutputPlayer {
 
 impl OutputPlayer {
     pub fn open() -> Result<Self, String> {
+        #[cfg(target_os = "android")]
+        {
+            use ndk_context::android_context;
+            android_context();
+        }
+
         let host = cpal::default_host();
         let device = host
             .default_output_device()

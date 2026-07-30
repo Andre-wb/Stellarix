@@ -1,15 +1,13 @@
-use sqlx::{SqlitePool, sqlite::SqliteConnectOptions, Executor};
+use sqlx::{SqlitePool, sqlite::SqliteConnectOptions};
 use sqlx::migrate::Migrator;
 use std::path::PathBuf;
 use uuid::Uuid;
 use crate::schemas::{User, RegisterForm};
 
 pub type DbPool = SqlitePool;
-pub static MIGRATOR: Migrator = sqlx::migrate!("./migrations/sqlite");
+pub static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
 
 pub async fn init_pool(db_path: PathBuf) -> Result<DbPool, String> {
-    let db_url = format!("sqlite:{}?mode=rwc", db_path.display());
-
     let options = SqliteConnectOptions::new()
         .filename(&db_path)
         .create_if_missing(true);
@@ -26,7 +24,6 @@ pub async fn init_pool(db_path: PathBuf) -> Result<DbPool, String> {
     println!("База данных SQLite готова");
     Ok(pool)
 }
-
 pub async fn user_exists(pool: &DbPool, username: &str) -> Result<bool, sqlx::Error> {
     let query = "SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)";
     let result: (bool,) = sqlx::query_as(query)
@@ -48,7 +45,7 @@ pub async fn create_user(
     ";
 
     let user = sqlx::query_as::<_, User>(query)
-        .bind(Uuid::now_v7())
+        .bind(Uuid::new_v4())
         .bind(username)
         .bind(password_hash)
         .fetch_one(pool)

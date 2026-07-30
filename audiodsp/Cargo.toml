@@ -18,3 +18,5 @@ opt-level = 3
 
 [profile.dev.package.realfft]
 opt-level = 3
+
+[target.'cfg(not(target_os = "android"))'.dependencies]

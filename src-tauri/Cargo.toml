@@ -2,10 +2,10 @@
 name = "stellarix-desktop"
 version = "0.1.0"
 edition = "2021"
-description = "Десктоп-оболочка Stellarix на Tauri со встроенным PostgreSQL"
+description = "Десктоп-оболочка Stellarix на Tauri"
 
 [lib]
-crate-type = ["cdylib", "staticlib"]  
+crate-type = ["cdylib", "staticlib"]
 
 [build-dependencies]
 tauri-build = { version = "2.6", features = [] }
@@ -17,7 +17,6 @@ stellarix = { path = ".." }
 audiodsp = { path = "../audiodsp" }
 tokio = { version = "1", features = ["full"] }
 rand = "0.8"
-cpal = "0.18"
 serde = { version = "1", features = ["derive"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["chrono"] }
@@ -25,8 +24,17 @@ tracing-appender = "0.2"
 chrono = "0.4.45"
 sha2 = "0.10"
 
+[target.'cfg(target_os = "android")'.dependencies]
+ndk = "0.9"
+ndk-context = "0.1"
+jni = "0.21"
+cpal = "0.18"
+
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+cpal = "0.18"
 
 [workspace]
 

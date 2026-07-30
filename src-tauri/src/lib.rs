@@ -5,11 +5,9 @@ mod modem;
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::sync::Arc;
 use std::time::Duration;
 
 use tauri::{async_runtime, AppHandle, Emitter, Manager};
-use tokio::sync::Mutex;
 use tokio::net::TcpStream;
 use tracing::{info, error, debug};
 use tracing_subscriber::{fmt, EnvFilter};
@@ -122,14 +120,6 @@ async fn bring_up(app: AppHandle) -> Result<String, String> {
     debug!("data_dir: {}", data_dir.display());
     create_private_dir(&data_dir)?;
 
-    let static_dir = {
-        let res = app.path().resource_dir().ok();
-        let bundled = res.as_ref().map(|d| d.join("static")).filter(|p| p.exists())
-            .or_else(|| res.as_ref().map(|d| d.join("_up_").join("static")).filter(|p| p.exists()));
-        bundled.unwrap_or_else(|| PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../static")))
-    };
-    debug!("static_dir: {}", static_dir.display());
-
     // Настраиваем переменные окружения
     std::env::set_var("APP_ENVIRONMENT", "development");
     std::env::set_var("LOG_LEVEL", "info");
@@ -143,7 +133,6 @@ async fn bring_up(app: AppHandle) -> Result<String, String> {
     info!("✅ SQLite база данных создана");
 
     stage(&app, t0, "Инициализация конфигурации приложения...");
-    // Устанавливаем DATABASE_URL для SQLite (не используется, но требуется для Config)
     std::env::set_var("DATABASE_URL", &format!("sqlite:{}", data_dir.join("stellarix.db").display()));
     std::env::set_var("USERNAME_SECRET", "dev_secret_32_bytes_here_xxxxxx");
     std::env::set_var("SESSION_SECRET", "dev_session_secret_32_bytes_here");
@@ -164,16 +153,14 @@ async fn bring_up(app: AppHandle) -> Result<String, String> {
 
     let url = format!("http://127.0.0.1:{APP_PORT}/");
 
-    // Запускаем сервер
     let server_handle = tokio::spawn(async move {
         info!("Запуск сервера в фоновом потоке...");
-        if let Err(e) = stellarix::serve_on(listener, pool, static_dir, false).await {
+        if let Err(e) = stellarix::serve_on(listener, pool, false).await {
             error!("Ошибка сервера: {}", e);
         }
         info!("Сервер остановлен");
     });
 
-    // Ждём, пока сервер начнёт слушать порт
     stage(&app, t0, "Ожидание готовности веб-сервера...");
     if wait_for_port(addr, Duration::from_secs(5)).await {
         info!("✅ Сервер готов и принимает соединения");
@@ -183,7 +170,6 @@ async fn bring_up(app: AppHandle) -> Result<String, String> {
         return Err("Сервер не запустился".to_string());
     }
 
-    // Отправляем событие фронтенду
     stage(&app, t0, "Сервер готов, отправляю server-ready...");
     app.emit("server-ready", url.clone()).map_err(|e| {
         error!("Ошибка отправки события server-ready: {}", e);
@@ -195,17 +181,16 @@ async fn bring_up(app: AppHandle) -> Result<String, String> {
     Ok(url)
 }
 
-// ============ Desktop Entry Point ============
 #[cfg(not(target_os = "android"))]
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
-#[cfg(not(target_os = "android"))]
-pub fn run_desktop() {
+/// Общая точка входа для десктопа и Android.
+fn run_app() {
     let _log_guard = setup_logging();
-    info!("=== 🚀 Запуск Tauri приложения (Desktop) ===");
+    info!("=== 🚀 Запуск Tauri приложения ===");
     info!("Лог старта пишется в файл: {}", log_file_path().display());
 
     tauri::Builder::default()
@@ -221,6 +206,7 @@ pub fn run_desktop() {
         ])
         .setup(move |app| {
             info!("Настройка приложения...");
+
             let handle = app.handle().clone();
             async_runtime::spawn(async move {
                 if let Err(e) = bring_up(handle.clone()).await {
@@ -232,7 +218,7 @@ pub fn run_desktop() {
         })
         .build(tauri::generate_context!())
         .expect("не удалось инициализировать Tauri")
-        .run(|app_handle, event| {
+        .run(|_app_handle, event| {
             if let tauri::RunEvent::ExitRequested { .. } = event {
                 info!("Получен запрос на выход");
                 info!("✅ Приложение завершено");
@@ -240,7 +226,50 @@ pub fn run_desktop() {
         });
 }
 
+// ============ Desktop Entry Point ============
+#[cfg(not(target_os = "android"))]
+pub fn run_desktop() {
+    run_app();
+}
+
 #[cfg(not(target_os = "android"))]
 fn main() {
     run_desktop();
+}
+
+// ============ Android Entry Point ============
+#[cfg(target_os = "android")]
+#[tauri::mobile_entry_point]
+fn mobile_main() {
+    run_app();
+}
+
+#[cfg(target_os = "android")]
+mod android_ctx {
+    use jni::objects::JObject;
+    use jni::JNIEnv;
+    use std::ffi::c_void;
+    use std::sync::Once;
+
+    static INIT: Once = Once::new();
+
+    #[no_mangle]
+    pub extern "system" fn Java_com_stellarix_desktop_MainActivity_initNativeAndroidContext<'local>(
+        env: JNIEnv<'local>,
+        activity: JObject<'local>,
+    ) {
+        INIT.call_once(|| {
+            let vm = env.get_java_vm().expect("get JavaVM").get_java_vm_pointer() as *mut c_void;
+            let global_activity = env
+                .new_global_ref(&activity)
+                .expect("global ref to activity");
+            let activity_ptr = global_activity.as_obj().as_raw() as *mut c_void;
+            // Утечка намеренная: ссылка на Activity должна жить весь процесс.
+            std::mem::forget(global_activity);
+            unsafe {
+                ndk_context::initialize_android_context(vm, activity_ptr);
+            }
+            tracing::info!("✅ ndk-context инициализирован вручную");
+        });
+    }
 }
