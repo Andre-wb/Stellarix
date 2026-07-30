@@ -6,7 +6,7 @@ use axum::{
 use askama::Template;
 use tower_sessions::Session;
 use uuid::Uuid;
-use crate::db::{self, verify_password, hash_password, DbPool};
+use crate::db_sqlite::{self, verify_password, hash_password, DbPool};
 use crate::stats::UserStats;
 use crate::schemas::{
     LoginTemplate,
@@ -75,7 +75,7 @@ pub async fn post_register(
     session: Session,
     Form(form): Form<RegisterForm>,
 ) -> Result<Redirect, Html<String>> {
-    if let Err(error_message) = db::validate_registration(&form) {
+    if let Err(error_message) = db_sqlite::validate_registration(&form) {
         let error_html = RegisterTemplate {
             flash_message: Some(error_message),
             username: Some(form.username.clone()),
@@ -86,7 +86,7 @@ pub async fn post_register(
         return Err(Html(error_html));
     }
 
-    match db::user_exists(&pool, &form.username).await {
+    match db_sqlite::user_exists(&pool, &form.username).await {
         Ok(true) => {
             let error_html = RegisterTemplate {
                 flash_message: Some("Пользователь с таким именем уже существует".to_string()),
@@ -126,7 +126,7 @@ pub async fn post_register(
         }
     };
 
-    let user = match db::create_user(&pool, &form.username, &password_hash).await {
+    let user = match db_sqlite::create_user(&pool, &form.username, &password_hash).await {
         Ok(user) => user,
         Err(error) => {
             tracing::error!("Не удалось создать запись пользователя: {}", error);
@@ -153,7 +153,7 @@ pub async fn post_login(
     session: Session,
     Form(form): Form<LoginForm>,
 ) -> Result<Redirect, Html<String>> {
-    let user = match db::get_user_by_username(&pool, &form.username).await {
+    let user = match db_sqlite::get_user_by_username(&pool, &form.username).await {
         Ok(Some(user)) => user,
         Ok(None) => {
             let error_html = LoginTemplate {
@@ -218,7 +218,7 @@ async fn complete_login(
     session: &Session,
     user_id: Uuid,
 ) -> Result<(), String> {
-    db::update_last_login(pool, user_id).await
+    db_sqlite::update_last_login(pool, user_id).await
         .map_err(|e| e.to_string())?;
     session.insert(SESSION_USER_ID, user_id.to_string()).await
         .map_err(|e| e.to_string())?;
@@ -240,7 +240,7 @@ pub async fn get_pairing(
         Err(_) => return Err(Redirect::to("/login")),
     };
 
-    let user = match db::get_user_by_id(&pool, user_id).await {
+    let user = match db_sqlite::get_user_by_id(&pool, user_id).await {
         Ok(Some(user)) => user,
         _ => return Err(Redirect::to("/login")),
     };
@@ -265,7 +265,7 @@ pub async fn get_chat(
         Err(_) => return Err(Redirect::to("/login")),
     };
 
-    let user = match db::get_user_by_id(&pool, user_id).await {
+    let user = match db_sqlite::get_user_by_id(&pool, user_id).await {
         Ok(Some(user)) => user,
         _ => return Err(Redirect::to("/login")),
     };
@@ -285,7 +285,7 @@ pub async fn get_dashboard(
         None => return Err(Redirect::to("/login")),
     };
 
-    let user = match db::get_user_by_id(&pool, user_id).await {
+    let user = match db_sqlite::get_user_by_id(&pool, user_id).await {
         Ok(Some(user)) => user,
         _ => return Err(Redirect::to("/login")),
     };
@@ -345,7 +345,7 @@ pub async fn get_settings(
         Err(_) => return Err(Redirect::to("/login")),
     };
 
-    let user = match db::get_user_by_id(&pool, user_id).await {
+    let user = match db_sqlite::get_user_by_id(&pool, user_id).await {
         Ok(Some(user)) => user,
         _ => return Err(Redirect::to("/login")),
     };

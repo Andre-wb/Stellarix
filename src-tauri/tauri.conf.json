@@ -35,6 +35,9 @@
     ],
     "resources": [
       "../static"
-    ]
+    ],
+    "android": {
+      "minSdkVersion": 26
+    }
   }
 }

@@ -6,7 +6,7 @@ use axum::{
 use serde::Deserialize;
 use tower_sessions::Session;
 use uuid::Uuid;
-use crate::db::DbPool;
+use crate::db_sqlite::DbPool;
 use crate::routes::session_user_id;
 use crate::schemas::{Chat, Message};
 

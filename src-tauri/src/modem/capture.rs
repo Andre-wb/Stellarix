@@ -59,6 +59,12 @@ impl Drop for Capture {
 }
 
 pub fn start_capture() -> Result<Capture, String> {
+    #[cfg(target_os = "android")]
+    {
+        use ndk_context::android_context;
+        android_context();
+    }
+
     let host = cpal::default_host();
     let device = host
         .default_input_device()

@@ -61,6 +61,12 @@ impl Listener {
 }
 
 pub fn start(app: AppHandle, key: Option<[u8; 32]>) -> Result<Listener, String> {
+    #[cfg(target_os = "android")]
+    {
+        use ndk_context::android_context;
+        android_context();
+    }
+
     let cap = start_capture()?;
     let out = OutputPlayer::open()?;
     let stop = Arc::new(AtomicBool::new(false));

@@ -33,7 +33,7 @@ where
     let joined = tauri::async_runtime::spawn_blocking(move || {
         send(flag.clone()).map(|report| (!flag.load(Ordering::SeqCst), report))
     })
-    .await;
+        .await;
     if let Ok(mut guard) = state.0.lock() {
         if guard.as_ref().is_some_and(|cur| Arc::ptr_eq(cur, &stop)) {
             guard.take();
@@ -48,6 +48,9 @@ pub async fn play_payload(
     state: State<'_, PlaybackState>,
     hex: String,
 ) -> Result<String, String> {
+    #[cfg(target_os = "android")]
+    ensure_android_context()?;
+
     let payload = hex_to_bytes(&hex)?;
     let (_, report) = run_playback(state, move |stop| modem::run_send_msg(&app, stop, &payload)).await?;
     Ok(report)
@@ -61,6 +64,9 @@ pub async fn send_file(
     hex: String,
     key: String,
 ) -> Result<String, String> {
+    #[cfg(target_os = "android")]
+    ensure_android_context()?;
+
     let content = hex_to_bytes(&hex)?;
     if content.is_empty() {
         return Err("файл пуст".to_string());
@@ -76,7 +82,7 @@ pub async fn send_file(
     let (_, report) = run_playback(state, move |stop| {
         modem::run_send_file(&app, stop, &name, &content, key)
     })
-    .await?;
+        .await?;
     Ok(report)
 }
 
@@ -95,6 +101,9 @@ pub fn start_listening(
     state: State<ListenerState>,
     key: String,
 ) -> Result<(), String> {
+    #[cfg(target_os = "android")]
+    ensure_android_context()?;
+
     let key = parse_optional_key(&key)?;
     let mut guard = state.0.lock().map_err(|_| "состояние занято".to_string())?;
     if let Some(old) = guard.take() {
@@ -112,6 +121,13 @@ pub fn stop_listening(state: State<ListenerState>) {
             listener.signal_stop();
         }
     }
+}
+
+#[cfg(target_os = "android")]
+fn ensure_android_context() -> Result<(), String> {
+    use ndk_context::android_context;
+    android_context();
+    Ok(())
 }
 
 fn hex_to_bytes(hex: &str) -> Result<Vec<u8>, String> {

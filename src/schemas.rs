@@ -20,16 +20,18 @@ pub struct User {
 
 #[derive(Debug, FromRow, Clone)]
 pub struct Chat {
-    pub members: Vec<User>,
-    pub messages: Vec<Message>,
-    pub session_key: String,
+    pub id: Uuid,
+    pub owner_id: Uuid,
+    pub peer_fingerprint: String,
+    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Debug, FromRow, Clone)]
 pub struct Message {
     pub id: Uuid,
-    pub author: User,
-    pub content: String,
+    pub chat_id: Uuid,
+    pub outgoing: bool,
+    pub payload_hex: String,
     pub sent_at: DateTime<Utc>,
 }
 
