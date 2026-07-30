@@ -1,11 +1,16 @@
 [package]
 name = "stellarix-desktop"
-version = "0.1.0"
+version = "1.1.0"
 edition = "2021"
 description = "Десктоп-оболочка Stellarix на Tauri"
 
 [lib]
-crate-type = ["cdylib", "staticlib"]
+crate-type = ["cdylib", "staticlib", "rlib"]
+name = "stellarix_desktop_lib"
+
+[[bin]]
+name = "stellarix-desktop_bin"
+path = "src/main.rs"
 
 [build-dependencies]
 tauri-build = { version = "2.6", features = [] }

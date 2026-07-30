@@ -232,11 +232,6 @@ pub fn run_desktop() {
     run_app();
 }
 
-#[cfg(not(target_os = "android"))]
-fn main() {
-    run_desktop();
-}
-
 // ============ Android Entry Point ============
 #[cfg(target_os = "android")]
 #[tauri::mobile_entry_point]
